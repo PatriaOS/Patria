@@ -23,7 +23,10 @@ async function bytesFromUri(uri: string): Promise<Uint8Array> {
 }
 
 export function videoLimitError(durationSeconds: number | null, byteLength: number): string | null {
-  if (durationSeconds == null || durationSeconds > VIDEO_MAX_SECONDS || durationSeconds < 1) {
+  if (durationSeconds == null || durationSeconds < 1) {
+    return 'video-no-duration';
+  }
+  if (durationSeconds > VIDEO_MAX_SECONDS) {
     return 'video-too-long';
   }
   if (byteLength > VIDEO_MAX_BYTES) {
@@ -41,9 +44,10 @@ export async function prepareVideo(input: {
   takenAt?: string;
 }): Promise<PreparedVideo> {
   const fullBytes = await bytesFromUri(input.uri);
-  const limit = videoLimitError(input.durationSeconds, fullBytes.byteLength);
-  if (limit) {
-    throw new Error(limit);
+  const durationSeconds = input.durationSeconds;
+  const limit = videoLimitError(durationSeconds, fullBytes.byteLength);
+  if (limit || durationSeconds == null) {
+    throw new Error(limit ?? 'video-no-duration');
   }
   const location = scanVideoLocation(fullBytes);
   if (location === 'has_location') {
@@ -63,7 +67,7 @@ export async function prepareVideo(input: {
     width: input.width && input.width > 0 ? input.width : 16,
     height: input.height && input.height > 0 ? input.height : 9,
     takenAt: input.takenAt ?? new Date().toISOString(),
-    durationSeconds: input.durationSeconds as number,
+    durationSeconds,
     fullBytes,
     contentType,
   };

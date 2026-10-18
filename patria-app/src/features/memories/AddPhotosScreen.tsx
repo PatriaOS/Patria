@@ -24,7 +24,7 @@ import { fetchUploaderCircles, uploadPreparedPhoto, uploadPreparedVideo } from '
 import { pickMedia, type PickedMedia } from './pickMedia';
 import { preparePhoto } from './preparePhoto';
 import { prepareVideo } from './prepareVideo';
-import { shareItemMessage } from './shareMessages';
+import { shareItemMessage, shareSkipSummary } from './shareMessages';
 import { sourceHashForPick } from './sourceHash';
 import { getOrCreateSourceKey } from './sourceKey';
 
@@ -99,7 +99,7 @@ export function AddPhotosScreen() {
     setProgress(copy.memories.sharing);
     let done = 0;
     let ok = 0;
-    let lastError: string | null = null;
+    const skips: unknown[] = [];
     try {
       const secret = await getOrCreateSourceKey(userId);
       const trimmed = caption.trim();
@@ -156,7 +156,7 @@ export function AddPhotosScreen() {
           ok += 1;
         } catch (error) {
           logFailedAction(error);
-          lastError = shareItemMessage(error);
+          skips.push(error);
         }
         done += 1;
         setProgress(
@@ -165,13 +165,8 @@ export function AddPhotosScreen() {
             .replace('{total}', String(picked.length)),
         );
       }
-      if (ok === 0) {
-        const detail = lastError ?? copy.memories.shareFailed;
-        setFormError(
-          process.env.EXPO_PUBLIC_E2E === '1'
-            ? `${detail} ${describeCaughtError(new Error(detail)).code}`
-            : detail,
-        );
+      if (skips.length > 0) {
+        setFormError(shareSkipSummary(skips) || shareItemMessage(skips[0]));
         return;
       }
       router.replace('/(signed-in)/memories');
@@ -185,7 +180,7 @@ export function AddPhotosScreen() {
       );
     } finally {
       setBusy(false);
-      if (ok === 0) {
+      if (ok === 0 || skips.length > 0) {
         setProgress(null);
       }
     }

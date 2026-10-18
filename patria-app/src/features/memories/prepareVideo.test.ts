@@ -6,4 +6,9 @@ describe('video limits', () => {
     expect(videoLimitError(30, 50 * 1024 * 1024 + 1)).toBe('video-too-big');
     expect(videoLimitError(12, 1024)).toBeNull();
   });
+
+  it('refuses a missing duration instead of guessing', () => {
+    expect(videoLimitError(null, 10)).toBe('video-no-duration');
+    expect(videoLimitError(0, 10)).toBe('video-no-duration');
+  });
 });

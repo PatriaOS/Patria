@@ -12,6 +12,7 @@ describe('copy', () => {
     expect(copy.memories.limitedBody).toMatch(/new camera photos/i);
     expect(copy.memories.noLocation).toBe('No location is stored with this photo.');
     expect(copy.memories.noLocationVideo).toBe('No location is stored with this video.');
+    expect(copy.memories.skippedVideoTooLong).toMatch(/1 video wasn’t shared/i);
     expect(copy.relationships.mum).toBe('Mom');
     expect(copy.createFamily.failed.length).toBeGreaterThan(0);
     expect(copy.home.joinFamily).toBe('Join another family');

@@ -3,8 +3,9 @@ import { fireEvent, waitFor } from '@testing-library/react-native';
 import { copy } from '../../lib/copy';
 import { renderScreen } from '../../test/renderScreen';
 import { AddPhotosScreen } from './AddPhotosScreen';
-import { fetchUploaderCircles } from './memoryApi';
+import { fetchUploaderCircles, uploadPreparedPhoto, uploadPreparedVideo } from './memoryApi';
 import { pickMedia } from './pickMedia';
+import { prepareVideo } from './prepareVideo';
 
 jest.mock('../../lib/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
@@ -55,6 +56,10 @@ jest.mock('./memoryApi', () => ({
   uploadPreparedVideo: jest.fn(async () => 'vid'),
 }));
 
+jest.mock('./prepareVideo', () => ({
+  prepareVideo: jest.fn(),
+}));
+
 jest.mock('./preparePhoto', () => ({
   preparePhoto: jest.fn(async () => ({
     fullUri: 'file://full.jpg',
@@ -88,5 +93,42 @@ describe('Add photos', () => {
     await waitFor(() => {
       expect(share).toBeTruthy();
     });
+  });
+
+  it('shows why a video was skipped and still uploads the photos', async () => {
+    (pickMedia as jest.Mock).mockResolvedValue([
+      {
+        uri: 'file://a.jpg',
+        width: 100,
+        height: 80,
+        exif: null,
+        mediaType: 'photo',
+        durationSeconds: null,
+        assetId: 'PH:A',
+        fileSize: 10,
+        mimeType: 'image/jpeg',
+      },
+      {
+        uri: 'file://clip.mp4',
+        width: 640,
+        height: 360,
+        exif: null,
+        mediaType: 'video',
+        durationSeconds: 3,
+        assetId: 'PH:V',
+        fileSize: 1000,
+        mimeType: 'video/mp4',
+      },
+    ]);
+    (prepareVideo as jest.Mock).mockRejectedValue(new Error('video-too-long'));
+    (uploadPreparedPhoto as jest.Mock).mockClear();
+    (uploadPreparedVideo as jest.Mock).mockClear();
+    const { findByText } = renderScreen(<AddPhotosScreen />);
+    fireEvent.press(await findByText(copy.memories.share));
+    expect(await findByText(copy.memories.skippedVideoTooLong)).toBeTruthy();
+    await waitFor(() => {
+      expect(uploadPreparedPhoto).toHaveBeenCalledTimes(1);
+    });
+    expect(uploadPreparedVideo).not.toHaveBeenCalled();
   });
 });

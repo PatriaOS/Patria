@@ -422,7 +422,7 @@ flowchart TD
 
 Slice 1 is done (real iPhone tests 14–16 after D30 on hosted). Test 17 step 2 (removed member’s screen after refresh) is still pending by hand.
 
-* [x] Slice 2: pick up to 30 photos or short videos at once; each uploads on its own; a failure does not stop the others.
+* [x] Slice 2: pick up to 30 photos or short videos at once; each uploads on its own; a failure does not stop the others, and the person is told which item was skipped and why.
 * [x] Slice 2: short videos (≤60s, ≤50 MB after Medium export) play in the library; location must be gone or the video is refused.
 * [x] Slice 2: a member can connect their photo library (All new photos or Selected albums) in under 3 minutes, pick a circle, and start from today or the last 30 days.
 * [ ] New photos appear in the family library within 1 hour when the phone is on WiFi (slice 2: while Patria is open, phone test 19 step 4; camera and background upload later).

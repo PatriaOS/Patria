@@ -1,6 +1,6 @@
 import { Image } from 'react-native';
 
-import type { PickedMedia } from './pickMedia';
+import type { PickerAssetInput } from './pickMedia';
 import type { PickedPhoto } from './preparePhoto';
 
 export function loadE2ePickedPhotos(): PickedPhoto[] {
@@ -15,14 +15,17 @@ export function loadE2ePickedPhotos(): PickedPhoto[] {
   ];
 }
 
-export function loadE2ePickedMedia(): PickedMedia[] {
+export function loadE2ePickerAssets(): PickerAssetInput[] {
   const photos = loadE2ePickedPhotos().map((photo) => ({
-    ...photo,
-    mediaType: 'photo' as const,
-    durationSeconds: null,
+    uri: photo.uri,
+    width: photo.width ?? 1,
+    height: photo.height ?? 1,
+    exif: photo.exif,
+    type: 'image' as const,
+    mimeType: 'image/jpeg',
+    duration: null,
     assetId: null,
     fileSize: null,
-    mimeType: 'image/jpeg',
   }));
   const video = Image.resolveAssetSource(require('../../../assets/e2e/sample.mp4'));
   return [
@@ -32,11 +35,11 @@ export function loadE2ePickedMedia(): PickedMedia[] {
       width: video.width || 640,
       height: video.height || 360,
       exif: null,
-      mediaType: 'video',
-      durationSeconds: 2,
+      type: 'video',
+      mimeType: 'video/mp4',
+      duration: 2000,
       assetId: null,
       fileSize: null,
-      mimeType: 'video/mp4',
     },
   ];
 }

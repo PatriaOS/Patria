@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-18 — Picker duration is always milliseconds
+
+A 3 second clip on a real iPhone was refused as longer than a minute, and a 14 second clip in a mixed pick vanished with no message. `expo-image-picker` documents `asset.duration` in milliseconds on iOS and Android; we compared it to 60 as if it were seconds. The helper always divides by 1000 (no unit guess) for the limit, `duration_seconds`, and the tile. Missing or zero duration is refused kindly. A mixed pick stays on the add screen and names the skip. The gated e2e sample now uses the picker shape (`duration: 2000`). Library sync is photos only, so it had no duration unit bug. No database change.
+
+---
+
 ## 2026-10-17 — MEM01 slice 2: many items, short video, connect library
 
 Slice 1 stayed pick-and-share. Slice 2 lets someone pick up to 30 items, share a short video after a Medium export with a fail-closed location scan, and connect their iOS photo library while Patria is open (WiFi by default, From today or last 30 days, owner-only RLS). Album choices stay on the phone. A per-user HMAC key, readable only by that user, dedupes picker and sync. Deleted sync items stay gone via tombstones. Videos from the library and background upload wait. Hosted migrations wait until asked.
