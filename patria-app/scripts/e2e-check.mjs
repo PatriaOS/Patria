@@ -96,11 +96,13 @@ for (const filename of flowFiles) {
   }
 }
 
-const pickPhotosSource = readFileSync(join(APP_ROOT, 'src/features/memories/pickPhotos.ts'), 'utf8');
-if (/(?:assets\/e2e|sample1\.jpg|sample2\.jpg)/.test(pickPhotosSource)) {
-  errors.push(
-    'pickPhotos.ts must not reference bundled e2e sample images; those live in e2ePhotoSamples.bundle.ts and load only when EXPO_PUBLIC_E2E=1.',
-  );
+for (const name of ['pickPhotos.ts', 'pickMedia.ts']) {
+  const source = readFileSync(join(APP_ROOT, 'src/features/memories', name), 'utf8');
+  if (/(?:assets\/e2e|sample1\.jpg|sample2\.jpg|sample\.mp4)/.test(source)) {
+    errors.push(
+      `${name} must not reference bundled e2e sample media; those live in e2ePhotoSamples.bundle.ts and load only when EXPO_PUBLIC_E2E=1.`,
+    );
+  }
 }
 
 if (errors.length > 0) {

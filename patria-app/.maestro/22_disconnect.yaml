@@ -1,0 +1,44 @@
+# PHONE_TESTS: 22
+# AREAS: memories
+appId: app.patria.dev
+---
+- launchApp:
+    permissions:
+      photos: allow
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "memories"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- tapOn:
+    id: "connect-my-photos"
+- tapOn:
+    id: "connect-continue"
+- extendedWaitUntil:
+    visible:
+      id: "turn-on-sharing"
+    timeout: 20000
+- tapOn:
+    id: "connect-circle-household"
+- tapOn:
+    id: "turn-on-sharing"
+- extendedWaitUntil:
+    visible:
+      id: "disconnect"
+    timeout: 20000
+- tapOn:
+    id: "disconnect"
+- extendedWaitUntil:
+    visible: "Cancel"
+    timeout: 10000
+- assertVisible:
+    text: ".*already shared stay.*"
+- tapOn:
+    point: "68%,58%"
+- extendedWaitUntil:
+    visible:
+      id: "connect-my-photos"
+    timeout: 20000

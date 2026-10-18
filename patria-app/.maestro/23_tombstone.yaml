@@ -1,0 +1,14 @@
+# PHONE_TESTS: 23
+# AREAS: memories
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "memories"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- assertVisible:
+    id: "add-photos"

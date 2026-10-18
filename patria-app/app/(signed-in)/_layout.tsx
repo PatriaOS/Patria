@@ -102,6 +102,14 @@ export default function SignedInLayout() {
         options={{ ...pushedScreenHeader, title: screenTitles.memoriesAdd }}
       />
       <Stack.Screen
+        name="memories-connect"
+        options={{ ...pushedScreenHeader, title: screenTitles.memoriesConnect }}
+      />
+      <Stack.Screen
+        name="memories-connect-settings"
+        options={{ ...pushedScreenHeader, title: screenTitles.memoriesConnectSettings }}
+      />
+      <Stack.Screen
         name="memory/[itemId]"
         options={{ ...pushedScreenHeader, title: screenTitles.memoryItem }}
       />

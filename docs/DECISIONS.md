@@ -204,3 +204,16 @@ Every family space still gets four default circles. Membership of those circles 
 * Children under 13 (no login) follow Household only.
 
 A migration backfills existing families. The Memories picker only lists circles the uploader belongs to, so Close Friends stays hidden until someone is in it. The invite’s default circle is still applied on accept if it is a shared circle the person is not already in.
+
+## D31. Library sync and short video (17 October 2026)
+
+MEM01 slice 2. Standard tier (D29). Default circles (D30).
+
+* Only the phone’s owner can create, change or read their library connection. No admin can turn sharing on for anyone else.
+* Album names, album ids and local asset ids stay on the phone. The server stores at most: user, family, device, mode, target circle, WiFi or cellular, paused, timestamps, and an opaque source hash.
+* The HMAC key is a 32-byte secret per user in `memory_source_keys`. RLS: only that user can select or insert; there is no update. `get_or_create_memory_source_key` inserts once (`ON CONFLICT DO NOTHING`) then fetches, so two devices racing share one key and never replace it. Hash input is the Photos asset id when the picker returns one, otherwise the original file bytes before re-encoding. Uniqueness is `(uploader_id, family_space_id, source_hash)`, so the same photo can still go to another family. Moving circles does not create a new row.
+* Start point is From today (default) or the last 30 days. Never the whole library. If the start is last 30 days, or more than 20 items are waiting, show the count and circle and ask before sharing.
+* Photo library permission, media-library reads and the sync engine start only after the member is signed in and has turned on Connect my photos. Permission is asked when they tap Continue on Connect, not at launch. Sync runs on open, on foreground, and while Patria stays open. No background tasks. WiFi only by default; cellular is a switch. Android library sync waits for a development build.
+* Videos (picker only in this slice): at most 60 seconds and 50 MB after a Medium export. Scan `udta`, `meta`/`keys` (`com.apple.quicktime.location.ISO6709`) and `©xyz`. If the scanner cannot parse the file, refuse it. Resumable upload above 6 MB. Photos stay capped at 8 MB in the app.
+* Deleting a library-sync item writes a tombstone (same hash, owner-only RLS) so sync does not re-share it. Adding it again by hand through Add photos is allowed and clears the tombstone.
+* Leaving or being removed from a family deletes that person’s connection rows for the family. If they are no longer in the target circle, sync pauses and asks them to pick a circle.

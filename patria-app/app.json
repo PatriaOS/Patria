@@ -9,7 +9,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.patria.dev"
+      "bundleIdentifier": "app.patria.dev",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Patria can share new photos with your family while the app is open, if you turn that on.",
+        "NSPhotoLibraryAddUsageDescription": "Patria does not save photos to your library."
+      }
     },
     "android": {
       "package": "app.patria.dev",
@@ -39,7 +43,16 @@
         {
           "photosPermission": "Patria uses photos you pick to share with your family."
         }
-      ]
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Patria can share new photos with your family while the app is open, if you turn that on.",
+          "savePhotosPermission": "Patria does not save photos to your library.",
+          "preventAutomaticLimitedAccessAlert": true
+        }
+      ],
+      "expo-video"
     ]
   }
 }

@@ -34,7 +34,19 @@ describe('e2e photo samples gating', () => {
     } as never);
     const picked = await pickPhotos();
     expect(launch).toHaveBeenCalled();
-    expect(picked).toEqual([{ uri: 'file://picked.jpg', width: 10, height: 8, exif: null }]);
+    expect(picked).toEqual([
+      {
+        uri: 'file://picked.jpg',
+        width: 10,
+        height: 8,
+        exif: null,
+        mediaType: 'photo',
+        durationSeconds: null,
+        assetId: null,
+        fileSize: null,
+        mimeType: null,
+      },
+    ]);
   });
 
   it('fails startup when sample photos load in a non-e2e build', () => {

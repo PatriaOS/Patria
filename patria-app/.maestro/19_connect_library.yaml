@@ -1,0 +1,87 @@
+# PHONE_TESTS: 19
+# AREAS: memories
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'connect'}
+    commands:
+      - launchApp:
+          permissions:
+            photos: allow
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - tapOn:
+          id: "connect-my-photos"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories-connect"
+          timeout: 20000
+      - assertVisible:
+          id: "connect-explainer"
+      - tapOn:
+          id: "connect-continue"
+      - extendedWaitUntil:
+          visible:
+            id: "turn-on-sharing"
+          timeout: 20000
+      - tapOn:
+          id: "connect-circle-household"
+      - tapOn:
+          id: "start-today"
+      - tapOn:
+          id: "turn-on-sharing"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - assertVisible:
+          id: "library-status"
+      - tapOn:
+          text: "Share them"
+          optional: true
+- runFlow:
+    when:
+      true: ${PHASE == 'new_photo'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - tapOn:
+          text: "Share them"
+          optional: true
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - extendedWaitUntil:
+          visible: "Added automatically"
+          timeout: 45000
+- runFlow:
+    when:
+      true: ${PHASE == 'see_auto'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "memories"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-memories"
+          timeout: 20000
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - extendedWaitUntil:
+          visible: "Added automatically"
+          timeout: 20000

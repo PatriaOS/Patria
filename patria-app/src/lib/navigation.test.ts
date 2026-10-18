@@ -46,6 +46,8 @@ describe('navigation headers', () => {
     expect(routes.removeOldPhones).toBe('/(signed-in)/remove-old-phones');
     expect(routes.memories).toBe('/(signed-in)/memories');
     expect(routes.memoriesAdd).toBe('/(signed-in)/memories-add');
+    expect(routes.memoriesConnect).toBe('/(signed-in)/memories-connect');
+    expect(routes.memoriesConnectSettings).toBe('/(signed-in)/memories-connect-settings');
     expect(routes.memoryItem('abc')).toBe('/(signed-in)/memory/abc');
   });
 

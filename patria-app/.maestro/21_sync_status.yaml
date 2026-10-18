@@ -1,0 +1,40 @@
+# PHONE_TESTS: 21
+# AREAS: memories
+appId: app.patria.dev
+---
+- launchApp:
+    permissions:
+      photos: allow
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "memories"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- tapOn:
+    id: "connect-my-photos"
+- tapOn:
+    id: "connect-continue"
+- extendedWaitUntil:
+    visible:
+      id: "turn-on-sharing"
+    timeout: 20000
+- tapOn:
+    id: "connect-circle-household"
+- tapOn:
+    id: "use-cellular"
+- tapOn:
+    id: "turn-on-sharing"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- tapOn:
+    id: "pause"
+- extendedWaitUntil:
+    visible: "Paused"
+    timeout: 20000
+- tapOn:
+    id: "resume"

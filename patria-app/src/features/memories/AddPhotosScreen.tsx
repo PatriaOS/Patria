@@ -20,16 +20,20 @@ import { describeCaughtError, logFailedAction } from '../../lib/devLog';
 import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 import { circleExplanation, defaultMemoryCircleId } from './circleAudience';
-import { fetchUploaderCircles, uploadPreparedPhoto } from './memoryApi';
-import { pickPhotos } from './pickPhotos';
-import { preparePhoto, type PickedPhoto } from './preparePhoto';
+import { fetchUploaderCircles, uploadPreparedPhoto, uploadPreparedVideo } from './memoryApi';
+import { pickMedia, type PickedMedia } from './pickMedia';
+import { preparePhoto } from './preparePhoto';
+import { prepareVideo } from './prepareVideo';
+import { shareItemMessage } from './shareMessages';
+import { sourceHashForPick } from './sourceHash';
+import { getOrCreateSourceKey } from './sourceKey';
 
 export function AddPhotosScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
-  const [picked, setPicked] = useState<PickedPhoto[] | null>(null);
+  const [picked, setPicked] = useState<PickedMedia[] | null>(null);
   const [circleId, setCircleId] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,7 +46,7 @@ export function AddPhotosScreen() {
 
   useEffect(() => {
     let alive = true;
-    void pickPhotos()
+    void pickMedia()
       .then((result) => {
         if (!alive) {
           return;
@@ -93,28 +97,82 @@ export function AddPhotosScreen() {
     setFormError(null);
     setBusy(true);
     setProgress(copy.memories.sharing);
+    let done = 0;
+    let ok = 0;
+    let lastError: string | null = null;
     try {
+      const secret = await getOrCreateSourceKey(userId);
       const trimmed = caption.trim();
-      let done = 0;
-      for (const photo of picked) {
-        const prepared = await preparePhoto(photo);
-        await uploadPreparedPhoto({
-          spaceId,
-          circleId: selectedId,
-          uploaderId: userId,
-          caption: trimmed.length > 0 ? trimmed : null,
-          takenAt: prepared.takenAt,
-          width: prepared.width,
-          height: prepared.height,
-          fullUri: prepared.fullUri,
-          thumbUri: prepared.thumbUri,
-        });
+      for (const item of picked) {
+        try {
+          if (item.mediaType === 'video') {
+            const prepared = await prepareVideo({
+              uri: item.uri,
+              width: item.width,
+              height: item.height,
+              durationSeconds: item.durationSeconds,
+              mimeType: item.mimeType,
+            });
+            const sourceHash = sourceHashForPick({
+              secret,
+              assetId: item.assetId,
+              originalBytes: prepared.fullBytes,
+            });
+            await uploadPreparedVideo({
+              spaceId,
+              circleId: selectedId,
+              uploaderId: userId,
+              caption: trimmed.length > 0 ? trimmed : null,
+              takenAt: prepared.takenAt,
+              width: prepared.width,
+              height: prepared.height,
+              fullUri: prepared.fullUri,
+              thumbUri: prepared.thumbUri,
+              durationSeconds: prepared.durationSeconds,
+              fullContentType: prepared.contentType,
+              sourceHash,
+            });
+          } else {
+            const prepared = await preparePhoto(item);
+            const sourceHash = sourceHashForPick({
+              secret,
+              assetId: item.assetId,
+              originalBytes: prepared.originalBytes,
+            });
+            await uploadPreparedPhoto({
+              spaceId,
+              circleId: selectedId,
+              uploaderId: userId,
+              caption: trimmed.length > 0 ? trimmed : null,
+              takenAt: prepared.takenAt,
+              width: prepared.width,
+              height: prepared.height,
+              fullUri: prepared.fullUri,
+              thumbUri: prepared.thumbUri,
+              sourceHash,
+              source: 'picker',
+            });
+          }
+          ok += 1;
+        } catch (error) {
+          logFailedAction(error);
+          lastError = shareItemMessage(error);
+        }
         done += 1;
         setProgress(
           copy.memories.sharingProgress
             .replace('{done}', String(done))
             .replace('{total}', String(picked.length)),
         );
+      }
+      if (ok === 0) {
+        const detail = lastError ?? copy.memories.shareFailed;
+        setFormError(
+          process.env.EXPO_PUBLIC_E2E === '1'
+            ? `${detail} ${describeCaughtError(new Error(detail)).code}`
+            : detail,
+        );
+        return;
       }
       router.replace('/(signed-in)/memories');
     } catch (error) {
@@ -127,7 +185,9 @@ export function AddPhotosScreen() {
       );
     } finally {
       setBusy(false);
-      setProgress(null);
+      if (ok === 0) {
+        setProgress(null);
+      }
     }
   };
 
@@ -147,6 +207,9 @@ export function AddPhotosScreen() {
       accessibilityLabel={copy.memories.addPhotos}
     >
       <Title>{copy.memories.addPhotos}</Title>
+      <Muted testID="picked-count">
+        {copy.memories.pickedCount.replace('{count}', String(picked.length))}
+      </Muted>
       <Muted>{copy.invite.circleLabel}</Muted>
       <View style={styles.chips}>
         {circles.map((circle) => {

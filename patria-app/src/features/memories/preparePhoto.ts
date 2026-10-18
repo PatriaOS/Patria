@@ -1,6 +1,7 @@
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 import { jpegHasGps } from './jpegGps';
+import { PHOTO_MAX_BYTES } from './sourceHash';
 
 export const FULL_LONG_EDGE = 2048;
 export const THUMB_LONG_EDGE = 400;
@@ -19,6 +20,7 @@ export type PreparedPhoto = {
   height: number;
   takenAt: string;
   fullBytes: Uint8Array;
+  originalBytes: Uint8Array;
 };
 
 export function resizeForLongEdge(
@@ -74,10 +76,13 @@ export async function preparePhoto(
   const sourceWidth = photo.width && photo.width > 0 ? photo.width : FULL_LONG_EDGE;
   const sourceHeight = photo.height && photo.height > 0 ? photo.height : FULL_LONG_EDGE;
   const takenAt = takenAtFromExif(photo.exif, now).toISOString();
+  const originalBytes = await bytesFromUri(photo.uri);
   if (/^https?:\/\//i.test(photo.uri)) {
-    const fullBytes = await bytesFromUri(photo.uri);
-    if (jpegHasGps(fullBytes)) {
+    if (jpegHasGps(originalBytes)) {
       throw new Error('location-not-stripped');
+    }
+    if (originalBytes.byteLength > PHOTO_MAX_BYTES) {
+      throw new Error('photo-too-big');
     }
     return {
       fullUri: photo.uri,
@@ -85,7 +90,8 @@ export async function preparePhoto(
       width: sourceWidth,
       height: sourceHeight,
       takenAt,
-      fullBytes,
+      fullBytes: originalBytes,
+      originalBytes,
     };
   }
   const fullSize = resizeForLongEdge(sourceWidth, sourceHeight, FULL_LONG_EDGE);
@@ -102,6 +108,9 @@ export async function preparePhoto(
   if (jpegHasGps(fullBytes)) {
     throw new Error('location-not-stripped');
   }
+  if (fullBytes.byteLength > PHOTO_MAX_BYTES) {
+    throw new Error('photo-too-big');
+  }
   return {
     fullUri: full.uri,
     thumbUri: thumb.uri,
@@ -109,5 +118,6 @@ export async function preparePhoto(
     height: full.height,
     takenAt,
     fullBytes,
+    originalBytes,
   };
 }

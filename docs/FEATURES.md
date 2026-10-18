@@ -422,13 +422,15 @@ flowchart TD
 
 Slice 1 is done (real iPhone tests 14–16 after D30 on hosted). Test 17 step 2 (removed member’s screen after refresh) is still pending by hand.
 
-* [ ] A member can connect a library in under 3 minutes.
-* [ ] New photos appear in the family library within 1 hour when the phone is on WiFi.
+* [x] Slice 2: pick up to 30 photos or short videos at once; each uploads on its own; a failure does not stop the others.
+* [x] Slice 2: short videos (≤60s, ≤50 MB after Medium export) play in the library; location must be gone or the video is refused.
+* [x] Slice 2: a member can connect their photo library (All new photos or Selected albums) in under 3 minutes, pick a circle, and start from today or the last 30 days.
+* [ ] New photos appear in the family library within 1 hour when the phone is on WiFi (slice 2: while Patria is open, phone test 19 step 4; camera and background upload later).
 * [ ] "Family faces only" mode uploads no photo without a recognized family member.
 
-**Left for later slices:** automatic background upload, sharing modes (All / family faces / albums), video, dedup, storage plans, Stories (MEM03), face recognition (MEM05), Private Memories.
+**Left for later slices:** upload while Patria is closed, Family faces only (MEM05), video from library sync, Android library sync, smart cleanup (MEM02), Stories (MEM03), the whole back catalogue, Private Memories.
 
-**Data captured:** Media files (Standard tier in slice 1), capture time, uploader, circle. Location is not stored. Face tags and quality scores come later.
+**Data captured:** Media files (Standard tier), capture time, uploader, circle, source hash (keyed), connection settings without album names. Location is not stored. Face tags and quality scores come later.
 
 **Success measure:** Average of 2 or more contributing phones per active family.
 

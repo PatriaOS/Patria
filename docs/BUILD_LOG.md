@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-17 — MEM01 slice 2: many items, short video, connect library
+
+Slice 1 stayed pick-and-share. Slice 2 lets someone pick up to 30 items, share a short video after a Medium export with a fail-closed location scan, and connect their iOS photo library while Patria is open (WiFi by default, From today or last 30 days, owner-only RLS). Album choices stay on the phone. A per-user HMAC key, readable only by that user, dedupes picker and sync. Deleted sync items stay gone via tombstones. Videos from the library and background upload wait. Hosted migrations wait until asked.
+
+---
+
 ## 2026-10-17 — MEM01 slice 1 done on a real iPhone
 
 Tests 14, 15 and 16 passed on a real iPhone (Expo Go, hosted test project) after D30 was pushed. Slice 1 of Shared Family Library is done: pick and share photos into a circle, see them in the library, move or delete your own. Test 17 step 2 (removed member’s phone after refresh) is still pending by hand. Later MEM01 work stays later: auto-upload, sharing modes, video, Private Memories.

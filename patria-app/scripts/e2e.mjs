@@ -1449,6 +1449,121 @@ try {
         });
       }
     }
+
+    if (test.number === 18) {
+      step(18, 1, 'Pick two photos and a short video as Test 1', () =>
+        result(
+          'skip',
+          'manual: Maestro cannot drive the system photo picker; automated runs use bundled samples only when EXPO_PUBLIC_E2E=1',
+        ),
+      );
+      step(18, 2, 'Count, Household, then Share', () => {
+        maestro({
+          flow: flow('18_pick_many.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+        captureScreen(deviceA, '18-video-player');
+      });
+      step(18, 3, 'Video plays full screen with pause and no location', () => result('pass'));
+      step(18, 4, 'Refuse an over-limit video', () =>
+        result('skip', 'manual: needs a long or large video on the phone'),
+      );
+      step(18, 5, 'Refuse a video that still has location', () =>
+        result('skip', 'manual: keep a real GPS video check on a phone before treating video as done'),
+      );
+    }
+
+    if (test.number === 19) {
+      if (args.devices < 2 || !deviceB) {
+        skipRest(19, 1, 'needs 2 simulators (E2E_DEVICES=2)', 5);
+      } else {
+        step(19, 1, 'Explainer before permission', () => {
+          maestro({
+            flow: flow('19_connect_library.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'connect' },
+          });
+        });
+        step(19, 2, 'Household, From today, turn sharing on', () => result('pass'));
+        step(19, 3, 'New camera photo appears automatically', () =>
+          result('skip', 'manual: needs a new photo from the phone camera'),
+        );
+        step(19, 4, 'New Simulator photo is shared automatically', () => {
+          execFileSync(
+            'xcrun',
+            ['simctl', 'addmedia', deviceA, join(MAESTRO_DIR, 'media', 'sample_new.jpg')],
+            { stdio: 'ignore' },
+          );
+          maestro({
+            flow: flow('19_connect_library.yaml'),
+            device: deviceA,
+            env: { ...signInEnv(secrets, 1), PHASE: 'new_photo' },
+          });
+          maestro({
+            flow: flow('19_connect_library.yaml'),
+            device: deviceB,
+            env: { ...signInEnv(secrets, 2), PHASE: 'see_auto' },
+          });
+        });
+        step(19, 5, 'Limited access copy', () =>
+          result('skip', 'manual: Limited Photo Library on a real iPhone'),
+        );
+      }
+    }
+
+    if (test.number === 20) {
+      step(20, 1, 'Selected albums is offered with full access', () => {
+        maestro({
+          flow: flow('20_selected_albums.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(20, 2, 'Photo outside the album is not shared', () =>
+        result('skip', 'manual: Simulator albums are not a reliable stand-in for a phone library'),
+      );
+    }
+
+    if (test.number === 21) {
+      step(21, 1, 'Pause sharing', () => {
+        maestro({
+          flow: flow('21_sync_status.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(21, 2, 'Resume sharing', () => result('pass'));
+      step(21, 3, 'Waiting for WiFi', () =>
+        result('skip', 'manual: needs WiFi off on the phone'),
+      );
+    }
+
+    if (test.number === 22) {
+      step(22, 1, 'Disconnect explains shared photos stay', () => {
+        maestro({
+          flow: flow('22_disconnect.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(22, 2, 'Connect is offered again', () => result('pass'));
+    }
+
+    if (test.number === 23) {
+      step(23, 1, 'Share a photo automatically', () =>
+        result('skip', 'manual: needs library sync of a real photo'),
+      );
+      step(23, 2, 'Open and offer delete', () =>
+        result('skip', 'manual: depends on an automatically shared photo'),
+      );
+      step(23, 3, 'Delete it', () =>
+        result('skip', 'manual: depends on an automatically shared photo'),
+      );
+      step(23, 4, 'Deleted photo is not shared again after reopen', () =>
+        result('skip', 'manual: delete a photo that was shared automatically, then reopen Patria'),
+      );
+    }
     } catch (error) {
       if (!(error instanceof Error) || error.message !== 'timed out') {
         throw error;

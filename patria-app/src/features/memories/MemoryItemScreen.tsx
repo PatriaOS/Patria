@@ -39,6 +39,27 @@ function formatTakenAt(iso: string): string {
   });
 }
 
+function MemoryVideo({ uri, width, height }: { uri: string; width: number; height: number }) {
+  // Loaded only when a video is on screen, so Welcome is not tied to ExpoVideo.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const video = require('expo-video') as typeof import('expo-video');
+  const player = video.useVideoPlayer(uri, (instance) => {
+    instance.loop = false;
+    instance.muted = false;
+  });
+  return (
+    <View testID="memory-video" accessibilityLabel={copy.memories.play}>
+      <video.VideoView
+        player={player}
+        style={[styles.photo, { aspectRatio: width / Math.max(1, height) }]}
+        nativeControls
+        contentFit="contain"
+        accessibilityLabel={copy.memories.play}
+      />
+    </View>
+  );
+}
+
 export function MemoryItemScreen() {
   const router = useRouter();
   const { session } = useAuth();
@@ -165,7 +186,9 @@ export function MemoryItemScreen() {
       testID="screen-memory-item"
       accessibilityLabel={item.caption ?? copy.memories.title}
     >
-      {item.fullUrl ? (
+      {item.kind === 'video' && item.fullUrl ? (
+        <MemoryVideo uri={item.fullUrl} width={item.width} height={item.height} />
+      ) : item.fullUrl ? (
         <Image
           source={{ uri: item.fullUrl }}
           style={[styles.photo, { aspectRatio: item.width / Math.max(1, item.height) }]}
@@ -173,11 +196,12 @@ export function MemoryItemScreen() {
         />
       ) : null}
       {item.caption ? <Title>{item.caption}</Title> : null}
+      {item.addedAutomatically ? <Muted>{copy.memories.addedAutomatically}</Muted> : null}
       <AppText testID="memory-item-badge" style={styles.badge}>
         {item.circleName}
       </AppText>
       <Muted testID="memory-item-date">{formatTakenAt(item.takenAt)}</Muted>
-      <Muted>{copy.memories.noLocation}</Muted>
+      <Muted>{item.kind === 'video' ? copy.memories.noLocationVideo : copy.memories.noLocation}</Muted>
       {error ? <ErrorState message={error} /> : null}
       {isUploader ? (
         <>

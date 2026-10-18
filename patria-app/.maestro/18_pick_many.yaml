@@ -1,0 +1,43 @@
+# PHONE_TESTS: 18
+# AREAS: memories
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- addMedia:
+    - "media/sample1.jpg"
+    - "media/sample2.jpg"
+    - "media/sample.mp4"
+- tapOn:
+    id: "memories"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- tapOn:
+    id: "add-photos"
+- extendedWaitUntil:
+    visible:
+      id: "picked-count"
+    timeout: 20000
+- assertVisible: "3 selected"
+- assertVisible:
+    id: "circle-household-selected"
+- tapOn:
+    id: "share"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: "memory-play-.*"
+    timeout: 20000
+- tapOn:
+    id: "memory-play-.*"
+- extendedWaitUntil:
+    visible:
+      id: "memory-video"
+    timeout: 20000
+- assertVisible: "No location is stored with this video."
+- takeScreenshot: "18_video_player"

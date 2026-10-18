@@ -4,7 +4,7 @@ import { copy } from '../../lib/copy';
 import { renderScreen } from '../../test/renderScreen';
 import { AddPhotosScreen } from './AddPhotosScreen';
 import { fetchUploaderCircles } from './memoryApi';
-import { pickPhotos } from './pickPhotos';
+import { pickMedia } from './pickMedia';
 
 jest.mock('../../lib/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
@@ -14,11 +14,35 @@ jest.mock('../../lib/currentFamily', () => ({
   readCurrentFamilyId: jest.fn(async () => 's1'),
 }));
 
-jest.mock('./pickPhotos', () => ({
-  pickPhotos: jest.fn(async () => [
-    { uri: 'file://a.jpg', width: 100, height: 80, exif: null },
-    { uri: 'file://b.jpg', width: 100, height: 80, exif: null },
+jest.mock('./pickMedia', () => ({
+  pickMedia: jest.fn(async () => [
+    {
+      uri: 'file://a.jpg',
+      width: 100,
+      height: 80,
+      exif: null,
+      mediaType: 'photo',
+      durationSeconds: null,
+      assetId: 'PH:A',
+      fileSize: 10,
+      mimeType: 'image/jpeg',
+    },
+    {
+      uri: 'file://b.jpg',
+      width: 100,
+      height: 80,
+      exif: null,
+      mediaType: 'photo',
+      durationSeconds: null,
+      assetId: 'PH:B',
+      fileSize: 10,
+      mimeType: 'image/jpeg',
+    },
   ]),
+}));
+
+jest.mock('./sourceKey', () => ({
+  getOrCreateSourceKey: jest.fn(async () => Uint8Array.from({ length: 32 }, (_, i) => i)),
 }));
 
 jest.mock('./memoryApi', () => ({
@@ -28,6 +52,7 @@ jest.mock('./memoryApi', () => ({
     { id: 'me', name: 'Only Me', kind: 'only_me' },
   ]),
   uploadPreparedPhoto: jest.fn(async () => 'item'),
+  uploadPreparedVideo: jest.fn(async () => 'vid'),
 }));
 
 jest.mock('./preparePhoto', () => ({
@@ -38,17 +63,19 @@ jest.mock('./preparePhoto', () => ({
     height: 80,
     takenAt: '2024-05-01T08:30:00.000Z',
     fullBytes: new Uint8Array([0xff, 0xd8]),
+    originalBytes: new Uint8Array([1, 2, 3]),
   })),
 }));
 
 describe('Add photos', () => {
   it('selects Household by default and explains the circle in plain words', async () => {
     const { findByTestId } = renderScreen(<AddPhotosScreen />);
-    expect(pickPhotos).toHaveBeenCalled();
+    expect(pickMedia).toHaveBeenCalled();
     expect(await findByTestId('circle-household-selected')).toBeTruthy();
     expect(await findByTestId('circle-extended_family')).toBeTruthy();
     expect(await findByTestId('circle-only_me')).toBeTruthy();
     expect(await findByTestId('circle-explanation')).toBeTruthy();
+    expect(await findByTestId('picked-count')).toBeTruthy();
     await waitFor(() => {
       expect(fetchUploaderCircles).toHaveBeenCalled();
     });

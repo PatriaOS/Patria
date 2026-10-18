@@ -1,7 +1,9 @@
 import { Image } from 'expo-image';
+import * as tus from 'tus-js-client';
 
 import { copy } from '../../lib/copy';
 import { supabase } from '../../lib/supabase';
+import { RESUMABLE_MIN_BYTES } from './sourceHash';
 
 export const MEMORIES_BUCKET = 'memories';
 export const SIGNED_URL_SECONDS = 600;
@@ -30,6 +32,10 @@ export type MemoryItem = {
   thumbPath: string;
   thumbUrl: string | null;
   fullUrl: string | null;
+  kind: 'photo' | 'video';
+  durationSeconds: number | null;
+  addedAutomatically: boolean;
+  sourceHash: string | null;
 };
 
 type MemoryRow = {
@@ -45,6 +51,10 @@ type MemoryRow = {
   full_path: string;
   thumb_path: string;
   status: string;
+  kind?: string | null;
+  duration_seconds?: number | null;
+  added_automatically?: boolean | null;
+  source_hash?: string | null;
   circles: { name: string; kind: string } | { name: string; kind: string }[] | null;
   profiles: { display_name: string } | { display_name: string }[] | null;
 };
@@ -86,6 +96,10 @@ export function mapMemoryRow(row: MemoryRow, urls: { thumb: string | null; full:
     thumbPath: row.thumb_path,
     thumbUrl: urls.thumb,
     fullUrl: urls.full,
+    kind: row.kind === 'video' ? 'video' : 'photo',
+    durationSeconds: row.duration_seconds ?? null,
+    addedAutomatically: Boolean(row.added_automatically),
+    sourceHash: row.source_hash ?? null,
   };
 }
 
@@ -127,7 +141,7 @@ export async function fetchReadyMemories(spaceId: string): Promise<MemoryItem[]>
   const { data, error } = await supabase
     .from('memory_items')
     .select(
-      'id, family_space_id, circle_id, uploader_id, caption, taken_at, created_at, width, height, full_path, thumb_path, status, circles ( name, kind ), profiles!uploader_id ( display_name )',
+      'id, family_space_id, circle_id, uploader_id, caption, taken_at, created_at, width, height, full_path, thumb_path, status, kind, duration_seconds, added_automatically, source_hash, circles ( name, kind ), profiles!uploader_id ( display_name )',
     )
     .eq('family_space_id', spaceId)
     .eq('status', 'ready')
@@ -168,7 +182,7 @@ export async function fetchMemoryItem(itemId: string): Promise<MemoryItem | null
   const { data, error } = await supabase
     .from('memory_items')
     .select(
-      'id, family_space_id, circle_id, uploader_id, caption, taken_at, created_at, width, height, full_path, thumb_path, status, circles ( name, kind ), profiles!uploader_id ( display_name )',
+      'id, family_space_id, circle_id, uploader_id, caption, taken_at, created_at, width, height, full_path, thumb_path, status, kind, duration_seconds, added_automatically, source_hash, circles ( name, kind ), profiles!uploader_id ( display_name )',
     )
     .eq('id', itemId)
     .eq('status', 'ready')
@@ -192,6 +206,74 @@ async function jpegBodyFromUri(uri: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
+async function uploadObject(
+  path: string,
+  body: ArrayBuffer,
+  contentType: string,
+): Promise<void> {
+  if (body.byteLength > RESUMABLE_MIN_BYTES) {
+    await uploadResumable(path, body, contentType);
+    return;
+  }
+  const uploaded = await supabase.storage.from(MEMORIES_BUCKET).upload(path, body, {
+    contentType,
+    upsert: true,
+  });
+  if (uploaded.error) {
+    throw uploaded.error;
+  }
+}
+
+async function uploadResumable(path: string, body: ArrayBuffer, contentType: string): Promise<void> {
+  const session = await supabase.auth.getSession();
+  const token = session.data.session?.access_token;
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  if (!token || !url) {
+    throw new Error('upload-session');
+  }
+  await new Promise<void>((resolve, reject) => {
+    const upload = new tus.Upload(new Blob([body], { type: contentType }), {
+      endpoint: `${url.replace(/\/$/, '')}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000],
+      headers: {
+        authorization: `Bearer ${token}`,
+        apikey: anon,
+        'x-upsert': 'true',
+      },
+      metadata: {
+        bucketName: MEMORIES_BUCKET,
+        objectName: path,
+        contentType,
+        cacheControl: '3600',
+      },
+      chunkSize: 6 * 1024 * 1024,
+      onError: (error) => reject(error),
+      onSuccess: () => resolve(),
+    });
+    upload.start();
+  });
+}
+
+export async function findMemoryBySourceHash(
+  spaceId: string,
+  uploaderId: string,
+  sourceHash: string,
+): Promise<{ id: string; circleName: string } | null> {
+  const { data, error } = await supabase
+    .from('memory_items')
+    .select('id, circles ( name )')
+    .eq('family_space_id', spaceId)
+    .eq('uploader_id', uploaderId)
+    .eq('source_hash', sourceHash)
+    .maybeSingle();
+  if (error || !data) {
+    return null;
+  }
+  const circle = oneRel(data.circles as { name: string } | { name: string }[] | null);
+  return { id: data.id as string, circleName: circle?.name ?? copy.circles.custom };
+}
+
 export async function uploadPreparedPhoto(input: {
   spaceId: string;
   circleId: string;
@@ -202,7 +284,77 @@ export async function uploadPreparedPhoto(input: {
   height: number;
   fullUri: string;
   thumbUri: string;
+  sourceHash?: string | null;
+  source?: 'picker' | 'library_sync';
+  addedAutomatically?: boolean;
 }): Promise<string> {
+  return uploadPreparedMedia({
+    ...input,
+    kind: 'photo',
+    durationSeconds: null,
+    fullContentType: 'image/jpeg',
+    source: input.source ?? 'picker',
+    addedAutomatically: input.addedAutomatically ?? false,
+  });
+}
+
+export async function uploadPreparedVideo(input: {
+  spaceId: string;
+  circleId: string;
+  uploaderId: string;
+  caption: string | null;
+  takenAt: string;
+  width: number;
+  height: number;
+  fullUri: string;
+  thumbUri: string;
+  durationSeconds: number;
+  fullContentType: 'video/mp4' | 'video/quicktime';
+  sourceHash?: string | null;
+}): Promise<string> {
+  return uploadPreparedMedia({
+    ...input,
+    kind: 'video',
+    source: 'picker',
+    addedAutomatically: false,
+  });
+}
+
+async function uploadPreparedMedia(input: {
+  spaceId: string;
+  circleId: string;
+  uploaderId: string;
+  caption: string | null;
+  takenAt: string;
+  width: number;
+  height: number;
+  fullUri: string;
+  thumbUri: string;
+  kind: 'photo' | 'video';
+  durationSeconds: number | null;
+  fullContentType: string;
+  sourceHash?: string | null;
+  source: 'picker' | 'library_sync';
+  addedAutomatically: boolean;
+}): Promise<string> {
+  if (input.sourceHash) {
+    const existing = await findMemoryBySourceHash(input.spaceId, input.uploaderId, input.sourceHash);
+    if (existing) {
+      const error = new Error(`already-shared:${existing.circleName}`);
+      throw error;
+    }
+    const uploading = await supabase
+      .from('memory_items')
+      .select('id, full_path, thumb_path, status')
+      .eq('family_space_id', input.spaceId)
+      .eq('uploader_id', input.uploaderId)
+      .eq('source_hash', input.sourceHash)
+      .eq('status', 'uploading')
+      .maybeSingle();
+    if (uploading.data) {
+      return finishUpload(uploading.data.id as string, uploading.data.full_path as string, uploading.data.thumb_path as string, input);
+    }
+  }
   const insert = await supabase
     .from('memory_items')
     .insert({
@@ -214,32 +366,35 @@ export async function uploadPreparedPhoto(input: {
       width: input.width,
       height: input.height,
       status: 'uploading',
+      kind: input.kind,
+      duration_seconds: input.durationSeconds,
+      source: input.source,
+      source_hash: input.sourceHash ?? null,
+      added_automatically: input.addedAutomatically,
     })
     .select('id, full_path, thumb_path')
     .single();
   if (insert.error || !insert.data) {
     throw insert.error ?? new Error('insert failed');
   }
-  const itemId = insert.data.id as string;
-  const fullPath = insert.data.full_path as string;
-  const thumbPath = insert.data.thumb_path as string;
+  return finishUpload(insert.data.id as string, insert.data.full_path as string, insert.data.thumb_path as string, input);
+}
+
+async function finishUpload(
+  itemId: string,
+  fullPath: string,
+  thumbPath: string,
+  input: {
+    fullUri: string;
+    thumbUri: string;
+    fullContentType: string;
+  },
+): Promise<string> {
   try {
     const fullBody = await jpegBodyFromUri(input.fullUri);
     const thumbBody = await jpegBodyFromUri(input.thumbUri);
-    const fullUp = await supabase.storage.from(MEMORIES_BUCKET).upload(fullPath, fullBody, {
-      contentType: 'image/jpeg',
-      upsert: false,
-    });
-    if (fullUp.error) {
-      throw fullUp.error;
-    }
-    const thumbUp = await supabase.storage.from(MEMORIES_BUCKET).upload(thumbPath, thumbBody, {
-      contentType: 'image/jpeg',
-      upsert: false,
-    });
-    if (thumbUp.error) {
-      throw thumbUp.error;
-    }
+    await uploadObject(fullPath, fullBody, input.fullContentType);
+    await uploadObject(thumbPath, thumbBody, 'image/jpeg');
     const ready = await supabase.from('memory_items').update({ status: 'ready' }).eq('id', itemId);
     if (ready.error) {
       throw ready.error;

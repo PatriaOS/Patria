@@ -177,3 +177,48 @@ Areas: memories
 1. As Test 1, remove Test 3 from the family (or remove them from the Extended Family circle).
 2. On Test 3's device, pull to refresh or reopen the app. Pass if no family photos remain on screen and none can be opened. **(manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in)**
 3. Server check (automated): a viewing link created for Test 3 before the removal stops working once it expires, and Test 3 cannot create a new one.
+
+### 18. Pick many photos or a short video (MEM01 slice 2)
+Areas: memories
+1. As Test 1, open Memories and tap Add photos. Pick two photos and a short video. **(manual)** Maestro cannot drive the system photo picker; automated runs use bundled samples only when `EXPO_PUBLIC_E2E=1`.
+2. Pass if the screen shows how many items were selected, Household is selected by default, and Share is offered.
+3. Tap Share. Pass if progress counts each item, the video tile shows a play mark and the length, opening it plays full screen with pause and sound, and it says no location is stored with this video.
+4. Pick a video longer than one minute, or larger than 50 MB after a Medium export. Pass if it is refused kindly and nothing is uploaded. **(manual)**
+5. Pick a video that still has location in the file. Pass if it is refused. **(manual)** Keep a real GPS video check on a phone before treating video as done.
+Pass when: steps 1 to 3 behave as written. Over-limit and located videos stay off the library.
+
+### 19. Connect the photo library (MEM01 slice 2)
+Areas: memories
+1. As Test 1, on Memories tap Connect my photos. Pass if an explainer appears before any permission sheet, in plain words, and nothing is shared yet.
+2. Continue, allow photos, pick Household (no silent default), leave From today selected, and turn sharing on. Pass if the library shows a status such as Up to date, Sharing N, Waiting for WiFi, or Paused.
+3. Take a new camera photo while sharing is on. Pass if it appears within a minute on WiFi, marked automatic. **(manual)**
+4. Add a new photo to the Simulator library (`simctl addmedia`) while Patria is open. Pass if it appears, marked automatic, older photos from before today are not uploaded, and Test 2 sees it.
+5. Limited access **(manual)**: pass if the screen explains that new camera photos are not shared until they are added to the allowed photos, offers Choose allowed photos and Open Settings, and Selected albums is shown only with full access plus a short reason otherwise.
+Pass when: steps 1, 2 and 4 behave as written on iOS. Camera and Limited access stay manual. Android library sync waits for a development build.
+
+### 20. Share only selected albums (MEM01 slice 2)
+Areas: memories
+1. With full photo access, open Connect my photos and Continue. Pass if Selected albums is offered next to All new photos.
+2. Choose one album and add a photo that is outside it. Pass if only the album photo is shared, and the album name is never shown to others. **(manual)**
+Pass when: step 1 behaves as written. Album isolation stays a phone check.
+
+### 21. Pause, cellular and WiFi (MEM01 slice 2)
+Areas: memories
+1. With sharing on, turn on Use cellular data, then Pause. Pass if status becomes Paused and nothing new is shared.
+2. Resume. Pass if sharing continues when the network is allowed.
+3. With cellular off and WiFi unavailable, pass if status is Waiting for WiFi. **(manual)**
+Pass when: pause, resume and WiFi default behave as written.
+
+### 22. Disconnect leaves shared photos (MEM01 slice 2)
+Areas: memories
+1. With sharing on, tap Disconnect. Pass if the app says new photos will stop sharing and already shared photos stay.
+2. Confirm. Pass if Connect my photos is offered again and previously shared items are still in the library.
+Pass when: disconnect stops new sharing and does not delete what was already shared.
+
+### 23. Deleted library photos stay deleted (MEM01 slice 2)
+Areas: memories
+1. Share a photo automatically from the connected library. **(manual)** Needs a real library-sync photo (not the Add photos picker).
+2. Open it. Pass if it can be deleted by the person who shared it. **(manual)**
+3. Delete it. Pass if it leaves the library. **(manual)**
+4. Reopen Patria. Pass if that deleted photo is not shared again, and adding it by hand through Add photos is still allowed. **(manual)**
+Pass when: a deleted sync photo is not re-shared, and adding it again by hand through Add photos is still allowed.

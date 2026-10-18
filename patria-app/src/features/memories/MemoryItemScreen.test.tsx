@@ -51,6 +51,10 @@ const item = {
   thumbPath: 's1/item-1/thumb.jpg',
   thumbUrl: 'https://example/thumb',
   fullUrl: 'https://example/full',
+  kind: 'photo' as const,
+  durationSeconds: null,
+  addedAutomatically: false,
+  sourceHash: null,
 };
 
 describe('Memory item', () => {
@@ -83,5 +87,17 @@ describe('Memory item', () => {
     expect(await findByText('Picnic')).toBeTruthy();
     expect(queryByText(copy.memories.delete)).toBeNull();
     expect(queryByText(copy.memories.move)).toBeNull();
+  });
+
+  it('says location is not stored with this video', async () => {
+    (fetchMemoryItem as jest.Mock).mockResolvedValue({
+      ...item,
+      kind: 'video',
+      durationSeconds: 2,
+      caption: null,
+    });
+    const { findByText, queryByText } = renderScreen(<MemoryItemScreen />);
+    expect(await findByText(copy.memories.noLocationVideo)).toBeTruthy();
+    expect(queryByText(copy.memories.noLocation)).toBeNull();
   });
 });

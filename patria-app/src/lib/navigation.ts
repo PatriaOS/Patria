@@ -41,6 +41,8 @@ export const screenTitles = {
   removeOldPhones: copy.recovery.removeOldTitle,
   memories: copy.memories.title,
   memoriesAdd: copy.memories.addPhotos,
+  memoriesConnect: copy.memories.connectPhotos,
+  memoriesConnectSettings: copy.memories.connectTitle,
   memoryItem: copy.memories.title,
 } as const;
 
@@ -62,6 +64,8 @@ export const routes = {
   removeOldPhones: '/(signed-in)/remove-old-phones',
   memories: '/(signed-in)/memories',
   memoriesAdd: '/(signed-in)/memories-add',
+  memoriesConnect: '/(signed-in)/memories-connect',
+  memoriesConnectSettings: '/(signed-in)/memories-connect-settings',
   memoryItem: (itemId: string) => `/(signed-in)/memory/${itemId}` as const,
 } as const;
 

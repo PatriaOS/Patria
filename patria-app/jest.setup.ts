@@ -22,11 +22,48 @@ jest.mock('expo-image', () => {
 
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  VideoExportPreset: { MediumQuality: 2 },
+}));
+
+jest.mock('expo-media-library/legacy', () => ({
+  MediaType: { photo: 'photo' },
+  SortBy: { creationTime: 'creationTime' },
+  getAssetsAsync: jest.fn(async () => ({ assets: [] })),
+  getAssetInfoAsync: jest.fn(),
+  getAlbumsAsync: jest.fn(async () => []),
+  getPermissionsAsync: jest.fn(async () => ({ status: 'undetermined', accessPrivileges: 'none' })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: 'granted', accessPrivileges: 'all' })),
+  presentPermissionsPickerAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-network', () => ({
+  NetworkStateType: { WIFI: 'WIFI', CELLULAR: 'CELLULAR' },
+  getNetworkStateAsync: jest.fn(async () => ({ type: 'WIFI', isInternetReachable: true })),
+}));
+
+jest.mock('expo-video', () => {
+  const RN = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    useVideoPlayer: () => ({ play: jest.fn(), pause: jest.fn(), muted: false, loop: false }),
+    VideoView: RN.View,
+  };
+});
+
+jest.mock('expo-linking', () => ({
+  openSettings: jest.fn(async () => undefined),
 }));
 
 jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg' },
   manipulateAsync: jest.fn(async (uri: string) => ({ uri, width: 800, height: 600 })),
+}));
+
+jest.mock('tus-js-client', () => ({
+  Upload: class {
+    start() {
+      return undefined;
+    }
+  },
 }));
 
 jest.mock('expo-crypto', () => ({
