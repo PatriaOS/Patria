@@ -1,18 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import {
-  AppText,
   Body,
   Button,
+  Card,
   ErrorState,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
@@ -31,11 +31,13 @@ import {
 import { memberDisplayName } from '../../lib/displayName';
 import { routes } from '../../lib/navigation';
 import { testIdFromLabel } from '../../lib/testId';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
+import { useTheme } from '../../theme';
 
 export function RecoverySetupScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
   const { session } = useAuth();
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
@@ -189,10 +191,8 @@ export function RecoverySetupScreen() {
         .map((contact) => {
           const member = membersQuery.data?.find((row) => row.userId === contact.userId);
           return (
-            <View key={contact.id} style={styles.row}>
-              <AppText style={styles.rowTitle}>
-                {memberDisplayName(member?.displayName)}
-              </AppText>
+            <Card key={contact.id}>
+              <Title>{memberDisplayName(member?.displayName)}</Title>
               <Muted>
                 {contact.status === 'accepted'
                   ? copy.recovery.accepted
@@ -202,11 +202,12 @@ export function RecoverySetupScreen() {
                 <Button
                   label={copy.recovery.removeContact}
                   variant="secondary"
+                  testID="remove-as-recovery-contact"
                   busy={busy}
                   onPress={() => void onRemove(contact.userId)}
                 />
               ) : null}
-            </View>
+            </Card>
           );
         })}
       {selectable.map((row) => {
@@ -221,9 +222,12 @@ export function RecoverySetupScreen() {
             accessibilityRole="button"
             accessibilityLabel={name}
             onPress={() => toggle(row.userId)}
-            style={[styles.row, selected && styles.rowSelected]}
+            style={[
+              styles.row,
+              { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.hairline },
+            ]}
           >
-            <AppText style={styles.rowTitle}>{name}</AppText>
+            <Body>{name}</Body>
             <Muted>{copy.roles[row.role]}</Muted>
           </Pressable>
         );
@@ -266,17 +270,9 @@ export function RecoverySetupScreen() {
 
 const styles = StyleSheet.create({
   row: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  rowSelected: {
+    borderRadius: 22,
+    padding: space.card,
+    gap: space.xs,
     borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  rowTitle: {
-    ...type.body,
-    color: colors.text,
   },
 });

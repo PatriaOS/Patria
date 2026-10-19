@@ -15,7 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { testIdFromLabel } from '../lib/testId';
-import { colors, spacing, textScale, type } from '../theme';
+import { spacing, textScale, type, useTheme } from '../theme';
+import { screenSafeEdges } from '../ui/screenEdges';
 
 export function AppText({ children, ...rest }: ComponentProps<typeof Text>) {
   return (
@@ -44,6 +45,7 @@ type ScreenProps = {
   accessibilityLabel?: string;
   testID?: string;
   withHeader?: boolean;
+  withTabBar?: boolean;
   keyboardAware?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -54,13 +56,15 @@ export function Screen({
   accessibilityLabel,
   testID,
   withHeader = false,
+  withTabBar = false,
   keyboardAware = false,
   refreshing = false,
   onRefresh,
 }: ScreenProps) {
+  const { colors } = useTheme();
   const scroll = (
     <ScrollView
-      contentContainerStyle={styles.scroll}
+      contentContainerStyle={[styles.scroll, { backgroundColor: colors.background }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       alwaysBounceVertical={Boolean(onRefresh)}
@@ -76,8 +80,8 @@ export function Screen({
 
   return (
     <SafeAreaView
-      style={styles.safe}
-      edges={withHeader ? ['bottom', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}
+      style={[styles.safe, { backgroundColor: colors.background }]}
+      edges={screenSafeEdges({ withHeader, withTabBar })}
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
@@ -99,24 +103,27 @@ export function Screen({
 type TitleProps = { children: ReactNode; testID?: string };
 
 export function Title({ children, testID }: TitleProps) {
+  const { colors } = useTheme();
   return (
-    <AppText testID={testID} style={styles.title}>
+    <AppText testID={testID} style={[styles.title, { color: colors.primary }]}>
       {children}
     </AppText>
   );
 }
 
 export function Body({ children, testID }: TitleProps) {
+  const { colors } = useTheme();
   return (
-    <AppText testID={testID} style={styles.body}>
+    <AppText testID={testID} style={[styles.body, { color: colors.text }]}>
       {children}
     </AppText>
   );
 }
 
 export function Muted({ children, testID }: TitleProps) {
+  const { colors } = useTheme();
   return (
-    <AppText testID={testID} style={styles.muted}>
+    <AppText testID={testID} style={[styles.muted, { color: colors.textMuted }]}>
       {children}
     </AppText>
   );
@@ -141,7 +148,11 @@ export function Button({
   accessibilityHint,
   testID,
 }: ButtonProps) {
+  const { colors } = useTheme();
   const inactive = disabled || busy;
+  const fill =
+    variant === 'danger' ? colors.dangerFill : variant === 'secondary' ? 'transparent' : colors.primary;
+  const labelColor = variant === 'secondary' ? colors.primary : colors.onPrimary;
   return (
     <Pressable
       testID={testID ?? testIdFromLabel(label)}
@@ -153,25 +164,19 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        variant === 'secondary' && styles.buttonSecondary,
-        variant === 'danger' && styles.buttonDanger,
+        {
+          backgroundColor: fill,
+          borderColor: colors.primary,
+          borderWidth: variant === 'secondary' ? 1 : 0,
+        },
         inactive && styles.buttonDisabled,
         pressed && !inactive && styles.buttonPressed,
       ]}
     >
       {busy ? (
-        <ActivityIndicator
-          color={variant === 'secondary' ? colors.primary : colors.onPrimary}
-        />
+        <ActivityIndicator color={labelColor} />
       ) : (
-        <AppText
-          style={[
-            styles.buttonLabel,
-            variant === 'secondary' && styles.buttonLabelSecondary,
-          ]}
-        >
-          {label}
-        </AppText>
+        <AppText style={[styles.buttonLabel, { color: labelColor }]}>{label}</AppText>
       )}
     </Pressable>
   );
@@ -183,18 +188,28 @@ type FieldProps = TextInputProps & {
 };
 
 export function Field({ label, error, ...inputProps }: FieldProps) {
+  const { colors } = useTheme();
   return (
     <View style={styles.field}>
-      <AppText style={styles.fieldLabel}>{label}</AppText>
+      <AppText style={[styles.fieldLabel, { color: colors.textMuted }]}>{label}</AppText>
       <AppTextInput
         {...inputProps}
         testID={inputProps.testID ?? testIdFromLabel(label)}
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.hairline,
+            color: colors.text,
+          },
+        ]}
         textAlignVertical="center"
       />
-      {error ? <AppText style={styles.fieldError}>{error}</AppText> : null}
+      {error ? (
+        <AppText style={[styles.fieldError, { color: colors.danger }]}>{error}</AppText>
+      ) : null}
     </View>
   );
 }
@@ -202,30 +217,32 @@ export function Field({ label, error, ...inputProps }: FieldProps) {
 type StatusProps = { message: string };
 
 export function LoadingState({ message }: StatusProps) {
+  const { colors } = useTheme();
   return (
     <View style={styles.status} accessibilityRole="progressbar" accessibilityLabel={message}>
       <ActivityIndicator color={colors.primary} />
-      <AppText style={styles.muted}>{message}</AppText>
+      <AppText style={[styles.muted, { color: colors.textMuted }]}>{message}</AppText>
     </View>
   );
 }
 
 export function ErrorState({ message }: StatusProps) {
+  const { colors } = useTheme();
   return (
-    <AppText style={styles.fieldError} accessibilityRole="alert">
+    <AppText style={[styles.fieldError, { color: colors.danger }]} accessibilityRole="alert">
       {message}
     </AppText>
   );
 }
 
 export function EmptyState({ message }: StatusProps) {
-  return <AppText style={styles.muted}>{message}</AppText>;
+  const { colors } = useTheme();
+  return <AppText style={[styles.muted, { color: colors.textMuted }]}>{message}</AppText>;
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   flex: {
     flex: 1,
@@ -237,32 +254,20 @@ const styles = StyleSheet.create({
   },
   title: {
     ...type.heading,
-    color: colors.primary,
   },
   body: {
     ...type.body,
-    color: colors.text,
   },
   muted: {
     ...type.caption,
-    color: colors.textMuted,
   },
   button: {
-    backgroundColor: colors.primary,
     borderRadius: 28,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  buttonSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  buttonDanger: {
-    backgroundColor: colors.danger,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -272,35 +277,26 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     ...type.body,
-    color: colors.onPrimary,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  buttonLabelSecondary: {
-    color: colors.primary,
   },
   field: {
     gap: spacing.xs,
   },
   fieldLabel: {
     ...type.caption,
-    color: colors.textMuted,
   },
   input: {
     fontFamily: type.body.fontFamily,
     fontSize: type.body.fontSize,
-    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.chip,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     minHeight: 52,
-    color: colors.text,
   },
   fieldError: {
     ...type.caption,
-    color: colors.danger,
   },
   status: {
     alignItems: 'center',

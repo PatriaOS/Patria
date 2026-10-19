@@ -1,0 +1,52 @@
+# Layer 3 Home with a let-in notice. Uses Test 2 (waiting).
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- extendedWaitUntil:
+    visible:
+      id: "home"
+    timeout: 45000
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- takeScreenshot: "D32-home-notice-light"
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- takeScreenshot: "D32-home-notice-dark"
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-light"

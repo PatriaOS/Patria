@@ -1,18 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import {
-  AppText,
   Body,
   Button,
+  Card,
   EmptyState,
   ErrorState,
   LoadingState,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { listOwnPhones, removeOwnPhone } from '../../lib/crypto/deviceAccess';
@@ -20,7 +19,6 @@ import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
-import { colors, spacing, type } from '../../theme';
 import { formatDeviceWhen } from './ApproveMyDeviceScreen';
 
 export function RemoveOldPhonesScreen() {
@@ -102,13 +100,11 @@ export function RemoveOldPhonesScreen() {
       <Title>{copy.recovery.removeOldTitle}</Title>
       <Body>{copy.recovery.removeOldBody}</Body>
       {error ? <ErrorState message={error} /> : null}
-      {oldPhones.length === 0 ? <EmptyState message={copy.recovery.removeOldEmpty} /> : null}
+      {oldPhones.length === 0 ? <EmptyState title={copy.recovery.removeOldEmpty} /> : null}
       {oldPhones.map((phone) => (
-        <View key={phone.deviceId} style={styles.row}>
-          <AppText style={styles.rowTitle}>
-            {copy.phones.setUp.replace('{when}', formatDeviceWhen(phone.createdAt))}
-          </AppText>
-        </View>
+        <Card key={phone.deviceId}>
+          <Body>{copy.phones.setUp.replace('{when}', formatDeviceWhen(phone.createdAt))}</Body>
+        </Card>
       ))}
       {oldPhones.length > 0 ? (
         <Button
@@ -123,16 +119,3 @@ export function RemoveOldPhonesScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  rowTitle: {
-    ...type.body,
-    color: colors.text,
-  },
-});

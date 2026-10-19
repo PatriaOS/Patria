@@ -8,6 +8,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - tapOn:
           id: "add-a-child"
       - tapOn:
@@ -35,6 +37,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - assertNotVisible:
           id: "add-a-child"
       - assertNotVisible: "@gmail.com"

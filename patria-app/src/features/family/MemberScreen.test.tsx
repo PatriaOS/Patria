@@ -115,6 +115,22 @@ describe('MemberScreen leave family', () => {
     alertSpy.mockRestore();
   });
 
+  it('does not remove or rotate when the admin cancels Remove from this family', async () => {
+    authState.id = 'u1';
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      const cancel = buttons?.find((item) => item.style === 'cancel');
+      cancel?.onPress?.();
+    });
+    const { findByText } = renderScreen(<MemberScreen userId="u2" />);
+    fireEvent.press(await findByText(copy.member.remove));
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalled();
+    });
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(rotateFamilyKeyIfNeeded).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
   it('does not show leave on someone else’s row', async () => {
     const { findByText, queryByText } = renderScreen(<MemberScreen userId="u1" />);
     await findByText('Test 1');

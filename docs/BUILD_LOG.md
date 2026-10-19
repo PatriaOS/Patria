@@ -7,6 +7,24 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-18 — Design foundation Layer 3: restyle screens, Home mockup, D32
+
+Remaining screens now use `src/ui` and theme tokens, including auth, invite, add child, members, memories, keys, recovery and leave family. Home matches HOME-01: terracotta date, time-of-day greeting plus italic family name, themed cards and pills, recent memories, Vault coming next. Cards never use the light cream surface in dark. Cormorant uses lining numerals. Vault’s tab is a lock. D32 and the patria.mdc `src/ui` rule are in place. TestIDs and security wording are unchanged.
+
+---
+
+## 2026-10-18 — Design foundation Layer 2: tabs, Appearance, themed chrome
+
+Home, Memories, Vault and Family are Expo Router tabs. Family holds invite, members, phones, sign out and Appearance. The Home tab shows a terracotta notice dot from the same let-in, new phone and recovery data Home already loads. Screen no longer doubles the top inset under a header, and headers, tabs and the status bar follow light and dark. Maestro reaches the moved buttons through the Family tab.
+
+---
+
+## 2026-10-18 — Design foundation Layer 1: tokens, type, components
+
+D32 Layer 1 only: Hearth palettes, Heirloom type, `ThemeProvider`, font splash with a 4s system-font fallback, and the `src/ui` kit (including TabBar’s notice-dot API). Appearance is stored in expo-secure-store. Existing screens are unchanged so behaviour and Maestro stay put. Light terracotta is `#A84C2A` so overlines meet 4.5:1 on linen. Tabs, Appearance, and restyling screens wait for later layers.
+
+---
+
 ## 2026-10-18 — Add photos names the video limit before the picker
 
 A 6 minute, 1.9 GB clip spent minutes in iOS “preparing” before Patria could refuse it. We do not change Medium export or the location scan. Add photos now shows “Videos up to 1 minute and 50 MB” before the picker opens and keeps that line on the share screen. `allowsEditing` stays off so people can still pick many items. A custom Photos picker that reads duration and size first, then runs the same Medium export and scan only on keepers, waits for the development build stage.

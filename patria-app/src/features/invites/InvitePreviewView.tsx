@@ -1,4 +1,4 @@
-import { Body, Button, Muted, Title } from '../../components/ui';
+import { Body, Button, Muted, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import type { InvitePreview } from '../../lib/family';
 

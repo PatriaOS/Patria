@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
-import { Body, Button, ErrorState, LoadingState, Screen } from '../../components/ui';
+import { Body, Button, ErrorState, LoadingState, Screen } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
@@ -99,7 +99,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
       <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
         {previewQuery.isError ? <ErrorState message={copy.common.error} /> : null}
         <Body testID="invite-no-longer-valid">{copy.invitePreview.invalid}</Body>
-        <Button label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
+        <Button testID="continue" label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
       </Screen>
     );
   }
@@ -108,7 +108,7 @@ export function InvitePreviewScreen({ token }: InvitePreviewScreenProps) {
     return (
       <Screen accessibilityLabel={copy.invitePreview.invalid} withHeader>
         <Body testID="invite-no-longer-valid">{copy.invitePreview.invalid}</Body>
-        <Button label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
+        <Button testID="continue" label={copy.common.continue} onPress={() => void onLeaveInvalid()} />
       </Screen>
     );
   }

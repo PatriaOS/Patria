@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../components/ui';
+import { Body, Button, ErrorState, Field, Muted, Screen, Title } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
+import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 
 const schema = z.object({
@@ -52,7 +53,7 @@ export function AddChildScreen() {
       setFormError(copy.child.failed);
       return;
     }
-    router.replace('/(signed-in)/home');
+    router.replace(routes.family);
   });
 
   return (

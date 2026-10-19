@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 
-import { Body, Button, Screen, Title } from '../../components/ui';
+import { Body, Button, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 
 export function VerifyScreen() {

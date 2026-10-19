@@ -11,7 +11,7 @@ import {
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';

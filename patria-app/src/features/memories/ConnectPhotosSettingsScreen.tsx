@@ -2,24 +2,25 @@ import { useQuery } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
 import {
-  AppText,
+  Body,
   Button,
+  ChoiceChip,
   ErrorState,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
 import { circleExplanation } from './circleAudience';
 import { writeAlbumIds } from './libraryAlbums';
 import { upsertConnection, type LibraryMode } from './libraryApi';
@@ -149,15 +150,15 @@ export function ConnectPhotosSettingsScreen() {
       />
       <Muted>{copy.memories.modeAll}</Muted>
       <View style={styles.chips}>
-        <ModeChip
+        <ChoiceChip
           label={copy.memories.modeAll}
-          on={mode === 'all_new'}
+          selected={mode === 'all_new'}
           onPress={() => setMode('all_new')}
           testID="mode-all"
         />
-        <ModeChip
+        <ChoiceChip
           label={copy.memories.modeAlbums}
-          on={mode === 'selected_albums'}
+          selected={mode === 'selected_albums'}
           onPress={() => {
             if (access !== 'all') {
               return;
@@ -166,7 +167,7 @@ export function ConnectPhotosSettingsScreen() {
           }}
           testID="mode-albums"
         />
-        <ModeChip label={copy.memories.modeFaces} on={false} onPress={() => undefined} testID="mode-faces" />
+        <ChoiceChip label={copy.memories.modeFaces} selected={false} onPress={() => undefined} testID="mode-faces" />
       </View>
       <Muted>{copy.memories.modeFacesLater}</Muted>
       {access !== 'all' ? <Muted testID="albums-need-full">{copy.memories.albumsNeedFull}</Muted> : null}
@@ -174,20 +175,16 @@ export function ConnectPhotosSettingsScreen() {
         ? albums.map((album) => {
             const on = albumIds.includes(album.id);
             return (
-              <Pressable
+              <ChoiceChip
                 key={album.id}
-                accessibilityRole="button"
-                accessibilityLabel={album.title}
-                accessibilityState={{ selected: on }}
+                label={album.title}
+                selected={on}
                 onPress={() =>
                   setAlbumIds((current) =>
                     on ? current.filter((id) => id !== album.id) : [...current, album.id],
                   )
                 }
-                style={[styles.chip, on && styles.chipOn]}
-              >
-                <AppText style={[styles.chipText, on && styles.chipTextOn]}>{album.title}</AppText>
-              </Pressable>
+              />
             );
           })
         : null}
@@ -196,37 +193,33 @@ export function ConnectPhotosSettingsScreen() {
         {(circlesQuery.data ?? []).map((circle) => {
           const on = circle.id === circleId;
           return (
-            <Pressable
+            <ChoiceChip
               key={circle.id}
               testID={`connect-circle-${circle.kind}${on ? '-selected' : ''}`}
-              accessibilityRole="button"
-              accessibilityLabel={circle.name}
-              accessibilityState={{ selected: on }}
+              label={circle.name}
+              selected={on}
               onPress={() => setCircleId(circle.id)}
-              style={[styles.chip, on && styles.chipOn]}
-            >
-              <AppText style={[styles.chipText, on && styles.chipTextOn]}>{circle.name}</AppText>
-            </Pressable>
+            />
           );
         })}
       </View>
       {selected ? <Muted>{circleExplanation(selected.kind)}</Muted> : <Muted>{copy.memories.chooseCircleFirst}</Muted>}
       <View style={styles.chips}>
-        <ModeChip
+        <ChoiceChip
           label={copy.memories.startToday}
-          on={startChoice === 'today'}
+          selected={startChoice === 'today'}
           onPress={() => setStartChoice('today')}
           testID="start-today"
         />
-        <ModeChip
+        <ChoiceChip
           label={copy.memories.startMonth}
-          on={startChoice === 'last_30_days'}
+          selected={startChoice === 'last_30_days'}
           onPress={() => setStartChoice('last_30_days')}
           testID="start-month"
         />
       </View>
       <View style={styles.row}>
-        <AppText>{copy.memories.useCellular}</AppText>
+        <Body>{copy.memories.useCellular}</Body>
         <Switch
           testID="use-cellular"
           accessibilityLabel={copy.memories.useCellular}
@@ -246,55 +239,16 @@ export function ConnectPhotosSettingsScreen() {
   );
 }
 
-function ModeChip(input: {
-  label: string;
-  on: boolean;
-  onPress: () => void;
-  testID: string;
-}) {
-  return (
-    <Pressable
-      testID={input.testID}
-      accessibilityRole="button"
-      accessibilityLabel={input.label}
-      accessibilityState={{ selected: input.on }}
-      onPress={input.onPress}
-      style={[styles.chip, input.on && styles.chipOn]}
-    >
-      <AppText style={[styles.chipText, input.on && styles.chipTextOn]}>{input.label}</AppText>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.chip,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipOn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    ...type.caption,
-    color: colors.text,
-  },
-  chipTextOn: {
-    color: colors.onPrimary,
+    gap: space.sm,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: space.md,
   },
 });

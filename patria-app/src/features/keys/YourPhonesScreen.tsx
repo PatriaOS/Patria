@@ -1,24 +1,24 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
 
 import {
-  AppText,
+  Body,
   Button,
+  Card,
   EmptyState,
   ErrorState,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { listOwnPhones, removeOwnPhone, type OwnPhone } from '../../lib/crypto/deviceAccess';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
-import { colors, spacing, type } from '../../theme';
 import { formatDeviceWhen } from './ApproveMyDeviceScreen';
 
 export function YourPhonesScreen() {
@@ -104,7 +104,7 @@ export function YourPhonesScreen() {
     <Screen withHeader accessibilityLabel={copy.phones.title} testID="screen-your-phones">
       <Title>{copy.phones.title}</Title>
       {error ? <ErrorState message={error} /> : null}
-      {phones.length === 0 ? <EmptyState message={copy.phones.empty} /> : null}
+      {phones.length === 0 ? <EmptyState title={copy.phones.empty} /> : null}
       {phones.map((phone) => {
         const isThis = phone.deviceId === thisDeviceId;
         const when = copy.phones.setUp.replace('{when}', formatDeviceWhen(phone.createdAt));
@@ -114,10 +114,8 @@ export function YourPhonesScreen() {
             ? null
             : copy.phones.waiting;
         return (
-          <View key={phone.deviceId} style={styles.row}>
-            <AppText style={styles.rowTitle}>
-              {isThis ? copy.phones.thisPhone : when}
-            </AppText>
+          <Card key={phone.deviceId}>
+            <Body>{isThis ? copy.phones.thisPhone : when}</Body>
             {isThis ? <Muted>{when}</Muted> : null}
             {status ? <Muted>{status}</Muted> : null}
             {!isThis ? (
@@ -131,22 +129,9 @@ export function YourPhonesScreen() {
                 accessibilityHint={`${copy.phones.remove} ${when}`}
               />
             ) : null}
-          </View>
+          </Card>
         );
       })}
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  rowTitle: {
-    ...type.body,
-    color: colors.text,
-  },
-});

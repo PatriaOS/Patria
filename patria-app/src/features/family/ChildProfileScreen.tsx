@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { Body, Button, ErrorState, LoadingState, Muted, Screen, Title } from '../../components/ui';
+import { Body, Button, ErrorState, LoadingState, Muted, Screen, Title } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';

@@ -31,16 +31,6 @@ appId: app.patria.dev
             id: "^screen-sign-in$"
           timeout: 20000
 - runFlow:
-    when:
-      visible: ${E2E_HELLO}
-    commands:
-      - extendedWaitUntil:
-          visible:
-            id: "^home$"
-          timeout: 20000
-- runFlow:
-    when:
-      notVisible: ${E2E_HELLO}
     file: sign_in_form.yaml
 - tapOn:
     text: "Not Now"

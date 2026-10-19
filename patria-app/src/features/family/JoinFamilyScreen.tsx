@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 
-import { Body, Screen, Title } from '../../components/ui';
+import { Body, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
 import { PasteInviteField } from '../invites/PasteInviteField';

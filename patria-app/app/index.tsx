@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Redirect } from 'expo-router';
 
-import { ErrorState, LoadingState, Screen } from '../src/components/ui';
+import { ErrorState, LoadingState, Screen } from '../src/ui';
 import { useAuth } from '../src/lib/auth-context';
 import { copy } from '../src/lib/copy';
 import { hasDisplayName } from '../src/lib/displayName';

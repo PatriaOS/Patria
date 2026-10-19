@@ -1,0 +1,46 @@
+# PHONE_TESTS: 24
+# AREAS: navigation
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- assertVisible:
+    id: "home"
+- tapOn:
+    id: "memories"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 15000
+- assertVisible: "The Legacy Vault is coming next"
+- tapOn:
+    id: "family"
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- assertVisible:
+    id: "invite-someone"
+- scrollUntilVisible:
+    element:
+      id: "sign-out"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    id: "sign-out"
+- assertNotVisible:
+    id: "home-tab-notice"
+- assertVisible:
+    id: "^home$"
+- tapOn:
+    id: "home"
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000

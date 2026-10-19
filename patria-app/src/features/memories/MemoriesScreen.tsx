@@ -5,15 +5,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, StyleSheet, View } from 'react-native';
 
 import {
-  AppText,
   Button,
+  Caption,
   EmptyState,
   ErrorState,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
@@ -21,7 +21,8 @@ import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchMemberships } from '../../lib/family';
 import { routes } from '../../lib/navigation';
 import { isMemoryRole } from '../../lib/roles';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
+import { useTheme } from '../../theme';
 import { deleteConnection, fetchOwnConnection, patchConnection } from './libraryApi';
 import { runLibrarySync } from './librarySync';
 import {
@@ -183,7 +184,7 @@ export function MemoriesScreen() {
 
   if (!spaceId || membershipsQuery.isLoading) {
     return (
-      <Screen withHeader>
+      <Screen withTabBar>
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -191,7 +192,7 @@ export function MemoriesScreen() {
 
   if (!isMemoryRole(role)) {
     return (
-      <Screen withHeader testID="screen-memories">
+      <Screen withTabBar testID="screen-memories">
         <Title>{copy.memories.title}</Title>
         <BodyDenied />
       </Screen>
@@ -200,7 +201,7 @@ export function MemoriesScreen() {
 
   return (
     <Screen
-      withHeader
+      withTabBar
       testID="screen-memories"
       accessibilityLabel={copy.memories.title}
       refreshing={memoriesQuery.isRefetching}
@@ -233,13 +234,13 @@ export function MemoriesScreen() {
       {memoriesQuery.isLoading ? <LoadingState message={copy.common.loading} /> : null}
       {memoriesQuery.isError ? <ErrorState message={copy.common.error} /> : null}
       {!memoriesQuery.isLoading && (memoriesQuery.data ?? []).length === 0 ? (
-        <EmptyState message={copy.memories.empty} />
+        <EmptyState title={copy.memories.empty} />
       ) : null}
       <View style={styles.grid}>
         {(memoriesQuery.data ?? []).map((item) => (
           <Pressable
             key={item.id}
-            testID={`memory-${item.id}`}
+            testID={`memory-${item.kind}-${item.id}`}
             accessibilityRole="button"
             accessibilityLabel={
               item.kind === 'video'
@@ -250,9 +251,9 @@ export function MemoriesScreen() {
             style={styles.tile}
           >
             <MemoryThumb item={item} />
-            <AppText testID={`memory-badge-${item.id}`} style={styles.badge}>
+            <Caption testID={`memory-badge-${item.id}`} tone="primary">
               {item.circleName}
-            </AppText>
+            </Caption>
             {item.addedAutomatically ? (
               <Muted testID={`memory-auto-${item.id}`}>{copy.memories.addedAutomatically}</Muted>
             ) : null}
@@ -267,21 +268,26 @@ export function MemoriesScreen() {
 }
 
 function MemoryThumb({ item }: { item: MemoryItem }) {
+  const { colors } = useTheme();
   const duration = formatDuration(item.durationSeconds);
   return (
     <View
-      style={styles.thumbWrap}
+      style={[styles.thumbWrap, { backgroundColor: colors.softSurface }]}
       testID={item.kind === 'video' ? `memory-play-${item.id}` : undefined}
     >
       {item.thumbUrl ? (
         <Image source={{ uri: item.thumbUrl }} style={styles.thumb} contentFit="cover" />
       ) : (
-        <View style={[styles.thumb, styles.thumbPlaceholder]} />
+        <View style={[styles.thumb, { backgroundColor: colors.primary }]} />
       )}
       {item.kind === 'video' ? (
         <View style={styles.videoScrim} pointerEvents="none">
-          <View style={styles.playMark} />
-          {duration ? <AppText style={styles.durationBadge}>{duration}</AppText> : null}
+          <View style={[styles.playMark, { borderLeftColor: colors.onPrimary }]} />
+          {duration ? (
+            <Caption color={colors.onPrimary} style={styles.durationBadge}>
+              {duration}
+            </Caption>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -296,27 +302,22 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: space.sm,
   },
   tile: {
     width: '47%',
     flexGrow: 1,
-    gap: spacing.xs,
+    gap: space.xs,
   },
   thumbWrap: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: colors.chip,
   },
   thumb: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.chip,
-  },
-  thumbPlaceholder: {
-    backgroundColor: colors.primary,
   },
   videoScrim: {
     ...StyleSheet.absoluteFill,
@@ -332,23 +333,15 @@ const styles = StyleSheet.create({
     borderLeftWidth: 16,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
-    borderLeftColor: colors.onPrimary,
   },
   durationBadge: {
     position: 'absolute',
-    right: spacing.sm,
-    bottom: spacing.sm,
-    ...type.caption,
-    color: colors.onPrimary,
+    right: space.xs,
+    bottom: space.xs,
     backgroundColor: 'rgba(31, 42, 36, 0.72)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: space.xs,
+    paddingVertical: 2,
     borderRadius: 4,
     overflow: 'hidden',
-  },
-  badge: {
-    ...type.caption,
-    color: colors.primary,
-    fontWeight: '600',
   },
 });

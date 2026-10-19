@@ -1,7 +1,42 @@
 /// <reference types="jest" />
 
+jest.setTimeout(20000);
+
 process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
 process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
+
+jest.mock('expo-font', () => ({
+  useFonts: () => [true],
+  isLoaded: () => true,
+  loadAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('@expo-google-fonts/cormorant-garamond', () => ({
+  useFonts: () => [true],
+  CormorantGaramond_600SemiBold: 'CormorantGaramond_600SemiBold',
+  CormorantGaramond_500Medium_Italic: 'CormorantGaramond_500Medium_Italic',
+}));
+
+jest.mock('@expo-google-fonts/manrope', () => ({
+  useFonts: () => [true],
+  Manrope_400Regular: 'Manrope_400Regular',
+  Manrope_500Medium: 'Manrope_500Medium',
+  Manrope_700Bold: 'Manrope_700Bold',
+}));
+
+jest.mock('lucide-react-native', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+  const RN = jest.requireActual<typeof import('react-native')>('react-native');
+  function MockIcon(props: Record<string, unknown>) {
+    return React.createElement(RN.View, props);
+  }
+  return new Proxy(
+    { __esModule: true },
+    {
+      get: (_target, name: string) => (name === '__esModule' ? true : MockIcon),
+    },
+  );
+});
 
 jest.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',

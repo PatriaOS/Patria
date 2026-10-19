@@ -1,0 +1,30 @@
+# Sign-in in light. Not a numbered phone test.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- takeScreenshot: "D32-home-light"
+- runFlow:
+    file: subflows/sign_out.yaml
+- tapOn:
+    id: "i-already-have-an-account"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sign-in"
+    timeout: 15000
+- takeScreenshot: "D32-signin-light"

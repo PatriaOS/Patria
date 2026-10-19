@@ -1,9 +1,6 @@
-import { StyleSheet, View } from 'react-native';
-
-import { AppText, Button, Muted } from '../../components/ui';
+import { Button, Card, Muted, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import type { FirstDeviceNotice } from '../../lib/crypto/deviceAccess';
-import { colors, spacing, type } from '../../theme';
 
 export function formatDeviceWhen(iso: string): string {
   const when = new Date(iso);
@@ -34,18 +31,16 @@ export function ApproveMyDeviceCard({
 
   if (!canApprove) {
     return (
-      <View style={styles.row}>
-        <AppText style={styles.rowTitle}>
-          {copy.home.extraDeviceAdminNotice.replace('{name}', name)}
-        </AppText>
+      <Card>
+        <Title>{copy.home.extraDeviceAdminNotice.replace('{name}', name)}</Title>
         <Muted>{setUp}</Muted>
-      </View>
+      </Card>
     );
   }
 
   return (
-    <View style={styles.row}>
-      <AppText style={styles.rowTitle}>{copy.home.extraDeviceOwnNotice}</AppText>
+    <Card>
+      <Title>{copy.home.extraDeviceOwnNotice}</Title>
       <Muted>{setUp}</Muted>
       <Button
         label={copy.home.yesMyPhone}
@@ -61,19 +56,6 @@ export function ApproveMyDeviceCard({
         disabled={disabled}
         onPress={onReject}
       />
-    </View>
+    </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  rowTitle: {
-    ...type.body,
-    color: colors.text,
-  },
-});

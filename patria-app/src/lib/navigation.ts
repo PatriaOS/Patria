@@ -1,5 +1,5 @@
 import { copy } from './copy';
-import { colors } from '../theme';
+import { light } from '../theme/tokens';
 
 export const hiddenRootHeader = {
   headerShown: false,
@@ -15,8 +15,8 @@ export const pushedScreenHeader = {
   headerBackTitle: '',
   headerBackButtonDisplayMode: 'minimal',
   headerShadowVisible: false,
-  headerTintColor: colors.primary,
-  headerStyle: { backgroundColor: colors.background },
+  headerTintColor: light.primary,
+  headerStyle: { backgroundColor: light.background },
 } as const;
 
 export const screenTitles = {
@@ -44,6 +44,10 @@ export const screenTitles = {
   memoriesConnect: copy.memories.connectPhotos,
   memoriesConnectSettings: copy.memories.connectTitle,
   memoryItem: copy.memories.title,
+  designGallery: copy.design.galleryTitle,
+  vault: copy.tabs.vault,
+  family: copy.tabs.family,
+  appearance: copy.appearance.title,
 } as const;
 
 export const routes = {
@@ -67,6 +71,10 @@ export const routes = {
   memoriesConnect: '/(signed-in)/memories-connect',
   memoriesConnectSettings: '/(signed-in)/memories-connect-settings',
   memoryItem: (itemId: string) => `/(signed-in)/memory/${itemId}` as const,
+  designGallery: '/design-gallery',
+  vault: '/(signed-in)/vault',
+  family: '/(signed-in)/family',
+  appearance: '/(signed-in)/appearance',
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {

@@ -2,65 +2,132 @@ appId: app.patria.dev
 ---
 - runFlow:
     when:
-      visible:
-        id: "^home$"
+      true: ${E2E_STAY != '1'}
     commands:
-      - scrollUntilVisible:
-          element:
-            id: "^sign-out$"
-          direction: DOWN
-          timeout: 20000
-      - tapOn:
-          id: "^sign-out$"
-      - extendedWaitUntil:
-          visible:
-            id: "^screen-welcome$"
-          timeout: 30000
-- runFlow:
-    when:
-      visible: "Create our family"
-    commands:
-      - tapOn:
-          id: "^sign-out$"
-      - extendedWaitUntil:
-          visible:
-            id: "^screen-welcome$"
-          timeout: 30000
-- runFlow:
-    when:
-      visible:
-        id: "^screen-sign-up$"
-    commands:
-      - tapOn:
-          id: "^already-have-an-account-sign-in$"
+      - runFlow:
+          when:
+            visible:
+              id: "^home$"
+          commands:
+            - tapOn:
+                id: "^family$"
+            - extendedWaitUntil:
+                visible:
+                  id: "screen-family"
+                timeout: 20000
+            - scrollUntilVisible:
+                element:
+                  id: "^sign-out$"
+                direction: DOWN
+                timeout: 20000
+            - tapOn:
+                id: "^sign-out$"
+            - extendedWaitUntil:
+                visible:
+                  id: "^screen-welcome$"
+                timeout: 30000
+      - runFlow:
+          when:
+            visible: "Create our family"
+          commands:
+            - tapOn:
+                id: "^sign-out$"
+            - extendedWaitUntil:
+                visible:
+                  id: "^screen-welcome$"
+                timeout: 30000
+      - runFlow:
+          when:
+            visible:
+              id: "^screen-sign-up$"
+          commands:
+            - tapOn:
+                id: "^already-have-an-account-sign-in$"
+            - extendedWaitUntil:
+                visible:
+                  id: "^screen-sign-in$"
+                timeout: 20000
+      - runFlow:
+          when:
+            visible:
+              id: "^screen-welcome$"
+          commands:
+            - tapOn:
+                id: "^i-already-have-an-account$"
+            - extendedWaitUntil:
+                visible:
+                  id: "^screen-sign-in$"
+                timeout: 20000
       - extendedWaitUntil:
           visible:
             id: "^screen-sign-in$"
-          timeout: 20000
+          timeout: 30000
+      - tapOn:
+          id: "^email$"
+      - eraseText
+      - inputText: ${E2E_EMAIL}
+      - tapOn:
+          id: "^password$"
+      - eraseText
+      - inputText: ${E2E_PASSWORD}
+      - pressKey: Enter
+      - tapOn:
+          text: "Not Now"
+          optional: true
 - runFlow:
     when:
-      visible:
-        id: "^screen-welcome$"
+      true: ${E2E_STAY == '1'}
     commands:
-      - tapOn:
-          id: "^i-already-have-an-account$"
-      - extendedWaitUntil:
-          visible:
-            id: "^screen-sign-in$"
-          timeout: 20000
-- extendedWaitUntil:
-    visible:
-      id: "^screen-sign-in$"
-    timeout: 30000
-- tapOn:
-    id: "^email$"
-- eraseText
-- inputText: ${E2E_EMAIL}
-- tapOn:
-    id: "^password$"
-- eraseText
-- inputText: ${E2E_PASSWORD}
-- pressKey: Enter
-- tapOn:
-    text: "Not Now"
-    optional: true
+      - runFlow:
+          when:
+            notVisible:
+              id: "^home$"
+          commands:
+            - runFlow:
+                when:
+                  visible: "Create our family"
+                commands:
+                  - tapOn:
+                      id: "^sign-out$"
+                  - extendedWaitUntil:
+                      visible:
+                        id: "^screen-welcome$"
+                      timeout: 30000
+            - runFlow:
+                when:
+                  visible:
+                    id: "^screen-sign-up$"
+                commands:
+                  - tapOn:
+                      id: "^already-have-an-account-sign-in$"
+                  - extendedWaitUntil:
+                      visible:
+                        id: "^screen-sign-in$"
+                      timeout: 20000
+            - runFlow:
+                when:
+                  visible:
+                    id: "^screen-welcome$"
+                commands:
+                  - tapOn:
+                      id: "^i-already-have-an-account$"
+                  - extendedWaitUntil:
+                      visible:
+                        id: "^screen-sign-in$"
+                      timeout: 20000
+            - extendedWaitUntil:
+                visible:
+                  id: "^screen-sign-in$"
+                timeout: 30000
+            - tapOn:
+                id: "^email$"
+            - eraseText
+            - inputText: ${E2E_EMAIL}
+            - tapOn:
+                id: "^password$"
+            - eraseText
+            - inputText: ${E2E_PASSWORD}
+            - pressKey: Enter
+            - tapOn:
+                text: "Not Now"
+                optional: true

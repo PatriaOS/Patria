@@ -1,7 +1,30 @@
 appId: app.patria.dev
 ---
-- tapOn:
-    id: "sign-out"
+- runFlow:
+    when:
+      visible:
+        id: "^family$"
+    commands:
+      - tapOn:
+          id: "^family$"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-family"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "sign-out"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "sign-out"
+- runFlow:
+    when:
+      visible:
+        id: "^sign-out$"
+    commands:
+      - tapOn:
+          id: "sign-out"
 - extendedWaitUntil:
     visible: "I already have an account"
     timeout: 20000

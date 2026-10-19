@@ -96,11 +96,35 @@ appId: app.patria.dev
       - tapOn:
           id: "choose-recovery-contacts"
           optional: true
-      - tapOn:
-          id: "recovery-contacts"
-          optional: true
+      - runFlow:
+          when:
+            notVisible:
+              id: "remove-as-recovery-contact"
+          commands:
+            - runFlow:
+                file: subflows/open_family.yaml
+            - scrollUntilVisible:
+                element:
+                  id: "recovery-contacts"
+                direction: DOWN
+                timeout: 10000
+            - tapOn:
+                id: "recovery-contacts"
+      - extendedWaitUntil:
+          visible:
+            id: "remove-as-recovery-contact"
+          timeout: 20000
       - tapOn:
           id: "remove-as-recovery-contact"
       - tapOn:
           point: 8%, 12%
+      - tapOn:
+          id: "home"
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
       - assertVisible: "Recovery needs attention"

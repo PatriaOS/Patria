@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  Banner,
   Body,
   Button,
   ErrorState,
@@ -10,7 +11,7 @@ import {
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
@@ -76,7 +77,7 @@ export function PrintedCodeScreen() {
     return (
       <Screen withHeader accessibilityLabel={copy.recovery.printedTitle}>
         <Title>{copy.recovery.printedTitle}</Title>
-        <Body>{copy.recovery.printedBody}</Body>
+        <Banner tone="warning" message={copy.recovery.printedBody} />
         <Muted testID="printed-code-words">{printed.words}</Muted>
         <Button label={copy.recovery.printedContinue} onPress={() => setPhase('confirm')} />
         <Button

@@ -15,6 +15,8 @@ appId: app.patria.dev
       id: "home"
     timeout: 20000
 - takeScreenshot: e2e-artifacts/07-home
+- runFlow:
+    file: subflows/open_family.yaml
 - tapOn:
     id: "invite-someone"
 - takeScreenshot: e2e-artifacts/07-invite

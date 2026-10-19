@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 
-import { Body, Button, Muted, Screen, Title } from '../../components/ui';
+import { Body, Button, Display, Muted, Overline, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
 import { savePendingInviteToken } from '../../lib/pendingInvite';
@@ -11,8 +11,8 @@ export function WelcomeScreen() {
 
   return (
     <Screen accessibilityLabel={copy.welcome.title} testID="screen-welcome">
-      <Muted>{copy.appName}</Muted>
-      <Title>{copy.welcome.title}</Title>
+      <Overline tone="terracotta">{copy.appName}</Overline>
+      <Display>{copy.welcome.title}</Display>
       <Title>{copy.welcome.subtitle}</Title>
       <Body>{copy.welcome.body}</Body>
       <PasteInviteField

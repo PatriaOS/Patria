@@ -1,18 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import {
-  AppText,
   Body,
   Button,
+  ChoiceChip,
   ErrorState,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
@@ -33,7 +33,7 @@ import {
 } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
 
 type MemberScreenProps = {
   userId: string;
@@ -192,18 +192,13 @@ export function MemberScreen({ userId }: MemberScreenProps) {
           <Muted>{copy.member.roleLabel}</Muted>
           <View style={styles.chips}>
             {INVITE_ROLES.map((item) => (
-              <Pressable
+              <ChoiceChip
                 key={item}
                 testID={`role-${testIdFromLabel(copy.roles[item])}`}
-                accessibilityRole="button"
-                accessibilityLabel={copy.roles[item]}
+                label={copy.roles[item]}
+                selected={role === item}
                 onPress={() => setRoleOverride(item)}
-                style={[styles.chip, role === item && styles.chipOn]}
-              >
-                <AppText style={[styles.chipText, role === item && styles.chipTextOn]}>
-                  {copy.roles[item]}
-                </AppText>
-              </Pressable>
+              />
             ))}
           </View>
           {isLastAdmin ? <Muted>{copy.member.lastAdmin}</Muted> : null}
@@ -217,6 +212,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
           <Button
             label={copy.member.remove}
             variant="danger"
+            testID="remove-from-this-family"
             onPress={remove}
             disabled={isLastAdmin}
           />
@@ -241,25 +237,6 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    backgroundColor: colors.chip,
-    borderRadius: 24,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-    flexShrink: 1,
-  },
-  chipOn: {
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    ...type.caption,
-    color: colors.text,
-  },
-  chipTextOn: {
-    color: colors.onPrimary,
+    gap: space.sm,
   },
 });

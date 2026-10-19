@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, ErrorState, Field, Screen, Title } from '../../components/ui';
+import { Button, ErrorState, Field, Screen, Title } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';

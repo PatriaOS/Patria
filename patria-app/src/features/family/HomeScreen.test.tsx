@@ -117,6 +117,10 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
+jest.mock('../memories/memoryApi', () => ({
+  fetchReadyMemories: jest.fn(async () => []),
+}));
+
 function mockedRouter(): { push: jest.Mock; replace: jest.Mock } {
   const expoRouter = jest.requireMock('expo-router') as {
     useRouter: () => { push: jest.Mock; replace: jest.Mock };
@@ -175,13 +179,6 @@ describe('HomeScreen invite entry', () => {
     });
   });
 
-  it('offers Create another family next to Join another family', async () => {
-    const view = renderScreen(<HomeScreen />);
-    await view.findByLabelText(copy.home.createAnotherFamily);
-    fireEvent.press(view.getByLabelText(copy.home.createAnotherFamily));
-    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/create');
-  });
-
   it('shows the family key is up to date after a lost rotation race', async () => {
     (rotateFamilyKeyIfNeeded as jest.Mock).mockResolvedValue('alreadyCurrent');
     const { findByText, queryByText } = renderScreen(<HomeScreen />);
@@ -200,30 +197,9 @@ describe('HomeScreen invite entry', () => {
     expect(await findByText(copy.home.rotationUpToDate)).toBeTruthy();
   });
 
-  it('uses a Join another family link instead of a paste box', async () => {
-    const view = renderScreen(<HomeScreen />);
-    await view.findByLabelText(copy.home.joinFamily);
-    expect(view.queryByText(copy.invite.pastePrompt)).toBeNull();
-    expect(view.queryByText(copy.invite.pasteLabel)).toBeNull();
-
-    fireEvent.press(view.getByLabelText(copy.home.joinFamily));
-    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/join-family');
-  });
-
   it('marks the family Home with a stable testID', async () => {
     const { findByTestId } = renderScreen(<HomeScreen />);
     expect(await findByTestId('home')).toBeTruthy();
-  });
-
-  it('signs out then replaces to welcome', async () => {
-    const { findByText } = renderScreen(<HomeScreen />);
-
-    fireEvent.press(await findByText(copy.auth.signOut));
-
-    await waitFor(() => {
-      expect(supabase.auth.signOut).toHaveBeenCalled();
-    });
-    expect(mockedRouter().replace).toHaveBeenCalledWith('/(signed-out)/welcome');
   });
 
   it('shows a quiet family-keys status on Home', async () => {
@@ -232,12 +208,20 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('shows a calm recovery card on Home that does not block the family', async () => {
-    const { findByText } = renderScreen(<HomeScreen />);
+    const { findByText, queryByText } = renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.recoveryNotSetup)).toBeTruthy();
     expect(await findByText(copy.home.recoveryCardTitle)).toBeTruthy();
-    expect(await findByText(copy.home.todoMemories)).toBeTruthy();
-    expect(await findByText(copy.home.memories)).toBeTruthy();
-    expect(await findByText(copy.home.memories)).toBeTruthy();
+    expect(queryByText(copy.home.invite)).toBeNull();
+  });
+
+  it('greets the family by name, not the person, and offers recent memories', async () => {
+    const { findByText, findByTestId, queryByText } = renderScreen(<HomeScreen />);
+    expect(await findByTestId('home-family-name')).toBeTruthy();
+    expect(await findByText('The Riveras')).toBeTruthy();
+    expect(await findByText(copy.home.recentMemories)).toBeTruthy();
+    expect(await findByText(copy.memories.addPhotos)).toBeTruthy();
+    expect(await findByText(copy.home.vaultComing)).toBeTruthy();
+    expect(queryByText(/Hello,/)).toBeNull();
   });
 
   it('says this phone needs to be let in again when the family key cannot be obtained', async () => {
@@ -324,12 +308,6 @@ describe('HomeScreen invite entry', () => {
     expect(await findByText(copy.home.keysWaitingOwnPhone)).toBeTruthy();
   });
 
-  it('opens Your phones from Home', async () => {
-    const { findByText } = renderScreen(<HomeScreen />);
-    fireEvent.press(await findByText(copy.home.yourPhones));
-    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/your-phones');
-  });
-
   it('offers a printed-code step from Home after two contacts accept', async () => {
     (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
       contacts: [],
@@ -345,16 +323,6 @@ describe('HomeScreen invite entry', () => {
     const { findByTestId } = renderScreen(<HomeScreen />);
     fireEvent.press(await findByTestId('create-printed-code'));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/printed-code');
-  });
-
-  it('lists a child with a subtitle test id for kid profile and no email', async () => {
-    (fetchChildren as jest.Mock).mockResolvedValueOnce([
-      { id: 'c1', displayName: 'Lily', dateOfBirth: null },
-    ]);
-    const { findByTestId } = renderScreen(<HomeScreen />);
-    const subtitle = await findByTestId('child-lily-subtitle');
-    expect(String(subtitle.props.children)).toMatch(/Kid profile/);
-    expect(String(subtitle.props.children)).toMatch(/no email/i);
   });
 
   it('refetches memberships when family members fail to load', async () => {
@@ -374,10 +342,4 @@ describe('HomeScreen invite entry', () => {
     expect(await findByText(copy.home.noFamilyTitle)).toBeTruthy();
   });
 
-  it('never shows a blank member card', async () => {
-    const { findAllByText, getAllByText } = renderScreen(<HomeScreen />);
-
-    expect((await findAllByText(copy.member.fallbackName)).length).toBeGreaterThan(0);
-    expect(getAllByText(copy.roles.co_admin).length).toBeGreaterThan(0);
-  });
 });

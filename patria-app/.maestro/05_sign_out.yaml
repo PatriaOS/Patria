@@ -4,6 +4,8 @@ appId: app.patria.dev
 ---
 - runFlow:
     file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
 - scrollUntilVisible:
     element:
       id: "sign-out"

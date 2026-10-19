@@ -1,0 +1,8 @@
+appId: app.patria.dev
+---
+- tapOn:
+    id: "^family$"
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 20000

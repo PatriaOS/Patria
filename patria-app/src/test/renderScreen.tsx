@@ -4,6 +4,7 @@ import { type ReactElement } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { queryClient as appQueryClient } from '../lib/queryClient';
+import { ThemeProvider } from '../theme';
 
 export const SAFE_AREA_METRICS = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -37,9 +38,11 @@ export function renderScreen(ui: ReactElement, options?: Omit<RenderOptions, 'wr
   const result = render(ui, {
     ...options,
     wrapper: ({ children }) => (
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>{children}</SafeAreaProvider>
-      </QueryClientProvider>
+      <ThemeProvider initialAppearance="light" persist={false} fontsReady>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider initialMetrics={SAFE_AREA_METRICS}>{children}</SafeAreaProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
     ),
   });
   return Object.assign(result, { queryClient });

@@ -1,24 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
-  AppText,
   Button,
+  ChoiceChip,
   ErrorState,
   Field,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction } from '../../lib/devLog';
 import { testIdFromLabel } from '../../lib/testId';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
 import { circleExplanation, defaultMemoryCircleId } from './circleAudience';
 import { fetchUploaderCircles, uploadPreparedPhoto, uploadPreparedVideo } from './memoryApi';
 import { splitPickedByVideoLimits } from './pickLimits';
@@ -221,17 +221,13 @@ export function AddPhotosScreen() {
         {circles.map((circle) => {
           const on = circle.id === selectedId;
           return (
-            <Pressable
+            <ChoiceChip
               key={circle.id}
               testID={`circle-${circle.kind}${on ? '-selected' : ''}`}
-              accessibilityRole="button"
-              accessibilityLabel={circle.name}
-              accessibilityState={{ selected: on }}
+              label={circle.name}
+              selected={on}
               onPress={() => setCircleId(circle.id)}
-              style={[styles.chip, on && styles.chipOn]}
-            >
-              <AppText style={[styles.chipText, on && styles.chipTextOn]}>{circle.name}</AppText>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -262,25 +258,6 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.chip,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipOn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    ...type.caption,
-    color: colors.text,
-  },
-  chipTextOn: {
-    color: colors.onPrimary,
+    gap: space.sm,
   },
 });

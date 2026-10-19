@@ -1,0 +1,48 @@
+# Home light and dark. Not a numbered phone test.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- takeScreenshot: "D32-home-light"
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- takeScreenshot: "D32-home-dark"
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-light"

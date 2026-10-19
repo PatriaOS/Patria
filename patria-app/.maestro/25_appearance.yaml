@@ -1,0 +1,46 @@
+# PHONE_TESTS: 25
+# AREAS: navigation
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- extendedWaitUntil:
+    visible:
+      id: "screen-appearance"
+    timeout: 15000
+- assertVisible:
+    id: "appearance-system"
+- assertVisible:
+    id: "appearance-light"
+- assertVisible:
+    id: "appearance-dark"
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- extendedWaitUntil:
+    visible:
+      id: "screen-appearance"
+    timeout: 15000
+- tapOn:
+    id: "appearance-light"

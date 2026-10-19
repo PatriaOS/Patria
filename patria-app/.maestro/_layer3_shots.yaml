@@ -1,0 +1,175 @@
+# Layer 3 screenshots. Not a numbered phone test.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- extendedWaitUntil:
+    visible:
+      id: "screen-appearance"
+    timeout: 15000
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- tapOn:
+    id: "^home$"
+- extendedWaitUntil:
+    visible:
+      id: "home"
+    timeout: 20000
+- takeScreenshot: "D32-home-light"
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "family-name"
+    direction: UP
+    timeout: 8000
+- takeScreenshot: "D32-members-light"
+- scrollUntilVisible:
+    element:
+      id: "recovery-contacts"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "recovery-contacts"
+- extendedWaitUntil:
+    visible: "Recovery contacts"
+    timeout: 15000
+- takeScreenshot: "D32-recovery-light"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- tapOn:
+    id: "^memories$"
+- extendedWaitUntil:
+    visible:
+      id: "screen-memories"
+    timeout: 20000
+- tapOn:
+    text: "Picnic"
+    optional: true
+- tapOn:
+    id: "^memory-.*"
+    optional: true
+- takeScreenshot: "D32-memory-light"
+- tapOn:
+    point: 8%, 12%
+    optional: true
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- takeScreenshot: "D32-home-dark"
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "family-name"
+    direction: UP
+    timeout: 8000
+- takeScreenshot: "D32-members-dark"
+- scrollUntilVisible:
+    element:
+      id: "recovery-contacts"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "recovery-contacts"
+- takeScreenshot: "D32-recovery-dark"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^memories$"
+- tapOn:
+    text: "Picnic"
+    optional: true
+- tapOn:
+    id: "^memory-.*"
+    optional: true
+- takeScreenshot: "D32-memory-dark"
+- tapOn:
+    point: 8%, 12%
+    optional: true
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "sign-out"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "sign-out"
+- extendedWaitUntil:
+    visible: "I already have an account"
+    timeout: 45000
+- tapOn:
+    id: "i-already-have-an-account"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sign-in"
+    timeout: 15000
+- takeScreenshot: "D32-signin-dark"
+- inputText: ${E2E_EMAIL}
+- tapOn:
+    id: "password"
+- inputText: ${E2E_PASSWORD}
+- tapOn:
+    id: "sign-in"
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 45000
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- scrollUntilVisible:
+    element:
+      id: "sign-out"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "sign-out"
+- extendedWaitUntil:
+    visible: "I already have an account"
+    timeout: 45000
+- tapOn:
+    id: "i-already-have-an-account"
+- takeScreenshot: "D32-signin-light"

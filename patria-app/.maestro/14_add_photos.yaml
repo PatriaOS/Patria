@@ -47,7 +47,8 @@ appId: app.patria.dev
       - assertVisible:
           id: "memory-uploader-.*"
       - assertVisible: "Test 1"
-      - tapOn: "Picnic"
+      - tapOn:
+          id: "memory-photo-.*"
       - extendedWaitUntil:
           visible:
             id: "screen-memory-item"
@@ -55,7 +56,9 @@ appId: app.patria.dev
       - assertVisible: "Picnic"
       - assertVisible:
           id: "memory-item-badge"
-      - assertVisible: "No location is stored with this photo."
+      - assertVisible:
+          id: "memory-item-no-location"
+          text: "No location is stored with this photo."
 - runFlow:
     when:
       true: ${PHASE == 'refresh'}

@@ -49,6 +49,9 @@ describe('navigation headers', () => {
     expect(routes.memoriesConnect).toBe('/(signed-in)/memories-connect');
     expect(routes.memoriesConnectSettings).toBe('/(signed-in)/memories-connect-settings');
     expect(routes.memoryItem('abc')).toBe('/(signed-in)/memory/abc');
+    expect(routes.appearance).toBe('/(signed-in)/appearance');
+    expect(routes.family).toBe('/(signed-in)/family');
+    expect(routes.vault).toBe('/(signed-in)/vault');
   });
 
   it('lets native back leave the invite screen', () => {

@@ -20,11 +20,11 @@ Passwords are never written in this file. Invites must go to these exact address
 
 ### 1. Back navigation
 Areas: navigation, auth
-1. Sign in as Test 1. You land on Home.
-2. Tap **Invite someone**. Pass if a back arrow shows at the top left.
-3. Tap the arrow. Pass if you return to Home.
-4. Open **Invite someone** again and swipe right from the left edge. Pass if you return to Home.
-5. Repeat with **Add a child**. Pass if Home itself has no back arrow.
+1. Sign in as Test 1. You land on Home. Pass if the greeting is time of day plus **E2E Family** (not “Hello, Test 1”).
+2. Open the **Family** tab, then tap **Invite someone**. Pass if a back arrow shows at the top left.
+3. Tap the arrow. Pass if you return to Family and **Invite someone** is still there.
+4. Open **Invite someone** again and swipe right from the left edge. Pass if you return to Family.
+5. Repeat with **Add a child**. Pass if the Home tab itself has no back arrow.
 
 ### 2. Pull to refresh
 Areas: navigation
@@ -33,7 +33,7 @@ Areas: navigation
 
 ### 3. Invite and accept
 Areas: invites, auth, membership
-1. As Test 1, tap **Invite someone**, enter Test 2's email, choose **Elder**, and send.
+1. As Test 1, open the **Family** tab, tap **Invite someone**, enter Test 2's email, choose **Elder**, and send.
 2. In the share sheet, tap **Copy**. (manual)
 3. Sign out, then sign in as Test 2. A new person with no family lands on **Create family**.
 4. Use **Were you invited to a family? Paste your invite link**: paste, then **Open**.
@@ -50,12 +50,12 @@ Areas: invites, auth
 
 ### 5. Sign out
 Areas: auth
-1. On Home, tap **Sign out**. Pass if a spinner shows, then the Welcome screen.
+1. Open the **Family** tab, then tap **Sign out**. Pass if a spinner shows, then the Welcome screen.
 2. Swipe right from the left edge. Pass if you stay on Welcome.
 
 ### 6. Add a child
 Areas: children, membership
-1. As Test 1, tap **Add a child**, enter **Lily**, and save.
+1. As Test 1, open the **Family** tab, tap **Add a child**, enter **Lily**, and save.
 2. Pass if Lily appears in the member list as a child with no email.
 3. Sign out, sign in as Test 2. Pass if there is no **Add a child** option and no email addresses are shown (D17).
 
@@ -70,7 +70,7 @@ Automation may capture screenshots at large text for a person to review, but a p
 
 ### 8. Family key created on this phone (Step 3)
 Areas: keys
-1. Sign in as Test 1 and create a new family, for example **Test Keys Family**. If you already have a space, tap **Create another family** on Home.
+1. Sign in as Test 1 and create a new family, for example **Test Keys Family**. If you already have a space, open the **Family** tab and tap **Create another family**.
 2. Pass if Home shows that family keys are set up on this phone.
 3. Database: one row in `family_key_meta` for the new family with key epoch 1.
 4. Database: exactly one row in `family_key_wraps` for that family, and the wrapped key column is unreadable bytes.
@@ -97,7 +97,7 @@ Needs a second device for the same account (device B). Device A is where Test 1 
 3. Make Test 2 a Co admin, sign in as Test 2. Pass if they see an information notice about Test 1's new phone with no button to let it in.
 4. On device A tap **Yes, this is my phone**. Pass if B now says family keys are set up and a new row for Test 1 and device B appears in `family_key_wraps`.
 5. Sign in as Test 1 on a fresh device (or B after clearing app data), then on device A tap **This wasn't me**. Pass if that device never gets keys and admins are told.
-6. On device A, from Home, scroll past invite, add a child, and Recovery contacts, then open **Your phones**. Remove device B and confirm **Remove**. Pass if B goes back to waiting and its row disappears from `family_key_wraps`.
+6. On device A, open the **Family** tab, then **Your phones**. Remove device B and confirm **Remove**. Pass if B goes back to waiting and its row disappears from `family_key_wraps`.
 
 ### 11. Set up recovery contacts and printed code (Step 6)
 Areas: recovery, keys
@@ -222,3 +222,23 @@ Areas: memories
 3. Delete it. Pass if it leaves the library. **(manual)**
 4. Reopen Patria. Pass if that deleted photo is not shared again, and adding it by hand through Add photos is still allowed. **(manual)**
 Pass when: a deleted sync photo is not re-shared, and adding it again by hand through Add photos is still allowed.
+
+## Design foundation (D32)
+
+Layer 2: tabs and Appearance. Layer 3: restyled screens, Home mockup, lining numerals, themed cards, Vault lock.
+
+### 24. Tab bar
+Areas: navigation
+1. Sign in as Test 1. Pass if Home, Memories, Vault and Family tabs show at the bottom.
+2. Tap **Memories**. Pass if the Memories library opens.
+3. Tap **Vault**. Pass if you see that the Legacy Vault is coming next.
+4. Tap **Family**. Pass if Invite someone and Sign out are there.
+5. On Family with nothing waiting, pass if the Home tab is labeled **Home** (no terracotta dot).
+6. Return to Home. If a let-in, new phone, recovery alert or This wasn’t me is waiting, pass if the Home tab is labeled **Home, 1 notice** and shows a terracotta dot while you are on another tab. (Jest covers the let-in case; this run asserts the quiet case.)
+
+### 25. Appearance
+Areas: navigation
+1. Open **Family**, then **Appearance**.
+2. Pass if you can choose **Match my phone**, **Light** or **Dark**.
+3. Choose **Dark**. Pass if Family, the tab bar and the header go dark, and the clock and battery stay readable.
+4. Choose **Light**. Pass if they return to linen.

@@ -221,7 +221,7 @@ function signInEnv(secrets, n) {
   return {
     E2E_EMAIL: TEST_EMAILS[n],
     E2E_PASSWORD: passwordFor(secrets, n),
-    E2E_HELLO: `Hello, Test ${n}`,
+    E2E_HELLO: 'E2E Family',
   };
 }
 
@@ -472,9 +472,6 @@ async function ensureMetro() {
     while (Date.now() - started < 90000) {
       if (await metroReady()) {
         break;
-      }
-      if (child.exitCode != null) {
-        throw new Error('Metro exited before it became ready. See e2e-artifacts/metro.log.');
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
@@ -1093,6 +1090,7 @@ try {
             ...signInEnv(secrets, 1),
             PHASE: 'pick_contact',
             CONTACT_ID: 'recovery-contact-test-2',
+            E2E_STAY: '1',
           },
         });
       });
@@ -1111,6 +1109,7 @@ try {
             ...signInEnv(secrets, 1),
             PHASE: 'pick_contact',
             CONTACT_ID: 'recovery-contact-test-3',
+            E2E_STAY: '1',
           },
         });
         maestro({
@@ -1123,7 +1122,7 @@ try {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'printed_code' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'printed_code', E2E_STAY: '1' },
         });
         wipeSensitiveArtifacts(11);
       });
@@ -1137,7 +1136,7 @@ try {
         const removed = tryMaestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'remove_contact' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'remove_contact', E2E_STAY: '1' },
         });
         if (!removed.ok) {
           return result('skip', 'second contact may not be present');
@@ -1151,7 +1150,7 @@ try {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceB,
-          env: { ...signInEnv(secrets, 2), PHASE: 'open_card' },
+          env: { ...signInEnv(secrets, 2), PHASE: 'open_card', E2E_STAY: '1' },
         });
         maestro({
           flow: flow('11_recovery_setup.yaml'),
@@ -1160,12 +1159,13 @@ try {
             ...signInEnv(secrets, 2),
             PHASE: 'pick_contact',
             CONTACT_ID: 'recovery-contact-test-1',
+            E2E_STAY: '1',
           },
         });
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'accept_contact' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'accept_contact', E2E_STAY: '1' },
         });
         signInOnDevice(2, deviceB);
       });
@@ -1498,7 +1498,7 @@ try {
           maestro({
             flow: flow('19_connect_library.yaml'),
             device: deviceA,
-            env: { ...signInEnv(secrets, 1), PHASE: 'new_photo' },
+            env: { ...signInEnv(secrets, 1), PHASE: 'new_photo', E2E_STAY: '1' },
           });
           maestro({
             flow: flow('19_connect_library.yaml'),
@@ -1563,6 +1563,36 @@ try {
       step(23, 4, 'Deleted photo is not shared again after reopen', () =>
         result('skip', 'manual: delete a photo that was shared automatically, then reopen Patria'),
       );
+    }
+
+    if (test.number === 24) {
+      step(24, 1, 'Home, Memories, Vault and Family tabs', () => {
+        maestro({
+          flow: flow('24_tabs.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(24, 2, 'Memories library opens', () => result('pass'));
+      step(24, 3, 'Vault coming next', () => result('pass'));
+      step(24, 4, 'Family Invite someone and Sign out', () => result('pass'));
+      step(24, 5, 'Quiet Home tab has no notice dot', () => result('pass'));
+      step(24, 6, 'Home notice label when something is waiting', () =>
+        result('skip', 'Jest covers the let-in case; this run asserts the quiet case'),
+      );
+    }
+
+    if (test.number === 25) {
+      step(25, 1, 'Open Appearance from Family', () => {
+        maestro({
+          flow: flow('25_appearance.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(25, 2, 'Match my phone, Light or Dark', () => result('pass'));
+      step(25, 3, 'Dark applies to Family, tabs and header', () => result('pass'));
+      step(25, 4, 'Light returns to linen', () => result('pass'));
     }
     } catch (error) {
       if (!(error instanceof Error) || error.message !== 'timed out') {

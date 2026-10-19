@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 
-import { Button, Muted, Screen, Title } from '../../components/ui';
+import { Button, Muted, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
 import { librarySyncSupported } from './libraryApi';

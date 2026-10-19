@@ -1,6 +1,6 @@
 import { useNavigation, useRouter } from 'expo-router';
 
-import { Body, Button, Muted, Screen, Title } from '../../components/ui';
+import { Body, Button, Muted, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 
 export function ReadyScreen() {

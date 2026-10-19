@@ -2,13 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Linking, Pressable, Share, StyleSheet, View } from 'react-native';
+import { Linking, Share, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import {
-  AppText,
   Body,
   Button,
+  Card,
+  ChoiceChip,
   EmptyState,
   ErrorState,
   Field,
@@ -16,7 +17,7 @@ import {
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { logFailedAction } from '../../lib/devLog';
@@ -26,7 +27,7 @@ import { inviteUrlFromToken } from '../../lib/inviteUrl';
 import { INVITE_ROLES, type SpaceRole } from '../../lib/roles';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
 
 const schema = z.object({
   email: z.string().trim().min(3),
@@ -177,18 +178,13 @@ export function InviteScreen() {
         render={({ field }) => (
           <View style={styles.chips}>
             {INVITE_ROLES.map((role) => (
-              <Pressable
+              <ChoiceChip
                 key={role}
                 testID={`role-${testIdFromLabel(copy.roles[role])}`}
-                accessibilityRole="button"
-                accessibilityLabel={copy.roles[role]}
+                label={copy.roles[role]}
+                selected={field.value === role}
                 onPress={() => field.onChange(role)}
-                style={[styles.chip, field.value === role && styles.chipOn]}
-              >
-                <AppText style={[styles.chipText, field.value === role && styles.chipTextOn]}>
-                  {copy.roles[role]}
-                </AppText>
-              </Pressable>
+              />
             ))}
           </View>
         )}
@@ -203,17 +199,12 @@ export function InviteScreen() {
             {(circlesQuery.data ?? []).map((circle) => {
               const selected = (field.value || householdId) === circle.id;
               return (
-                <Pressable
+                <ChoiceChip
                   key={circle.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={circle.name}
+                  label={circle.name}
+                  selected={selected}
                   onPress={() => field.onChange(circle.id)}
-                  style={[styles.chip, selected && styles.chipOn]}
-                >
-                  <AppText style={[styles.chipText, selected && styles.chipTextOn]}>
-                    {circle.name}
-                  </AppText>
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -240,8 +231,8 @@ export function InviteScreen() {
       <Body>{copy.invite.pendingTitle}</Body>
       {pendingQuery.data?.length ? (
         pendingQuery.data.map((invite) => (
-          <View key={invite.id} style={styles.pending}>
-            <AppText style={styles.chipText}>{invite.email}</AppText>
+          <Card key={invite.id}>
+            <Body>{invite.email}</Body>
             <Muted>
               {copy.roles[invite.role]} ·{' '}
               {copy.invite.expires.replace(
@@ -254,10 +245,10 @@ export function InviteScreen() {
               variant="danger"
               onPress={() => void revoke(invite.id)}
             />
-          </View>
+          </Card>
         ))
       ) : (
-        <EmptyState message={copy.invite.emptyPending} />
+        <EmptyState title={copy.invite.emptyPending} />
       )}
     </Screen>
   );
@@ -267,31 +258,6 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    backgroundColor: colors.chip,
-    borderRadius: 24,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-    flexShrink: 1,
-  },
-  chipOn: {
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    ...type.caption,
-    color: colors.text,
-  },
-  chipTextOn: {
-    color: colors.onPrimary,
-  },
-  pending: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.sm,
+    gap: space.sm,
   },
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Button, ErrorState, Field, Muted } from '../../components/ui';
+import { Button, ErrorState, Field, Muted } from '../../ui';
 import { copy } from '../../lib/copy';
 import { tokenFromInviteUrl } from '../../lib/inviteUrl';
 

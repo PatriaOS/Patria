@@ -1,6 +1,6 @@
 import { Redirect, Stack } from 'expo-router';
 
-import { LoadingState, Screen } from '../../src/components/ui';
+import { LoadingState, Screen } from '../../src/ui';
 import { useAuth } from '../../src/lib/auth-context';
 import { copy } from '../../src/lib/copy';
 import {
@@ -9,13 +9,15 @@ import {
   pushedScreenHeader,
   screenTitles,
 } from '../../src/lib/navigation';
+import { useThemedStackOptions } from '../../src/theme';
 
 export const unstable_settings = {
-  initialRouteName: 'home',
+  initialRouteName: '(tabs)',
 };
 
 export default function SignedInLayout() {
   const { session, loading } = useAuth();
+  const chrome = useThemedStackOptions();
 
   if (loading) {
     return (
@@ -29,13 +31,16 @@ export default function SignedInLayout() {
     return <Redirect href="/" />;
   }
 
+  const pushed = { ...pushedScreenHeader, ...chrome };
+
   return (
-    <Stack initialRouteName="home" screenOptions={hiddenRootHeader}>
-      <Stack.Screen name="home" options={{ ...hiddenRootHeader, title: screenTitles.home }} />
+    <Stack initialRouteName="(tabs)" screenOptions={{ ...hiddenRootHeader, ...chrome }}>
+      <Stack.Screen name="(tabs)" options={{ ...hiddenRootHeader, title: screenTitles.home }} />
       <Stack.Screen
         name="create"
         options={({ navigation }) => ({
           ...headerWhenPushed(navigation.canGoBack()),
+          ...chrome,
           title: screenTitles.createFamily,
         })}
       />
@@ -43,76 +48,51 @@ export default function SignedInLayout() {
         name="ready"
         options={({ navigation }) => ({
           ...headerWhenPushed(navigation.canGoBack()),
+          ...chrome,
           title: screenTitles.ready,
         })}
       />
       <Stack.Screen
         name="invite-someone"
-        options={{ ...pushedScreenHeader, title: screenTitles.inviteSomeone }}
+        options={{ ...pushed, title: screenTitles.inviteSomeone }}
       />
-      <Stack.Screen
-        name="add-child"
-        options={{ ...pushedScreenHeader, title: screenTitles.addChild }}
-      />
-      <Stack.Screen
-        name="member/[userId]"
-        options={{ ...pushedScreenHeader, title: screenTitles.member }}
-      />
-      <Stack.Screen
-        name="child/[childId]"
-        options={{ ...pushedScreenHeader, title: screenTitles.child }}
-      />
-      <Stack.Screen
-        name="join-family"
-        options={{ ...pushedScreenHeader, title: screenTitles.joinFamily }}
-      />
+      <Stack.Screen name="add-child" options={{ ...pushed, title: screenTitles.addChild }} />
+      <Stack.Screen name="member/[userId]" options={{ ...pushed, title: screenTitles.member }} />
+      <Stack.Screen name="child/[childId]" options={{ ...pushed, title: screenTitles.child }} />
+      <Stack.Screen name="join-family" options={{ ...pushed, title: screenTitles.joinFamily }} />
       <Stack.Screen
         name="your-name"
         options={({ navigation }) => ({
           ...headerWhenPushed(navigation.canGoBack()),
+          ...chrome,
           title: screenTitles.yourName,
         })}
       />
-      <Stack.Screen
-        name="your-phones"
-        options={{ ...pushedScreenHeader, title: screenTitles.yourPhones }}
-      />
+      <Stack.Screen name="your-phones" options={{ ...pushed, title: screenTitles.yourPhones }} />
       <Stack.Screen
         name="recovery-setup"
-        options={{ ...pushedScreenHeader, title: screenTitles.recoverySetup }}
+        options={{ ...pushed, title: screenTitles.recoverySetup }}
       />
-      <Stack.Screen
-        name="printed-code"
-        options={{ ...pushedScreenHeader, title: screenTitles.printedCode }}
-      />
+      <Stack.Screen name="printed-code" options={{ ...pushed, title: screenTitles.printedCode }} />
       <Stack.Screen
         name="recover-lost-phone"
-        options={{ ...pushedScreenHeader, title: screenTitles.recoverLostPhone }}
+        options={{ ...pushed, title: screenTitles.recoverLostPhone }}
       />
       <Stack.Screen
         name="remove-old-phones"
-        options={{ ...pushedScreenHeader, title: screenTitles.removeOldPhones }}
+        options={{ ...pushed, title: screenTitles.removeOldPhones }}
       />
-      <Stack.Screen
-        name="memories"
-        options={{ ...pushedScreenHeader, title: screenTitles.memories }}
-      />
-      <Stack.Screen
-        name="memories-add"
-        options={{ ...pushedScreenHeader, title: screenTitles.memoriesAdd }}
-      />
+      <Stack.Screen name="appearance" options={{ ...pushed, title: screenTitles.appearance }} />
+      <Stack.Screen name="memories-add" options={{ ...pushed, title: screenTitles.memoriesAdd }} />
       <Stack.Screen
         name="memories-connect"
-        options={{ ...pushedScreenHeader, title: screenTitles.memoriesConnect }}
+        options={{ ...pushed, title: screenTitles.memoriesConnect }}
       />
       <Stack.Screen
         name="memories-connect-settings"
-        options={{ ...pushedScreenHeader, title: screenTitles.memoriesConnectSettings }}
+        options={{ ...pushed, title: screenTitles.memoriesConnectSettings }}
       />
-      <Stack.Screen
-        name="memory/[itemId]"
-        options={{ ...pushedScreenHeader, title: screenTitles.memoryItem }}
-      />
+      <Stack.Screen name="memory/[itemId]" options={{ ...pushed, title: screenTitles.memoryItem }} />
     </Stack>
   );
 }

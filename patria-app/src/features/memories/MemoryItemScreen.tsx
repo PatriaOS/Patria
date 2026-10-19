@@ -2,22 +2,24 @@ import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import {
-  AppText,
   Button,
+  Caption,
+  ChoiceChip,
   ErrorState,
   LoadingState,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { logFailedAction } from '../../lib/devLog';
-import { colors, spacing, type } from '../../theme';
+import { useTheme } from '../../theme';
+import { space } from '../../theme/tokens';
 import { moveNeedsConfirm } from './circleAudience';
 import {
   deleteMemoryItem,
@@ -40,6 +42,7 @@ function formatTakenAt(iso: string): string {
 }
 
 function MemoryVideo({ uri, width, height }: { uri: string; width: number; height: number }) {
+  const { colors } = useTheme();
   // Loaded only when a video is on screen, so Welcome is not tied to ExpoVideo.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const video = require('expo-video') as typeof import('expo-video');
@@ -51,7 +54,7 @@ function MemoryVideo({ uri, width, height }: { uri: string; width: number; heigh
     <View testID="memory-video" accessibilityLabel={copy.memories.play}>
       <video.VideoView
         player={player}
-        style={[styles.photo, { aspectRatio: width / Math.max(1, height) }]}
+        style={[styles.photo, { backgroundColor: colors.softSurface, aspectRatio: width / Math.max(1, height) }]}
         nativeControls
         contentFit="contain"
         accessibilityLabel={copy.memories.play}
@@ -63,6 +66,7 @@ function MemoryVideo({ uri, width, height }: { uri: string; width: number; heigh
 export function MemoryItemScreen() {
   const router = useRouter();
   const { session } = useAuth();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ itemId?: string }>();
   const itemId = typeof params.itemId === 'string' ? params.itemId : '';
   const userId = session?.user.id;
@@ -186,40 +190,45 @@ export function MemoryItemScreen() {
       testID="screen-memory-item"
       accessibilityLabel={item.caption ?? copy.memories.title}
     >
+      {item.caption ? <Title>{item.caption}</Title> : null}
+      {item.addedAutomatically ? <Muted>{copy.memories.addedAutomatically}</Muted> : null}
+      <Caption testID="memory-item-badge" tone="primary">
+        {item.circleName}
+      </Caption>
+      <Muted testID="memory-item-date">{formatTakenAt(item.takenAt)}</Muted>
+      <Muted testID="memory-item-no-location">
+        {item.kind === 'video' ? copy.memories.noLocationVideo : copy.memories.noLocation}
+      </Muted>
       {item.kind === 'video' && item.fullUrl ? (
         <MemoryVideo uri={item.fullUrl} width={item.width} height={item.height} />
       ) : item.fullUrl ? (
         <Image
           source={{ uri: item.fullUrl }}
-          style={[styles.photo, { aspectRatio: item.width / Math.max(1, item.height) }]}
+          style={[
+            styles.photo,
+            {
+              backgroundColor: colors.softSurface,
+              aspectRatio: item.width / Math.max(1, item.height),
+              maxHeight: 280,
+            },
+          ]}
           contentFit="contain"
         />
       ) : null}
-      {item.caption ? <Title>{item.caption}</Title> : null}
-      {item.addedAutomatically ? <Muted>{copy.memories.addedAutomatically}</Muted> : null}
-      <AppText testID="memory-item-badge" style={styles.badge}>
-        {item.circleName}
-      </AppText>
-      <Muted testID="memory-item-date">{formatTakenAt(item.takenAt)}</Muted>
-      <Muted>{item.kind === 'video' ? copy.memories.noLocationVideo : copy.memories.noLocation}</Muted>
       {error ? <ErrorState message={error} /> : null}
       {isUploader ? (
         <>
           <Muted>{copy.memories.move}</Muted>
           <View style={styles.chips}>
             {(circlesQuery.data ?? []).map((circle) => (
-              <Pressable
+              <ChoiceChip
                 key={circle.id}
                 testID={`move-circle-${circle.kind}`}
-                accessibilityRole="button"
+                label={circle.name}
                 accessibilityLabel={`${copy.memories.move} ${circle.name}`}
+                selected={circle.id === item.circleId}
                 onPress={() => onMove(circle.id, circle.name)}
-                style={[styles.chip, circle.id === item.circleId && styles.chipOn]}
-              >
-                <AppText style={[styles.chipText, circle.id === item.circleId && styles.chipTextOn]}>
-                  {circle.name}
-                </AppText>
-              </Pressable>
+              />
             ))}
           </View>
           <Button
@@ -237,36 +246,11 @@ export function MemoryItemScreen() {
 const styles = StyleSheet.create({
   photo: {
     width: '100%',
-    backgroundColor: colors.chip,
     borderRadius: 16,
-  },
-  badge: {
-    ...type.caption,
-    color: colors.primary,
-    fontWeight: '600',
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.chip,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  chipOn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    ...type.caption,
-    color: colors.text,
-  },
-  chipTextOn: {
-    color: colors.onPrimary,
+    gap: space.sm,
   },
 });

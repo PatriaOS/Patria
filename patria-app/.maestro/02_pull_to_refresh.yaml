@@ -9,4 +9,4 @@ appId: app.patria.dev
     end: 50%, 80%
 - assertNotVisible: "Continue"
 - assertVisible:
-    id: "invite-someone"
+    id: "home"

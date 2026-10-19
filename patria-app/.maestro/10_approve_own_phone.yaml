@@ -60,6 +60,12 @@ appId: app.patria.dev
       - tapOn:
           text: "OK"
           optional: true
+      - tapOn:
+          id: "^family$"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-family"
+          timeout: 20000
       - swipe:
           start: 50%, 80%
           end: 50%, 20%

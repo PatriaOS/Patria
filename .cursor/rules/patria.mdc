@@ -42,7 +42,7 @@ Patria is a private family app: it runs a family's day to day and keeps its memo
 
 ## Code standards
 * Small, focused components and functions. One feature per folder under `patria-app/src/features/<feature>/`.
-* Shared UI components in `patria-app/src/components/`; design tokens (colors, spacing, type) in `patria-app/src/theme/`.
+* Shared UI components in `patria-app/src/ui/` (D32). Design tokens (color, space, type) live in `patria-app/src/theme/` and are read through `useTheme()` so light and dark both work. Do not style screens with the frozen light `colors` export. Icons are Lucide paths drawn with `react-native-svg` only.
 * No `any` types. Handle loading, empty and error states on every screen.
 * Accessibility: every touchable has an accessibility label; support large text.
 * Support iOS and Android text size settings up to the largest accessibility sizes. No fixed text or line heights; every screen scrolls; test at the largest size before marking a screen done. Until the accessibility pass (D16), text scaling is capped at 1.3; new screens must still avoid fixed text heights. (The deferral itself is D19 in DECISIONS.md because D16 already records invite delivery.)

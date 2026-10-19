@@ -5,7 +5,9 @@ describe('copy', () => {
     expect(copy.appName).toBe('Patria');
     expect(copy.welcome.title.length).toBeGreaterThan(0);
     expect(copy.invitePreview.summaryTitle.length).toBeGreaterThan(0);
-    expect(copy.home.todoMemories.length).toBeGreaterThan(0);
+    expect(copy.home.greetingEvening).toBe('Good evening,');
+    expect(copy.home.recentMemories).toBe('Recent memories');
+    expect(copy.home.vaultComing).toMatch(/letters and decisions/i);
     expect(copy.home.memories).toBe('Memories');
     expect(copy.memories.householdDefault.length).toBeGreaterThan(0);
     expect(copy.memories.connectBody.length).toBeGreaterThan(0);
@@ -41,5 +43,12 @@ describe('copy', () => {
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');
+    expect(copy.tabs.home).toBe('Home');
+    expect(copy.tabs.vault).toBe('Vault');
+    expect(copy.tabs.homeNotice).toBe('Home, {count} notice');
+    expect(copy.design.galleryTitle).toBe('Design gallery');
+    expect(copy.appearance.matchPhone).toBe('Match my phone');
+    expect(copy.vault.emptyTitle).toMatch(/Legacy Vault is coming next/);
   });
 });
+

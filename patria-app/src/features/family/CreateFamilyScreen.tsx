@@ -2,19 +2,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigation, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import {
-  AppText,
   Body,
   Button,
+  ChoiceChip,
   ErrorState,
   Field,
   Muted,
   Screen,
   Title,
-} from '../../components/ui';
+} from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
@@ -24,7 +24,7 @@ import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
-import { colors, spacing, type } from '../../theme';
+import { space } from '../../theme/tokens';
 import { PasteInviteField } from '../invites/PasteInviteField';
 
 const RELATIONSHIPS = ['mum', 'dad', 'grandparent', 'guardian'] as const;
@@ -100,24 +100,15 @@ export function CreateFamilyScreen() {
         render={({ field }) => (
           <View style={styles.chips}>
             {RELATIONSHIPS.map((key) => {
-              const selected = field.value === key;
               const label = copy.relationships[key];
               return (
-                <Pressable
+                <ChoiceChip
                   key={key}
                   testID={`relationship-${testIdFromLabel(label)}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={label}
-                  accessibilityState={{ selected }}
+                  label={label}
+                  selected={field.value === key}
                   onPress={() => field.onChange(key)}
-                  style={[styles.chip, selected && styles.chipSelected]}
-                >
-                  <AppText
-                    style={[styles.chipLabel, selected && styles.chipLabelSelected]}
-                  >
-                    {label}
-                  </AppText>
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -157,25 +148,6 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    backgroundColor: colors.chip,
-    borderRadius: 24,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-    flexShrink: 1,
-  },
-  chipSelected: {
-    backgroundColor: colors.primary,
-  },
-  chipLabel: {
-    ...type.caption,
-    color: colors.text,
-  },
-  chipLabelSelected: {
-    color: colors.onPrimary,
+    gap: space.sm,
   },
 });
