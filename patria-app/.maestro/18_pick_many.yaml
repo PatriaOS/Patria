@@ -18,6 +18,11 @@ appId: app.patria.dev
     id: "add-photos"
 - extendedWaitUntil:
     visible:
+      id: "video-limits"
+    timeout: 20000
+- assertVisible: "Videos up to 1 minute and 50 MB"
+- extendedWaitUntil:
+    visible:
       id: "picked-count"
     timeout: 20000
 - assertVisible: "3 selected"

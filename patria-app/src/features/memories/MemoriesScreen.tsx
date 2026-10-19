@@ -241,20 +241,15 @@ export function MemoriesScreen() {
             key={item.id}
             testID={`memory-${item.id}`}
             accessibilityRole="button"
-            accessibilityLabel={`${item.circleName}, ${item.uploaderName}, ${formatTakenAt(item.takenAt)}`}
+            accessibilityLabel={
+              item.kind === 'video'
+                ? `${copy.memories.play} ${formatDuration(item.durationSeconds)}, ${item.circleName}, ${item.uploaderName}, ${formatTakenAt(item.takenAt)}`
+                : `${item.circleName}, ${item.uploaderName}, ${formatTakenAt(item.takenAt)}`
+            }
             onPress={() => router.push(routes.memoryItem(item.id))}
             style={styles.tile}
           >
-            {item.thumbUrl ? (
-              <Image source={{ uri: item.thumbUrl }} style={styles.thumb} contentFit="cover" />
-            ) : (
-              <View style={[styles.thumb, styles.thumbEmpty]} />
-            )}
-            {item.kind === 'video' ? (
-              <AppText testID={`memory-play-${item.id}`} style={styles.play}>
-                {`${copy.memories.play} ${formatDuration(item.durationSeconds)}`}
-              </AppText>
-            ) : null}
+            <MemoryThumb item={item} />
             <AppText testID={`memory-badge-${item.id}`} style={styles.badge}>
               {item.circleName}
             </AppText>
@@ -268,6 +263,28 @@ export function MemoriesScreen() {
         ))}
       </View>
     </Screen>
+  );
+}
+
+function MemoryThumb({ item }: { item: MemoryItem }) {
+  const duration = formatDuration(item.durationSeconds);
+  return (
+    <View
+      style={styles.thumbWrap}
+      testID={item.kind === 'video' ? `memory-play-${item.id}` : undefined}
+    >
+      {item.thumbUrl ? (
+        <Image source={{ uri: item.thumbUrl }} style={styles.thumb} contentFit="cover" />
+      ) : (
+        <View style={[styles.thumb, styles.thumbPlaceholder]} />
+      )}
+      {item.kind === 'video' ? (
+        <View style={styles.videoScrim} pointerEvents="none">
+          <View style={styles.playMark} />
+          {duration ? <AppText style={styles.durationBadge}>{duration}</AppText> : null}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -286,18 +303,48 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: spacing.xs,
   },
-  thumb: {
+  thumbWrap: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: 12,
+    overflow: 'hidden',
     backgroundColor: colors.chip,
   },
-  thumbEmpty: {
-    minHeight: 96,
+  thumb: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.chip,
   },
-  play: {
+  thumbPlaceholder: {
+    backgroundColor: colors.primary,
+  },
+  videoScrim: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playMark: {
+    width: 0,
+    height: 0,
+    marginLeft: 4,
+    borderTopWidth: 10,
+    borderBottomWidth: 10,
+    borderLeftWidth: 16,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: colors.onPrimary,
+  },
+  durationBadge: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
     ...type.caption,
-    color: colors.text,
+    color: colors.onPrimary,
+    backgroundColor: 'rgba(31, 42, 36, 0.72)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   badge: {
     ...type.caption,

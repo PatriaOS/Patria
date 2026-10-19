@@ -269,6 +269,7 @@ export const copy = {
     title: 'Memories',
     empty: 'No photos in your circles yet. Add some when you are ready.',
     addPhotos: 'Add photos',
+    videoLimits: 'Videos up to 1 minute and 50 MB',
     connectPhotos: 'Connect my photos',
     pickedCount: '{count} selected',
     itemFailed: 'We couldn’t share one item. The others will continue.',

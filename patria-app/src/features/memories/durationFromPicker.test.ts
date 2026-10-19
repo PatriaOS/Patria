@@ -1,6 +1,6 @@
 import { durationSecondsFromPicker } from './durationFromPicker';
 import { fromPickerAsset } from './pickMedia';
-import { videoLimitError } from './prepareVideo';
+import { videoLimitError } from './videoLimits';
 
 describe('picker video duration', () => {
   it('always treats picker duration as milliseconds', () => {

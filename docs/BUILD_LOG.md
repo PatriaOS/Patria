@@ -7,6 +7,18 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-18 — Add photos names the video limit before the picker
+
+A 6 minute, 1.9 GB clip spent minutes in iOS “preparing” before Patria could refuse it. We do not change Medium export or the location scan. Add photos now shows “Videos up to 1 minute and 50 MB” before the picker opens and keeps that line on the share screen. `allowsEditing` stays off so people can still pick many items. A custom Photos picker that reads duration and size first, then runs the same Medium export and scan only on keepers, waits for the development build stage.
+
+---
+
+## 2026-10-18 — Video tiles use a real frame; over-limit clips are refused before Share
+
+A shared video showed a blurry stretched speck because the thumb was a 16×16 JPEG. We now grab a frame with `expo-video-thumbnails` (about 1 second in), re-encode it as JPEG, and overlay play plus length on the tile. If the frame fails, we store a full-size matte. Length and picker file size are checked as soon as the picker returns, so a huge clip is named and dropped before Share; the other picked items stay. Medium export and the location scan are unchanged. No database change.
+
+---
+
 ## 2026-10-18 — Picker duration is always milliseconds
 
 A 3 second clip on a real iPhone was refused as longer than a minute, and a 14 second clip in a mixed pick vanished with no message. `expo-image-picker` documents `asset.duration` in milliseconds on iOS and Android; we compared it to 60 as if it were seconds. The helper always divides by 1000 (no unit guess) for the limit, `duration_seconds`, and the tile. Missing or zero duration is refused kindly. A mixed pick stays on the add screen and names the skip. The gated e2e sample now uses the picker shape (`duration: 2000`). Library sync is photos only, so it had no duration unit bug. No database change.

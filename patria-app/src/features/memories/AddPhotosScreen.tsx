@@ -21,6 +21,7 @@ import { testIdFromLabel } from '../../lib/testId';
 import { colors, spacing, type } from '../../theme';
 import { circleExplanation, defaultMemoryCircleId } from './circleAudience';
 import { fetchUploaderCircles, uploadPreparedPhoto, uploadPreparedVideo } from './memoryApi';
+import { splitPickedByVideoLimits } from './pickLimits';
 import { pickMedia, type PickedMedia } from './pickMedia';
 import { preparePhoto } from './preparePhoto';
 import { prepareVideo } from './prepareVideo';
@@ -46,25 +47,32 @@ export function AddPhotosScreen() {
 
   useEffect(() => {
     let alive = true;
-    void pickMedia()
-      .then((result) => {
-        if (!alive) {
-          return;
-        }
-        if (result === 'cancelled' || result.length === 0) {
-          router.back();
-          return;
-        }
-        setPicked(result);
-      })
-      .catch((error) => {
-        logFailedAction(error);
-        if (alive) {
-          setFormError(copy.memories.pickFailed);
-        }
-      });
+    const frame = requestAnimationFrame(() => {
+      void pickMedia()
+        .then((result) => {
+          if (!alive) {
+            return;
+          }
+          if (result === 'cancelled' || result.length === 0) {
+            router.back();
+            return;
+          }
+          const { kept, skips } = splitPickedByVideoLimits(result);
+          setPicked(kept);
+          if (skips.length > 0) {
+            setFormError(shareSkipSummary(skips));
+          }
+        })
+        .catch((error) => {
+          logFailedAction(error);
+          if (alive) {
+            setFormError(copy.memories.pickFailed);
+          }
+        });
+    });
     return () => {
       alive = false;
+      cancelAnimationFrame(frame);
     };
   }, [router]);
 
@@ -188,7 +196,9 @@ export function AddPhotosScreen() {
 
   if (!spaceId || circlesQuery.isLoading || picked === null) {
     return (
-      <Screen withHeader testID="screen-memories-add">
+      <Screen withHeader testID="screen-memories-add" accessibilityLabel={copy.memories.addPhotos}>
+        <Title>{copy.memories.addPhotos}</Title>
+        <Muted testID="video-limits">{copy.memories.videoLimits}</Muted>
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -202,6 +212,7 @@ export function AddPhotosScreen() {
       accessibilityLabel={copy.memories.addPhotos}
     >
       <Title>{copy.memories.addPhotos}</Title>
+      <Muted testID="video-limits">{copy.memories.videoLimits}</Muted>
       <Muted testID="picked-count">
         {copy.memories.pickedCount.replace('{count}', String(picked.length))}
       </Muted>
@@ -241,7 +252,7 @@ export function AddPhotosScreen() {
         testID="share"
         onPress={() => void onShare()}
         busy={busy}
-        disabled={!selectedId}
+        disabled={!selectedId || picked.length === 0}
       />
     </Screen>
   );

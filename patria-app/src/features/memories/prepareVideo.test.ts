@@ -1,4 +1,4 @@
-import { videoLimitError } from './prepareVideo';
+import { videoLimitError } from './videoLimits';
 
 describe('video limits', () => {
   it('refuses videos longer than a minute or larger than 50 MB', () => {

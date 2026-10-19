@@ -181,9 +181,9 @@ Areas: memories
 ### 18. Pick many photos or a short video (MEM01 slice 2)
 Areas: memories
 1. As Test 1, open Memories and tap Add photos. Pick two photos and a short video. **(manual)** Maestro cannot drive the system photo picker; automated runs use bundled samples only when `EXPO_PUBLIC_E2E=1`.
-2. Pass if the screen shows how many items were selected, Household is selected by default, and Share is offered.
-3. Tap Share. Pass if progress counts each item, the video tile shows a play mark and the length, opening it plays full screen with pause and sound, and it says no location is stored with this video.
-4. Pick a video longer than one minute, or larger than 50 MB after a Medium export. Pass if it is refused kindly and nothing is uploaded. If that video is picked with photos, pass if the photos still appear and the screen says the video was not shared and why (for example “1 video wasn’t shared: it’s longer than 1 minute”). **(manual)**
+2. Pass if the screen shows “Videos up to 1 minute and 50 MB”, how many items were selected, Household is selected by default, and Share is offered.
+3. Tap Share. Pass if progress counts each item, the video tile shows a frame from the video (or a clean placeholder, never a stretched speck) with a play mark and the length on the thumbnail, opening it plays full screen with pause and sound, and it says no location is stored with this video.
+4. Pick a video longer than one minute, or larger than 50 MB. Pass if it is refused kindly on the add screen before Share, and nothing is uploaded. If that video is picked with photos, pass if the photos stay selected and the screen says the video was not shared and why (for example “1 video wasn’t shared: it’s longer than 1 minute”). **(manual)**
 5. Pick a video that still has location in the file. Pass if it is refused. **(manual)** Keep a real GPS video check on a phone before treating video as done.
 Pass when: steps 1 to 3 behave as written. Over-limit and located videos stay off the library.
 

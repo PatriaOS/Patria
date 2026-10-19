@@ -75,7 +75,10 @@ jest.mock('./preparePhoto', () => ({
 describe('Add photos', () => {
   it('selects Household by default and explains the circle in plain words', async () => {
     const { findByTestId } = renderScreen(<AddPhotosScreen />);
-    expect(pickMedia).toHaveBeenCalled();
+    expect(await findByTestId('video-limits')).toBeTruthy();
+    await waitFor(() => {
+      expect(pickMedia).toHaveBeenCalled();
+    });
     expect(await findByTestId('circle-household-selected')).toBeTruthy();
     expect(await findByTestId('circle-extended_family')).toBeTruthy();
     expect(await findByTestId('circle-only_me')).toBeTruthy();
@@ -93,6 +96,37 @@ describe('Add photos', () => {
     await waitFor(() => {
       expect(share).toBeTruthy();
     });
+  });
+
+  it('refuses a long video as soon as the picker returns and keeps the photos', async () => {
+    (pickMedia as jest.Mock).mockResolvedValue([
+      {
+        uri: 'file://a.jpg',
+        width: 100,
+        height: 80,
+        exif: null,
+        mediaType: 'photo',
+        durationSeconds: null,
+        assetId: 'PH:A',
+        fileSize: 10,
+        mimeType: 'image/jpeg',
+      },
+      {
+        uri: 'file://clip.mp4',
+        width: 640,
+        height: 360,
+        exif: null,
+        mediaType: 'video',
+        durationSeconds: 61,
+        assetId: 'PH:V',
+        fileSize: 1000,
+        mimeType: 'video/mp4',
+      },
+    ]);
+    const { findByText, findByTestId } = renderScreen(<AddPhotosScreen />);
+    expect(await findByText(copy.memories.skippedVideoTooLong)).toBeTruthy();
+    expect(await findByTestId('picked-count')).toBeTruthy();
+    expect(await findByText('1 selected')).toBeTruthy();
   });
 
   it('shows why a video was skipped and still uploads the photos', async () => {

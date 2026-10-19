@@ -41,6 +41,10 @@ jest.mock('expo-network', () => ({
   getNetworkStateAsync: jest.fn(async () => ({ type: 'WIFI', isInternetReachable: true })),
 }));
 
+jest.mock('expo-video-thumbnails', () => ({
+  getThumbnailAsync: jest.fn(async () => ({ uri: 'file://frame.jpg', width: 640, height: 360 })),
+}));
+
 jest.mock('expo-video', () => {
   const RN = jest.requireActual<typeof import('react-native')>('react-native');
   return {
