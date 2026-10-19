@@ -1,6 +1,7 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
@@ -29,6 +30,17 @@ import {
 const SCRIPT = 'e2e';
 const ARTIFACTS = join(APP_ROOT, 'e2e-artifacts');
 const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
+
+// simctl addmedia uses the JPEG file date as Photos creationDate when there is no EXIF.
+// From today starts at local midnight, so the committed sample (dated when it was written)
+// is correctly skipped unless we stamp a copy to now.
+function samplePhotoDatedNow() {
+  const dest = join(tmpdir(), 'patria-e2e-sample-today.jpg');
+  copyFileSync(join(MAESTRO_DIR, 'media', 'sample_new.jpg'), dest);
+  const now = new Date();
+  utimesSync(dest, now, now);
+  return dest;
+}
 
 function parseArgs(argv) {
   let devicesRaw = process.env.E2E_DEVICES || '2';
@@ -1492,7 +1504,7 @@ try {
         step(19, 4, 'New Simulator photo is shared automatically', () => {
           execFileSync(
             'xcrun',
-            ['simctl', 'addmedia', deviceA, join(MAESTRO_DIR, 'media', 'sample_new.jpg')],
+            ['simctl', 'addmedia', deviceA, samplePhotoDatedNow()],
             { stdio: 'ignore' },
           );
           maestro({

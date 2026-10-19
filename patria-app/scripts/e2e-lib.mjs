@@ -24,7 +24,7 @@ export function scenarioForTest(testNumber) {
   if (testNumber === 11 || testNumber === 12 || testNumber === 13) {
     return 'admin-elders';
   }
-  if (testNumber === 14) {
+  if (testNumber === 14 || testNumber === 19) {
     return 'admin-elder';
   }
   if (testNumber === 15 || testNumber === 16 || testNumber === 17) {
