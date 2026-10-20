@@ -802,8 +802,12 @@ flowchart TD
 | Entry mentions a living relative negatively | AI suggests a gentle review before sealing; author decides. |
 | Very long video (over 30 minutes) | Accepted on Legacy plan; free plan limit 5 minutes per entry. |
 
+**Slice 1 (D33).** Text decisions only. Each entry is encrypted on the phone with a per-entry key wrapped to the family key. Voice, video, AI structure and sealing wait. Writers are Family admin, Co admin and Elder who hold the key and have recovery set up; teens read; only the author edits or deletes; follow-ups are child rows.
+
 **Acceptance criteria (definition of done)**
 
+* [x] An adult key holder with recovery can type a decision, save it, and another key holder can read it (phone tests 26–28).
+* [x] The server stores only ciphertext, nonces and wrapped CEKs; family key rotation re-wraps every CEK in the same call (pgTAP).
 * [ ] An entry can be created by voice in under 2 minutes.
 * [ ] Original recordings are kept and playable alongside the structured summary.
 * [ ] An external security review confirms the server cannot decrypt Ledger content.

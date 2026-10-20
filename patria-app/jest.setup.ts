@@ -38,6 +38,16 @@ jest.mock('lucide-react-native', () => {
   );
 });
 
+jest.mock('expo-file-system/legacy', () => ({
+  documentDirectory: 'file:///mock-docs/',
+  EncodingType: { UTF8: 'utf8', Base64: 'base64' },
+  writeAsStringAsync: jest.fn(async () => undefined),
+  readAsStringAsync: jest.fn(async () => {
+    throw new Error('missing');
+  }),
+  deleteAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
   getItemAsync: jest.fn(() => Promise.resolve(null)),

@@ -46,6 +46,8 @@ export const screenTitles = {
   memoryItem: copy.memories.title,
   designGallery: copy.design.galleryTitle,
   vault: copy.tabs.vault,
+  vaultNew: copy.vault.newDecision,
+  vaultEntry: copy.vault.title,
   family: copy.tabs.family,
   appearance: copy.appearance.title,
 } as const;
@@ -73,6 +75,8 @@ export const routes = {
   memoryItem: (itemId: string) => `/(signed-in)/memory/${itemId}` as const,
   designGallery: '/design-gallery',
   vault: '/(signed-in)/vault',
+  vaultNew: '/(signed-in)/vault-new',
+  vaultEntry: (entryId: string) => `/(signed-in)/vault/${entryId}` as const,
   family: '/(signed-in)/family',
   appearance: '/(signed-in)/appearance',
 } as const;

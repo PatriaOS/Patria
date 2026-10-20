@@ -18,7 +18,8 @@ appId: app.patria.dev
     visible:
       id: "screen-vault"
     timeout: 15000
-- assertVisible: "The Legacy Vault is coming next"
+- assertVisible: "Kept with your family key."
+- assertVisible: "No decisions yet"
 - tapOn:
     id: "family"
 - extendedWaitUntil:

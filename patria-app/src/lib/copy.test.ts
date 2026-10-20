@@ -7,7 +7,7 @@ describe('copy', () => {
     expect(copy.invitePreview.summaryTitle.length).toBeGreaterThan(0);
     expect(copy.home.greetingEvening).toBe('Good evening,');
     expect(copy.home.recentMemories).toBe('Recent memories');
-    expect(copy.home.vaultComing).toMatch(/letters and decisions/i);
+    expect(copy.home.vaultComing).toMatch(/decisions and letters/i);
     expect(copy.home.memories).toBe('Memories');
     expect(copy.memories.householdDefault.length).toBeGreaterThan(0);
     expect(copy.memories.connectBody.length).toBeGreaterThan(0);
@@ -48,7 +48,9 @@ describe('copy', () => {
     expect(copy.tabs.homeNotice).toBe('Home, {count} notice');
     expect(copy.design.galleryTitle).toBe('Design gallery');
     expect(copy.appearance.matchPhone).toBe('Match my phone');
-    expect(copy.vault.emptyTitle).toMatch(/Legacy Vault is coming next/);
+    expect(copy.vault.emptyTitle).toMatch(/No decisions yet/);
+    expect(copy.vault.formerMember).toBe('A former family member');
+    expect(copy.vault.lockNote).toMatch(/family key/);
   });
 });
 

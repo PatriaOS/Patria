@@ -231,7 +231,7 @@ Layer 2: tabs and Appearance. Layer 3: restyled screens, Home mockup, lining num
 Areas: navigation
 1. Sign in as Test 1. Pass if Home, Memories, Vault and Family tabs show at the bottom.
 2. Tap **Memories**. Pass if the Memories library opens.
-3. Tap **Vault**. Pass if you see that the Legacy Vault is coming next.
+3. Tap **Vault**. Pass if you see **Kept with your family key.** and **No decisions yet**.
 4. Tap **Family**. Pass if Invite someone and Sign out are there.
 5. On Family with nothing waiting, pass if the Home tab is labeled **Home** (no terracotta dot).
 6. Return to Home. If a let-in, new phone, recovery alert or This wasn’t me is waiting, pass if the Home tab is labeled **Home, 1 notice** and shows a terracotta dot while you are on another tab. (Jest covers the let-in case; this run asserts the quiet case.)
@@ -242,3 +242,34 @@ Areas: navigation
 2. Pass if you can choose **Match my phone**, **Light** or **Dark**.
 3. Choose **Dark**. Pass if Family, the tab bar and the header go dark, and the clock and battery stay readable.
 4. Choose **Light**. Pass if they return to linen.
+
+## Decision Ledger (D33)
+
+Text decisions, encrypted on the phone with a per-entry key wrapped to the family key. Voice, AI summaries and sealing wait for later slices.
+
+### 26. Write a decision
+Areas: vault, keys
+1. Sign in as Test 1, with recovery already set up. Open **Vault**. Pass if you see **No decisions yet** and **Kept with your family key.**
+2. Tap **New decision**. Type a title, who it is for, and why. Tap **Save**. Pass if the title is on the list with your name and the date.
+3. Open it. Pass if the body you typed is there.
+
+### 27. Teen can read, not write
+Areas: vault
+1. Sign in as Test 3 (teen). Open **Vault**. Pass if **New decision** is not there.
+2. Pass if the vault still opens (empty, waiting for this phone, or a list).
+
+### 28. Follow-up
+Areas: vault, keys
+1. Sign in as Test 1 with recovery set up. Write a decision, open it, tap **Add a follow-up**.
+2. Write how it turned out and save. Pass if the follow-up is listed on the original decision.
+
+### 29. Recovery first
+Areas: vault, recovery
+1. Sign in as Test 1 without recovery set up. Open **Vault**. Pass if **New decision** is not there and you see to set up recovery first.
+2. Pass if you can still see the empty vault (reading is allowed).
+
+### 30. Read after rotation
+Areas: vault, rotation, keys
+1. Sign in as Test 1 with recovery set up. Write a decision.
+2. Remove Test 3. Pass if Home updates the family key.
+3. Open **Vault**. Pass if the decision is still there and opens.

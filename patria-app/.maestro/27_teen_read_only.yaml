@@ -1,0 +1,14 @@
+# PHONE_TESTS: 27
+# AREAS: vault
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- assertNotVisible:
+    id: "new-decision"

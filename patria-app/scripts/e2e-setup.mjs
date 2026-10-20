@@ -18,25 +18,31 @@ const SCRIPT = 'e2e-setup';
 
 function parseSetupArgs(argv) {
   let scenario = 'admin';
+  let testNumber = null;
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--scenario') {
       scenario = argv[i + 1] ?? scenario;
       i += 1;
     } else if (argv[i] === '--test') {
-      scenario = scenarioForTest(Number(argv[i + 1]));
+      testNumber = Number(argv[i + 1]);
+      scenario = scenarioForTest(testNumber);
       i += 1;
     }
   }
-  if (!['admin', 'admin-elder', 'admin-elders', 'admin-elder-extended'].includes(scenario)) {
+  if (
+    !['admin', 'admin-elder', 'admin-elders', 'admin-elder-extended', 'admin-elder-teen'].includes(
+      scenario,
+    )
+  ) {
     console.error(
-      `${SCRIPT}: unknown scenario "${scenario}". Use admin, admin-elder, admin-elders, or admin-elder-extended.`,
+      `${SCRIPT}: unknown scenario "${scenario}". Use admin, admin-elder, admin-elders, admin-elder-extended, or admin-elder-teen.`,
     );
     process.exit(1);
   }
-  return scenario;
+  return { scenario, testNumber };
 }
 
-const scenario = parseSetupArgs(process.argv.slice(2));
+const { scenario, testNumber } = parseSetupArgs(process.argv.slice(2));
 
 function sql(dbUrl, statement) {
   runLocalSql(dbUrl, statement);
@@ -253,7 +259,12 @@ async function inviteAndAccept(memberN, role, circleId = householdId) {
   await asUser(member.accessToken, 'POST', '/rest/v1/rpc/accept_invite', { p_token: token });
 }
 
-if (scenario === 'admin-elder' || scenario === 'admin-elders' || scenario === 'admin-elder-extended') {
+if (
+  scenario === 'admin-elder' ||
+  scenario === 'admin-elders' ||
+  scenario === 'admin-elder-extended' ||
+  scenario === 'admin-elder-teen'
+) {
   await inviteAndAccept(2, 'elder', householdId);
 }
 if (scenario === 'admin-elders') {
@@ -261,6 +272,27 @@ if (scenario === 'admin-elders') {
 }
 if (scenario === 'admin-elder-extended') {
   await inviteAndAccept(3, 'extended_relative', extendedId);
+}
+if (scenario === 'admin-elder-teen') {
+  await inviteAndAccept(3, 'teen', householdId);
+}
+
+if (testNumber === 26 || testNumber === 28 || testNumber === 30) {
+  const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
+  const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));
+  sql(
+    dbUrl,
+    `INSERT INTO public.recovery_contacts (
+       family_space_id, member_id, user_id, slot, status, created_by
+     ) VALUES
+       ('${spaceId}', '${adminSession.userId}', '${contactA.userId}', 'a', 'accepted', '${adminSession.userId}'),
+       ('${spaceId}', '${adminSession.userId}', '${contactB.userId}', 'b', 'accepted', '${adminSession.userId}');
+     INSERT INTO public.recovery_public_keys (
+       family_space_id, user_id, public_key, recovery_key_epoch
+     ) VALUES (
+       '${spaceId}', '${adminSession.userId}', decode(repeat('ab', 32), 'hex'), 1
+     );`,
+  );
 }
 
 // Let-in wraps cannot be seeded here: they are sealed to the phone's device

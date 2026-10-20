@@ -225,3 +225,14 @@ Hearth palettes (light linen / dark forest) and Heirloom type (Cormorant Garamon
 Tabs are Home, Memories, Vault and Family. Vault uses a lock. Appearance (`system` | `light` | `dark`) lives on Family and is stored in expo-secure-store. Headers, the tab bar and the status bar follow the theme. Home greets the family by name (time of day), shows a terracotta date overline, keys/recovery as themed pills, security notices, recent memories, and a Vault coming-next card. The weekly Sync placeholder is gone. We do not add Sync or Privacy tabs.
 
 Body text meets WCAG AA 4.5:1. Text scaling stays capped at 1.3 until the accessibility pass (D19). Security wording, warning prominence and Maestro testIDs stay as they are.
+
+## D33. Decision Ledger slice 1 (19 October 2026)
+
+LEG01 text-only. Voice, AI summaries, video and sealing (LEG02) wait.
+
+* Readers: key holders (Family admin, Co admin, Teen, Elder) who have been let in. Writers: adults with the key (Family admin, Co admin, Elder). Teens read only. Only the author can edit or delete. Follow-ups are child rows (`parent_entry_id`), one level, same author.
+* Each entry has its own 32-byte CEK, wrapped to the current family key (XChaCha20-Poly1305). The server stores ciphertext, 24-byte nonces and a 48-byte wrapped CEK. Content JSON is padded to the next 1 KB before encrypt so size does not reveal length, then capped at 64 KB ciphertext. INSERT and UPDATE must use the family’s current `key_epoch`.
+* Recovery (two accepted contacts and a recovery public key) is required before write, not before read (D25).
+* Entries stay when a member is removed. If the author is no longer a member, the app shows **A former family member**.
+* Family key rotation re-wraps every vault CEK in the same `rotate_family_key` call as the new family-key wraps and recovery seals. The set of entry ids must be exactly the rows at the old epoch, once each, with exact sizes; compare-and-swap on the epoch; all or nothing. If a row is created meanwhile, the call is refused and the phone retries. There is no `familyKeyPrev` and no later re-wrap pass. Very large vaults may need batching later (see KEYS.md).
+* Drafts: a random draft key in SecureStore and the ciphertext as a file in the app document directory. Both are deleted on Save or Discard.

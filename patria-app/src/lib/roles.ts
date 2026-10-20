@@ -31,6 +31,10 @@ export function isRecoveryContactRole(role: string | null | undefined): boolean 
   return role === 'family_admin' || role === 'co_admin' || role === 'elder';
 }
 
+export function isVaultWriterRole(role: string | null | undefined): boolean {
+  return role === 'family_admin' || role === 'co_admin' || role === 'elder';
+}
+
 export function isMemoryRole(role: string | null | undefined): boolean {
   return (
     role === 'family_admin' ||

@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
@@ -10,13 +11,17 @@ type Props = TextInputProps & {
   error?: string;
 };
 
-export function TextField({ label, error, ...inputProps }: Props) {
+export const TextField = forwardRef<TextInput, Props>(function TextField(
+  { label, error, ...inputProps },
+  ref,
+) {
   const { colors, fontFamily, previewScale, maxFontSizeMultiplier } = useTheme();
   return (
     <View style={styles.field}>
       <Small tone="muted">{label}</Small>
       <TextInput
         {...inputProps}
+        ref={ref}
         testID={inputProps.testID ?? testIdFromLabel(label)}
         accessibilityLabel={label}
         allowFontScaling
@@ -24,6 +29,7 @@ export function TextField({ label, error, ...inputProps }: Props) {
         placeholderTextColor={colors.textMuted}
         style={[
           styles.input,
+          inputProps.multiline ? styles.multiline : null,
           {
             fontFamily: fontFamily('body'),
             fontSize: typeScale.body.size * previewScale,
@@ -32,7 +38,7 @@ export function TextField({ label, error, ...inputProps }: Props) {
             color: colors.text,
           },
         ]}
-        textAlignVertical="center"
+        textAlignVertical={inputProps.multiline ? 'top' : 'center'}
       />
       {error ? (
         <Caption tone="danger" accessibilityRole="text">
@@ -41,7 +47,7 @@ export function TextField({ label, error, ...inputProps }: Props) {
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   field: {
@@ -53,5 +59,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     minHeight: 52,
+  },
+  multiline: {
+    minHeight: 140,
+    paddingTop: space.sm,
   },
 });

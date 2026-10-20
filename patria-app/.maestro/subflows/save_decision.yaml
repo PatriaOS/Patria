@@ -1,0 +1,20 @@
+appId: app.patria.dev
+---
+- tapOn:
+    id: "the-decision"
+- inputText: ${DECISION_TITLE}
+- pressKey: Enter
+- runFlow:
+    when:
+      true: ${DECISION_FOR != ''}
+    commands:
+      - inputText: ${DECISION_FOR}
+- pressKey: Enter
+- inputText: ${DECISION_WHY}
+- pressKey: Enter
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: "save"
+    optional: true
+    retryTapIfNoChange: false

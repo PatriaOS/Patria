@@ -580,10 +580,20 @@ function seedLetIn(memberN, device) {
 }
 
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 12, 13].includes(testNumber)) {
+  if (![9, 10, 11, 12, 13, 26, 28, 30].includes(testNumber)) {
     return;
   }
   seedAdminKeys();
+  if (testNumber === 26 || testNumber === 28) {
+    return;
+  }
+  if (testNumber === 30) {
+    const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+    const third = args.devices >= 3 && deviceC ? deviceC : other;
+    seedLetIn(2, other);
+    seedLetIn(3, third);
+    return;
+  }
   if (testNumber === 11) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
     seedLetIn(2, other);
@@ -748,7 +758,7 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 12, 13].includes(test.number)) {
+    if ([9, 10, 11, 12, 13, 26, 28, 30].includes(test.number)) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
@@ -1586,7 +1596,7 @@ try {
         });
       });
       step(24, 2, 'Memories library opens', () => result('pass'));
-      step(24, 3, 'Vault coming next', () => result('pass'));
+      step(24, 3, 'Vault empty and lock note', () => result('pass'));
       step(24, 4, 'Family Invite someone and Sign out', () => result('pass'));
       step(24, 5, 'Quiet Home tab has no notice dot', () => result('pass'));
       step(24, 6, 'Home notice label when something is waiting', () =>
@@ -1605,6 +1615,69 @@ try {
       step(25, 2, 'Match my phone, Light or Dark', () => result('pass'));
       step(25, 3, 'Dark applies to Family, tabs and header', () => result('pass'));
       step(25, 4, 'Light returns to linen', () => result('pass'));
+    }
+
+    if (test.number === 26) {
+      step(26, 1, 'Empty vault and lock note', () => {
+        maestro({
+          flow: flow('26_write_decision.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(26, 2, 'Save a decision to the list', () => result('pass'));
+      step(26, 3, 'Open it and read the body', () => result('pass'));
+    }
+
+    if (test.number === 27) {
+      step(27, 1, 'Teen has no New decision', () => {
+        maestro({
+          flow: flow('27_teen_read_only.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 3),
+        });
+      });
+      step(27, 2, 'Vault still opens', () => result('pass'));
+    }
+
+    if (test.number === 28) {
+      step(28, 1, 'Write a decision and open follow-up', () => {
+        maestro({
+          flow: flow('28_follow_up.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(28, 2, 'Follow-up is on the original', () => result('pass'));
+    }
+
+    if (test.number === 29) {
+      step(29, 1, 'Recovery first, no New decision', () => {
+        maestro({
+          flow: flow('29_recovery_first.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(29, 2, 'Empty vault is still readable', () => result('pass'));
+    }
+
+    if (test.number === 30) {
+      step(30, 1, 'Write a decision', () => {
+        maestro({
+          flow: flow('30_read_after_rotation.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'write' },
+        });
+      });
+      step(30, 2, 'Remove Test 3; family key updates', () => {
+        maestro({
+          flow: flow('30_read_after_rotation.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'remove_and_read' },
+        });
+      });
+      step(30, 3, 'Decision still opens after rotation', () => result('pass'));
     }
     } catch (error) {
       if (!(error instanceof Error) || error.message !== 'timed out') {

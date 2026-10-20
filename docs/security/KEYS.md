@@ -2,7 +2,7 @@
 
 **CIR05 step 2.** Protocol approved (with per-member recovery key pairs, D27, and backup-excluded SecureStore). Implementation waits on `docs/security/KEYS_IMPLEMENTATION.md` Step 1.
 
-This slice creates and stores keys so the Legacy Vault can later encrypt on the device. **Vault content encryption is not in this slice** (LEG01–LEG03). Successors getting keys at handover is **GROW04**, not now.
+This slice creates and stores keys so the Legacy Vault can encrypt on the device. **LEG01 slice 1 (D33) encrypts text decisions** with a per-entry CEK wrapped to the family key. Voice, letters and documents follow. Successors getting keys at handover is **GROW04**, not now.
 
 Every future file that generates, wraps, stores or uses keys must start with:
 
@@ -41,7 +41,7 @@ Patria should keep a family’s vault (letters, decisions, documents, health, te
 | Someone looking over your shoulder, or you unlocking the phone for them | We cannot fix physical coercion in this slice. |
 | A rooted/jailbroken phone with malware already inside the OS | Secure store can be bypassed on a fully compromised device. |
 | Patria being forced by a government to add a backdoor | We will not build a backdoor. Legal process is a company policy question, not a key-design feature. |
-| Sealed letters, Decision Ledger encryption, document encryption | Legacy Vault features, after keys exist. |
+| Sealed letters, document encryption | LEG02+ and CARE07, after this key design. Decision Ledger text is LEG01 slice 1 (D33). |
 | Generational Custody Handover (lawyer / third share, death certificates) | GROW04, Phase 3. CIR05 recovery is for a **living** family that lost a phone, not inheritance. |
 | Merging two family spaces | D1. Each space has its own family key. |
 | Teen private space keys | GROW02. |
@@ -362,7 +362,7 @@ GROW04 later: different split. Do not overload CIR05 tables for death handover.
 2. We **rotate the family key** on remaining **already-approved** devices (not a back door for new devices).
 3. Seal the **new** family key to each remaining member’s recovery **public** key (existing wrap module). The rotating admin cannot open those private keys.
 4. Delete Marco’s family-key wraps, recovery public key, and sealed boxes. If Marco was a **recovery contact**, the people who named him see “Recovery needs attention” and must redo setup when they are ready; until then remaining contact plus printed code still work, and Marco cannot approve.
-5. **Content he already saw:** we cannot unsay it. Re-encrypting vault objects to the new epoch is a Legacy Vault job.
+5. **Content he already saw:** we cannot unsay it. **LEG01 slice 1 (D33):** the rotating admin phone unwraps each vault CEK with the old family key, wraps it for the new epoch, and sends those re-wraps in the same `rotate_family_key` call as the new family-key wraps and recovery seals. The server checks that every `vault_entries` row at the old epoch is present exactly once (24-byte CEK nonce, 48-byte wrap), then compare-and-swaps the epoch and commits all or nothing. If a row is missing (for example someone saved meanwhile), it refuses and the phone retries with a fresh list. There is no previous-family-key cache and no later “finish re-wrap” pass. **Very large vaults may need batching later** (payload and statement limits); until then rotation sends the full set in one call.
 6. CIR05: remaining members’ existing devices get new family-key wraps; we never wrap to an unapproved device during rotation.
 
 **Technical**

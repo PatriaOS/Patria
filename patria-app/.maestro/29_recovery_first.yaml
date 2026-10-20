@@ -1,0 +1,16 @@
+# PHONE_TESTS: 29
+# AREAS: vault, recovery
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- assertVisible: "Set up recovery before you write in the vault. You can still read what is already there."
+- assertNotVisible:
+    id: "new-decision"
+- assertVisible: "No decisions yet"

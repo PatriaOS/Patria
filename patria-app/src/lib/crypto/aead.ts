@@ -53,6 +53,22 @@ export function encryptXChaCha20Poly1305Raw(
   return cipher.encrypt(plaintext);
 }
 
+export function decryptXChaCha20Poly1305Raw(
+  key: Uint8Array,
+  nonce: Uint8Array,
+  ciphertextAndTag: Uint8Array,
+  aad: Uint8Array,
+): Uint8Array {
+  requireLength(key, KEY_BYTES);
+  requireLength(nonce, XCHACHA_NONCE_BYTES);
+  try {
+    const cipher = xchacha20poly1305(key, nonce, aad);
+    return cipher.decrypt(ciphertextAndTag);
+  } catch {
+    throw new Error('unwrap failed');
+  }
+}
+
 export function wipeKey(key: Uint8Array): void {
   wipe(key);
 }

@@ -7,6 +7,14 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-19 — LEG01 slice 1: encrypted text decisions (D33)
+
+Vault is a real Decision Ledger, not a coming-next tab. Each decision is a client UUID row: JSON (title, why, for) padded to 1 KB, encrypted with a 32-byte CEK, CEK wrapped to the current family key. Nonces are 24 bytes; wrapped CEK is 48. Writers are admin / co-admin / elder with a current wrap and recovery (two accepted contacts plus a recovery public key). Teens read. Only the author edits or deletes. Follow-ups are child rows. A former member’s name becomes “A former family member”. Drafts use a SecureStore key plus an encrypted file, wiped on Save or Discard.
+
+We considered keeping the old family key on the phone until a later re-wrap. That would leave other admins unable to read after rotation. Instead `rotate_family_key` takes every current-epoch CEK re-wrap in the same call as device wraps and recovery seals, checks the exact set, and commits with compare-and-swap. A missing row (saved during the call) refuses; the phone retries. Large vaults may need batching later. Voice, AI, video and sealing wait. Migrations are not pushed to the hosted project.
+
+---
+
 ## 2026-10-18 — Design foundation Layer 3: restyle screens, Home mockup, D32
 
 Remaining screens now use `src/ui` and theme tokens, including auth, invite, add child, members, memories, keys, recovery and leave family. Home matches HOME-01: terracotta date, time-of-day greeting plus italic family name, themed cards and pills, recent memories, Vault coming next. Cards never use the light cream surface in dark. Cormorant uses lining numerals. Vault’s tab is a lock. D32 and the patria.mdc `src/ui` rule are in place. TestIDs and security wording are unchanged.

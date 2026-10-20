@@ -7,8 +7,17 @@ import { ensureDeviceIdentity } from './deviceIdentity';
 import { cacheFamilySecrets, obtainFamilyKey } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { randomKey32 } from './random';
+import { rewrapVaultCek } from './vaultEnvelope';
 import { wrapFamilyKeyToRecoveryPublic, wrapKeyToDevice } from './wrap';
 import { supabaseDeviceAccessGateway } from './deviceAccess';
+
+export type VaultCekRow = {
+  id: string;
+  version: number;
+  keyEpoch: number;
+  cekNonce: Uint8Array;
+  wrappedCek: Uint8Array;
+};
 
 export type RotationTarget = {
   userId: string;
@@ -25,6 +34,7 @@ export type RotateFamilyKeyGateway = {
   fetchRotationNeeded(spaceId: string): Promise<{ needed: boolean; keyEpoch: number } | null>;
   listWrapTargets(spaceId: string): Promise<RotationTarget[]>;
   listSealTargets(spaceId: string): Promise<RecoverySealTarget[]>;
+  listVaultCeks(spaceId: string): Promise<VaultCekRow[]>;
   commitRotation(input: {
     spaceId: string;
     expectedEpoch: number;
@@ -33,6 +43,9 @@ export type RotateFamilyKeyGateway = {
     wrappedKeys: Uint8Array[];
     sealUserIds: string[];
     sealedKeys: Uint8Array[];
+    entryIds: string[];
+    wrappedCeks: Uint8Array[];
+    cekNonces: Uint8Array[];
   }): Promise<number>;
 };
 
@@ -100,6 +113,24 @@ export const supabaseRotateFamilyKeyGateway: RotateFamilyKeyGateway = {
     }));
   },
 
+  async listVaultCeks(spaceId) {
+    const { data, error } = await supabase
+      .from('vault_entries')
+      .select('id, version, key_epoch, cek_nonce, wrapped_cek')
+      .eq('family_space_id', spaceId);
+    if (error) {
+      logKeyStep('list_vault_ceks', error.code ?? 'unknown');
+      throw error;
+    }
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      version: row.version as number,
+      keyEpoch: row.key_epoch as number,
+      cekNonce: fromPgBytea(row.cek_nonce),
+      wrappedCek: fromPgBytea(row.wrapped_cek),
+    }));
+  },
+
   async commitRotation(input) {
     const { data, error } = await supabase.rpc('rotate_family_key', {
       p_space_id: input.spaceId,
@@ -109,6 +140,9 @@ export const supabaseRotateFamilyKeyGateway: RotateFamilyKeyGateway = {
       p_wrapped_keys: input.wrappedKeys.map((row) => toPgBytea(row)),
       p_seal_user_ids: input.sealUserIds,
       p_sealed_keys: input.sealedKeys.map((row) => toPgBytea(row)),
+      p_entry_ids: input.entryIds,
+      p_wrapped_ceks: input.wrappedCeks.map((row) => toPgBytea(row)),
+      p_cek_nonces: input.cekNonces.map((row) => toPgBytea(row)),
     });
     if (error) {
       logKeyStep('rotate_family_key', error.code ?? 'unknown');
@@ -200,22 +234,49 @@ export async function rotateFamilyKeyIfNeeded(
         userId: row.userId,
       }),
     );
-    try {
-      await gateway.commitRotation({
-        spaceId: input.spaceId,
-        expectedEpoch: state.keyEpoch,
-        userIds: targets.map((row) => row.userId),
-        deviceIds: targets.map((row) => row.deviceId),
-        wrappedKeys,
-        sealUserIds: seals.map((row) => row.userId),
-        sealedKeys,
-      });
-    } catch (error) {
-      logKeyStep('rotate_family_key', 'commit');
-      if (await lostCompareAndSwap(gateway, input.spaceId, state.keyEpoch)) {
-        return 'alreadyCurrent';
+    let committed = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const entries = (await gateway.listVaultCeks(input.spaceId)).filter(
+        (row) => row.keyEpoch === state.keyEpoch,
+      );
+      const rewraps = entries.map((row) =>
+        rewrapVaultCek(oldKey, newKey, {
+          wrappedCek: row.wrappedCek,
+          cekNonce: row.cekNonce,
+          familySpaceId: input.spaceId,
+          entryId: row.id,
+          version: row.version,
+          oldEpoch: state.keyEpoch,
+          nextEpoch,
+        }),
+      );
+      try {
+        await gateway.commitRotation({
+          spaceId: input.spaceId,
+          expectedEpoch: state.keyEpoch,
+          userIds: targets.map((row) => row.userId),
+          deviceIds: targets.map((row) => row.deviceId),
+          wrappedKeys,
+          sealUserIds: seals.map((row) => row.userId),
+          sealedKeys,
+          entryIds: entries.map((row) => row.id),
+          wrappedCeks: rewraps.map((row) => row.wrappedCek),
+          cekNonces: rewraps.map((row) => row.nonce),
+        });
+        committed = true;
+        break;
+      } catch (error) {
+        logKeyStep('rotate_family_key', 'commit');
+        if (await lostCompareAndSwap(gateway, input.spaceId, state.keyEpoch)) {
+          return 'alreadyCurrent';
+        }
+        if (attempt === 2) {
+          throw error;
+        }
       }
-      throw error;
+    }
+    if (!committed) {
+      throw new Error('rotate failed');
     }
     await cacheFamilySecrets(input.userId, input.spaceId, newKey);
     logKeyStep('rotate_family_key', `${input.spaceId} ${nextEpoch}`);

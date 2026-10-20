@@ -10,6 +10,7 @@ import {
   rotateFamilyKeyIfNeeded,
   type RotateFamilyKeyGateway,
 } from './rotateFamilyKey';
+import { openVaultDecision, sealVaultDecision } from './vaultEnvelope';
 import { unwrapFamilyKeyFromRecoveryPrivate, unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
 import { getSecretBytes } from './secureKeys';
@@ -89,6 +90,7 @@ describe('rotate family key', () => {
       listSealTargets: async () => [
         { userId: ELDER, publicKey: elderRecovery.publicKey },
       ],
+      listVaultCeks: async () => [],
       commitRotation: async (input) => {
         committed.expectedEpoch = input.expectedEpoch;
         committed.deviceIds = input.deviceIds;
@@ -149,6 +151,9 @@ describe('rotate family key', () => {
         throw new Error('must not list');
       },
       listSealTargets: async () => [],
+      listVaultCeks: async () => {
+        throw new Error('must not list vault');
+      },
       commitRotation: async () => {
         throw new Error('must not commit');
       },
@@ -188,6 +193,7 @@ describe('rotate family key', () => {
         },
       ],
       listSealTargets: async () => [],
+      listVaultCeks: async () => [],
       commitRotation: async () => {
         throw new Error('epoch mismatch');
       },
@@ -196,5 +202,91 @@ describe('rotate family key', () => {
       rotateFamilyKeyIfNeeded({ spaceId: SPACE, userId: ADMIN, role: 'family_admin' }, gateway),
     ).resolves.toBe('alreadyCurrent');
     wipe(oldKey);
+  });
+
+  it('rewraps vault CEKs in the same commit as the new family key', async () => {
+    const store = new Map<string, string>();
+    installMemoryStore(store);
+    resetFamilyKeyMemory();
+    const adminDevice = await ensureDeviceIdentity(ADMIN);
+    const oldKey = randomKey32();
+    const wrappedOld = wrapKeyToDevice(oldKey, adminDevice.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: ADMIN,
+      deviceId: adminDevice.deviceId,
+    });
+    (supabaseDeviceAccessGateway.fetchOwnWrap as jest.Mock).mockResolvedValue({
+      wrappedKey: wrappedOld,
+      keyEpoch: 1,
+    });
+    await cacheFamilySecrets(ADMIN, SPACE, oldKey);
+    const entryId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    const sealed = sealVaultDecision(
+      oldKey,
+      { title: 'We moved', body: 'For school.', for: 'Lily' },
+      {
+        familySpaceId: SPACE,
+        entryId,
+        version: 1,
+        authorId: ADMIN,
+        keyEpoch: 1,
+      },
+    );
+    const committed: { entryIds?: string[]; wrappedCeks?: Uint8Array[]; cekNonces?: Uint8Array[] } =
+      {};
+    const gateway: RotateFamilyKeyGateway = {
+      fetchRotationNeeded: async () => ({ needed: true, keyEpoch: 1 }),
+      listWrapTargets: async () => [
+        {
+          userId: ADMIN,
+          deviceId: adminDevice.deviceId,
+          publicKey: adminDevice.publicKey,
+        },
+      ],
+      listSealTargets: async () => [],
+      listVaultCeks: async () => [
+        {
+          id: entryId,
+          version: 1,
+          keyEpoch: 1,
+          cekNonce: sealed.cekNonce,
+          wrappedCek: sealed.wrappedCek,
+        },
+      ],
+      commitRotation: async (input) => {
+        committed.entryIds = input.entryIds;
+        committed.wrappedCeks = input.wrappedCeks;
+        committed.cekNonces = input.cekNonces;
+        return 2;
+      },
+    };
+    await expect(
+      rotateFamilyKeyIfNeeded({ spaceId: SPACE, userId: ADMIN, role: 'family_admin' }, gateway),
+    ).resolves.toBe('rotated');
+    expect(committed.entryIds).toEqual([entryId]);
+    const cached = await getSecretBytes(familyKeyStoreKey(ADMIN, SPACE));
+    expect(cached).toBeTruthy();
+    const opened = openVaultDecision(
+      cached as Uint8Array,
+      {
+        contentNonce: sealed.contentNonce,
+        ciphertext: sealed.ciphertext,
+        cekNonce: committed.cekNonces?.[0] as Uint8Array,
+        wrappedCek: committed.wrappedCeks?.[0] as Uint8Array,
+      },
+      {
+        familySpaceId: SPACE,
+        entryId,
+        version: 1,
+        authorId: ADMIN,
+        keyEpoch: 2,
+      },
+    );
+    expect(opened.title).toBe('We moved');
+    wipe(oldKey);
+    if (cached) {
+      wipe(cached);
+    }
   });
 });

@@ -30,6 +30,15 @@ export function scenarioForTest(testNumber) {
   if (testNumber === 15 || testNumber === 16 || testNumber === 17) {
     return 'admin-elder-extended';
   }
+  if (testNumber === 26 || testNumber === 28 || testNumber === 30) {
+    return 'admin-elders';
+  }
+  if (testNumber === 27) {
+    return 'admin-elder-teen';
+  }
+  if (testNumber === 29) {
+    return 'admin-elder';
+  }
   return 'admin';
 }
 
@@ -342,6 +351,7 @@ export const PHONE_AREA_LIST = [
   'rotation',
   'membership',
   'memories',
+  'vault',
 ];
 
 export const SMOKE_TEST_NUMBERS = [1, 3, 8];
@@ -483,9 +493,21 @@ export function mapFileToAreas(file) {
   if (/patria-app\/src\/features\/memories|memory_items|14_add_photos|15_circle|16_move|17_access/.test(n)) {
     areas.add('memories');
   }
+  if (
+    /patria-app\/src\/features\/vault|vaultEnvelope|vaultDrafts|vault_entries|leg01|26_write|27_teen|28_follow|29_recovery_first|30_read_after/.test(
+      n,
+    )
+  ) {
+    areas.add('vault');
+    areas.add('keys');
+  }
   if (n.includes('patria-app/supabase')) {
     if (/memory_items|mem_rls|memories/.test(n)) {
       areas.add('memories');
+    } else if (/vault_entries|leg01/.test(n)) {
+      areas.add('vault');
+      areas.add('keys');
+      areas.add('rotation');
     } else {
       areas.add('membership');
       areas.add('invites');

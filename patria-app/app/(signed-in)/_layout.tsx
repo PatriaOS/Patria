@@ -93,6 +93,8 @@ export default function SignedInLayout() {
         options={{ ...pushed, title: screenTitles.memoriesConnectSettings }}
       />
       <Stack.Screen name="memory/[itemId]" options={{ ...pushed, title: screenTitles.memoryItem }} />
+      <Stack.Screen name="vault-new" options={{ ...pushed, title: screenTitles.vaultNew }} />
+      <Stack.Screen name="vault/[entryId]" options={{ ...pushed, title: screenTitles.vaultEntry }} />
     </Stack>
   );
 }

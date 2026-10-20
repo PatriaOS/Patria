@@ -33,6 +33,16 @@ export function u32be(value: number): Uint8Array {
   return out;
 }
 
+export function readU32be(bytes: Uint8Array, offset = 0): number {
+  if (offset < 0 || offset + 4 > bytes.length) {
+    throw new Error('invalid length');
+  }
+  return (
+    ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>>
+    0
+  );
+}
+
 export function lengthPrefixed(bytes: Uint8Array): Uint8Array {
   if (bytes.length > 0xffff) {
     throw new Error('invalid length');

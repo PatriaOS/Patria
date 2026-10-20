@@ -52,6 +52,8 @@ describe('navigation headers', () => {
     expect(routes.appearance).toBe('/(signed-in)/appearance');
     expect(routes.family).toBe('/(signed-in)/family');
     expect(routes.vault).toBe('/(signed-in)/vault');
+    expect(routes.vaultNew).toBe('/(signed-in)/vault-new');
+    expect(routes.vaultEntry('abc')).toBe('/(signed-in)/vault/abc');
   });
 
   it('lets native back leave the invite screen', () => {
