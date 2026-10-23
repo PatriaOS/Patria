@@ -11,8 +11,9 @@ appId: app.patria.dev
       - addMedia:
           - "media/sample1.jpg"
           - "media/sample2.jpg"
+      - waitForAnimationToEnd
       - tapOn:
-          id: "memories"
+          id: "^memories$"
       - extendedWaitUntil:
           visible:
             id: "screen-memories"
@@ -68,8 +69,9 @@ appId: app.patria.dev
       - addMedia:
           - "media/sample1.jpg"
           - "media/sample2.jpg"
+      - waitForAnimationToEnd
       - tapOn:
-          id: "memories"
+          id: "^memories$"
       - extendedWaitUntil:
           visible:
             id: "screen-memories"

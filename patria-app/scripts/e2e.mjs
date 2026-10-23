@@ -1,6 +1,6 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -31,12 +31,13 @@ const SCRIPT = 'e2e';
 const ARTIFACTS = join(APP_ROOT, 'e2e-artifacts');
 const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
 
-// simctl addmedia uses the JPEG file date as Photos creationDate when there is no EXIF.
-// From today starts at local midnight, so the committed sample (dated when it was written)
-// is correctly skipped unless we stamp a copy to now.
+// simctl addmedia uses the file's creation date (birthtime), not mtime, when there is no EXIF.
+// copyFileSync / overwrite of a reused dest keeps the old birthtime (Oct 19 on this machine),
+// so From today — local midnight — skips the photo unless we write a fresh inode.
 function samplePhotoDatedNow() {
   const dest = join(tmpdir(), 'patria-e2e-sample-today.jpg');
-  copyFileSync(join(MAESTRO_DIR, 'media', 'sample_new.jpg'), dest);
+  rmSync(dest, { force: true });
+  writeFileSync(dest, readFileSync(join(MAESTRO_DIR, 'media', 'sample_new.jpg')));
   const now = new Date();
   utimesSync(dest, now, now);
   return dest;

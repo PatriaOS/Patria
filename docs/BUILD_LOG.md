@@ -7,6 +7,14 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-23 — SDK 58 follow-up: tab switch after addMedia, library date stamp
+
+Test 18 stayed on Home after Maestro `addMedia` because the custom tab bar used `router.navigate`. That tap completed and the tab bar looked fine — no Photos alert, no crash — but the tab did not switch until later. Tab switches now use Expo Router 58’s `navigateToTab(route.key)`. The flow also waits for the UI to settle after seeding the gallery.
+
+Test 19’s Simulator photo was still dated 19 October. `expo-media-library` 58 did not change listing, `creationTime` (still ms), the change listener, or permissions. The app shares a photo when Photos `creationDate` is today. `copyFileSync` plus `utimes` keeps the old birthtime; iOS 26.5 `addmedia` uses that as `creationDate`. The stamp now writes a fresh file.
+
+---
+
 ## 2026-10-22 — Expo SDK 58
 
 Expo Go on the store is SDK 58 only, so Patria had to leave SDK 57. We installed `expo@^58` and aligned the rest with `expo install --fix`. Noble and scure stay at 2.4.0. Node in CI is 22.13, the SDK 58 minimum; the pinned Supabase CLI is unchanged. The database does not change.

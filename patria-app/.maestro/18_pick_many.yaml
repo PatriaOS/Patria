@@ -8,8 +8,9 @@ appId: app.patria.dev
     - "media/sample1.jpg"
     - "media/sample2.jpg"
     - "media/sample.mp4"
+- waitForAnimationToEnd
 - tapOn:
-    id: "memories"
+    id: "^memories$"
 - extendedWaitUntil:
     visible:
       id: "screen-memories"
