@@ -48,8 +48,8 @@ describe('RemoveOldPhonesScreen', () => {
         hasWrap: true,
       },
     ]);
-    const { findByText } = renderScreen(<RemoveOldPhonesScreen />);
-    fireEvent.press(await findByText(copy.recovery.removeOldAction));
+    const { findByText } = await renderScreen(<RemoveOldPhonesScreen />);
+    await fireEvent.press(await findByText(copy.recovery.removeOldAction));
     await waitFor(() => {
       expect(removeOwnPhone).toHaveBeenCalledTimes(2);
     });

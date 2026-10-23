@@ -74,7 +74,7 @@ jest.mock('./preparePhoto', () => ({
 
 describe('Add photos', () => {
   it('selects Household by default and explains the circle in plain words', async () => {
-    const { findByTestId } = renderScreen(<AddPhotosScreen />);
+    const { findByTestId } = await renderScreen(<AddPhotosScreen />);
     expect(await findByTestId('video-limits')).toBeTruthy();
     await waitFor(() => {
       expect(pickMedia).toHaveBeenCalled();
@@ -90,9 +90,9 @@ describe('Add photos', () => {
   });
 
   it('offers Share after photos are picked', async () => {
-    const { findByText } = renderScreen(<AddPhotosScreen />);
+    const { findByText } = await renderScreen(<AddPhotosScreen />);
     const share = await findByText(copy.memories.share);
-    fireEvent.press(share);
+    await fireEvent.press(share);
     await waitFor(() => {
       expect(share).toBeTruthy();
     });
@@ -123,7 +123,7 @@ describe('Add photos', () => {
         mimeType: 'video/mp4',
       },
     ]);
-    const { findByText, findByTestId } = renderScreen(<AddPhotosScreen />);
+    const { findByText, findByTestId } = await renderScreen(<AddPhotosScreen />);
     expect(await findByText(copy.memories.skippedVideoTooLong)).toBeTruthy();
     expect(await findByTestId('picked-count')).toBeTruthy();
     expect(await findByText('1 selected')).toBeTruthy();
@@ -157,8 +157,8 @@ describe('Add photos', () => {
     (prepareVideo as jest.Mock).mockRejectedValue(new Error('video-too-long'));
     (uploadPreparedPhoto as jest.Mock).mockClear();
     (uploadPreparedVideo as jest.Mock).mockClear();
-    const { findByText } = renderScreen(<AddPhotosScreen />);
-    fireEvent.press(await findByText(copy.memories.share));
+    const { findByText } = await renderScreen(<AddPhotosScreen />);
+    await fireEvent.press(await findByText(copy.memories.share));
     expect(await findByText(copy.memories.skippedVideoTooLong)).toBeTruthy();
     await waitFor(() => {
       expect(uploadPreparedPhoto).toHaveBeenCalledTimes(1);

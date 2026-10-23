@@ -15,10 +15,10 @@ const notice = {
 };
 
 describe('ApproveMyDeviceCard', () => {
-  it('shows Yes and This wasn’t me for the owner', () => {
+  it('shows Yes and This wasn’t me for the owner', async () => {
     const onApprove = jest.fn();
     const onReject = jest.fn();
-    const { getByText } = renderScreen(
+    const { getByText } = await renderScreen(
       <ApproveMyDeviceCard
         notice={notice}
         name="Elena"
@@ -30,14 +30,14 @@ describe('ApproveMyDeviceCard', () => {
       />,
     );
     expect(getByText(copy.home.extraDeviceOwnNotice)).toBeTruthy();
-    fireEvent.press(getByText(copy.home.yesMyPhone));
+    await fireEvent.press(getByText(copy.home.yesMyPhone));
     expect(onApprove).toHaveBeenCalled();
-    fireEvent.press(getByText(copy.home.notMyPhone));
+    await fireEvent.press(getByText(copy.home.notMyPhone));
     expect(onReject).toHaveBeenCalled();
   });
 
-  it('hides approve buttons for admins', () => {
-    const { getByText, queryByText } = renderScreen(
+  it('hides approve buttons for admins', async () => {
+    const { getByText, queryByText } = await renderScreen(
       <ApproveMyDeviceCard
         notice={{ ...notice, userId: 'u2' }}
         name="Marco"

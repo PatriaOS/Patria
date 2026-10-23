@@ -71,7 +71,7 @@ describe('Vault tab', () => {
   });
 
   it('lets a writer with recovery add a decision, and shows the empty vault', async () => {
-    const { getByTestId, findByText, queryByText } = renderScreen(<VaultScreen />);
+    const { getByTestId, findByText, queryByText } = await renderScreen(<VaultScreen />);
     expect(getByTestId('screen-vault')).toBeTruthy();
     expect(await findByText(copy.vault.emptyTitle)).toBeTruthy();
     expect(getByTestId('new-decision')).toBeTruthy();
@@ -84,7 +84,7 @@ describe('Vault tab', () => {
       current: { role: 'teen', space: { id: 's1', name: 'Riveras' } },
       admin: false,
     });
-    const { findByText, queryByText } = renderScreen(<VaultScreen />);
+    const { findByText, queryByText } = await renderScreen(<VaultScreen />);
     expect(await findByText(copy.vault.emptyTitle)).toBeTruthy();
     expect(queryByText(copy.vault.newDecision)).toBeNull();
   });
@@ -101,12 +101,12 @@ describe('Vault tab', () => {
       keyEpoch: 1,
       status: 'not_setup',
     });
-    const { findByText, queryByText } = renderScreen(<VaultScreen />);
+    const { findByText, queryByText } = await renderScreen(<VaultScreen />);
     expect(await findByText(copy.vault.recoveryFirst)).toBeTruthy();
     expect(queryByText(copy.vault.newDecision)).toBeNull();
   });
 
-  it('gates write on role, keys, and two accepted recovery contacts', () => {
+  it('gates write on role, keys, and two accepted recovery contacts', async () => {
     expect(
       canWriteVault({
         role: 'family_admin',

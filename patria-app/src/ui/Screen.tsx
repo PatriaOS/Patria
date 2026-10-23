@@ -74,6 +74,7 @@ export function Screen({
     >
       {keyboardAware ? (
         <KeyboardAvoidingView
+          testID="screen-keyboard"
           style={styles.fill}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={withHeader ? 64 : 0}

@@ -1,5 +1,4 @@
 import { fireEvent, waitFor } from '@testing-library/react-native';
-import { KeyboardAvoidingView } from 'react-native';
 
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
@@ -33,10 +32,10 @@ describe('SignUpScreen', () => {
   });
 
   it('marks the screen, keeps AutoFill, and submits from the password Go key', async () => {
-    const { getByTestId, getByLabelText, UNSAFE_getByType } = renderScreen(<SignUpScreen />);
+    const { getByTestId, getByLabelText } = await renderScreen(<SignUpScreen />);
 
     expect(getByTestId('screen-sign-up')).toBeTruthy();
-    expect(UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
+    expect(getByTestId('screen-keyboard')).toBeTruthy();
 
     const password = getByLabelText(copy.auth.passwordLabel);
     expect(password.props.returnKeyType).toBe('go');
@@ -44,10 +43,10 @@ describe('SignUpScreen', () => {
     expect(password.props.autoComplete).toBe('new-password');
     expect(password.props.secureTextEntry).toBe(true);
 
-    fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Test 1');
-    fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
-    fireEvent.changeText(password, 'secret-password');
-    fireEvent(password, 'submitEditing');
+    await fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Test 1');
+    await fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
+    await fireEvent.changeText(password, 'secret-password');
+    await fireEvent(password, 'submitEditing');
 
     await waitFor(() => {
       expect(supabase.auth.signUp).toHaveBeenCalledWith({

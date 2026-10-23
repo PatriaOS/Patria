@@ -36,34 +36,34 @@ describe('CreateFamilyScreen', () => {
     (ensureKeysForOpenFamily as jest.Mock).mockClear();
   });
 
-  it('opens a pasted invite on the accept screen instead of creating a family', () => {
-    const { getByLabelText, getByText, getByTestId } = renderScreen(<CreateFamilyScreen />);
+  it('opens a pasted invite on the accept screen instead of creating a family', async () => {
+    const { getByLabelText, getByText, getByTestId } = await renderScreen(<CreateFamilyScreen />);
 
     expect(getByTestId('screen-create-family')).toBeTruthy();
     expect(getByText(copy.invite.pastePrompt)).toBeTruthy();
-    fireEvent.changeText(
+    await fireEvent.changeText(
       getByLabelText(copy.invite.pasteLabel),
       'patria://invite/abc123def456',
     );
-    fireEvent.press(getByText(copy.invite.openLink));
+    await fireEvent.press(getByText(copy.invite.openLink));
 
     expect(mockedRouter().push).toHaveBeenCalledWith('/invite/abc123def456');
   });
 
-  it('shows a friendly error when the pasted invite link is not valid', () => {
-    const { getByLabelText, getByText } = renderScreen(<CreateFamilyScreen />);
+  it('shows a friendly error when the pasted invite link is not valid', async () => {
+    const { getByLabelText, getByText } = await renderScreen(<CreateFamilyScreen />);
 
-    fireEvent.changeText(getByLabelText(copy.invite.pasteLabel), 'not-an-invite');
-    fireEvent.press(getByText(copy.invite.openLink));
+    await fireEvent.changeText(getByLabelText(copy.invite.pasteLabel), 'not-an-invite');
+    await fireEvent.press(getByText(copy.invite.openLink));
 
     expect(getByText(copy.invite.pasteInvalid)).toBeTruthy();
     expect(mockedRouter().push).not.toHaveBeenCalled();
   });
 
   it('signs out with a spinner then replaces to welcome', async () => {
-    const { getByText } = renderScreen(<CreateFamilyScreen />);
+    const { getByText } = await renderScreen(<CreateFamilyScreen />);
 
-    fireEvent.press(getByText(copy.auth.signOut));
+    await fireEvent.press(getByText(copy.auth.signOut));
 
     await waitFor(() => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
@@ -73,10 +73,10 @@ describe('CreateFamilyScreen', () => {
 
   it('runs the founding key ceremony after the family space is created', async () => {
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: 's1', error: null });
-    const { getByLabelText, getByText } = renderScreen(<CreateFamilyScreen />);
+    const { getByLabelText, getByText } = await renderScreen(<CreateFamilyScreen />);
 
-    fireEvent.changeText(getByLabelText(copy.createFamily.spaceNameLabel), 'The Riveras');
-    fireEvent.press(getByText(copy.createFamily.submit));
+    await fireEvent.changeText(getByLabelText(copy.createFamily.spaceNameLabel), 'The Riveras');
+    await fireEvent.press(getByText(copy.createFamily.submit));
 
     await waitFor(() => {
       expect(ensureKeysForOpenFamily).toHaveBeenCalledWith({

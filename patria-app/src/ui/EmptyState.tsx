@@ -17,7 +17,7 @@ type Props = {
 function EmptyArt() {
   const { colors } = useTheme();
   return (
-    <View {...decorativeA11y} style={styles.art} pointerEvents="none">
+    <View testID="empty-state-art" {...decorativeA11y} style={styles.art} pointerEvents="none">
       <Svg width={120} height={72} viewBox="0 0 120 72" {...decorativeA11y}>
         <Circle cx="88" cy="20" r="12" fill={colors.accentMustard} />
         <Path

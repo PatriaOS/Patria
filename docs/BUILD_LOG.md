@@ -7,6 +7,16 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-22 — Expo SDK 58
+
+Expo Go on the store is SDK 58 only, so Patria had to leave SDK 57. We installed `expo@^58` and aligned the rest with `expo install --fix`. Noble and scure stay at 2.4.0. Node in CI is 22.13, the SDK 58 minimum; the pinned Supabase CLI is unchanged. The database does not change.
+
+Security paths we checked and left as they were: keys and drafts still use `WHEN_UNLOCKED_THIS_DEVICE_ONLY` (same keychain item, so stored family keys remain readable); video pick still uses `VideoExportPreset.MediumQuality` and still fails closed on the location scan; `randomBytes` / `randomUuid` still fill from `expo-crypto` `getRandomValues`.
+
+What we had to change so types and tests match the new SDK, without changing what a person sees: drop `initialRouteName` on `Stack` (it already lives in `unstable_settings`); tab switches use `useRouter` hrefs; text field refs use `TextInputInstance`; Jest helpers await RNTL 14’s async `render` / `fireEvent`; web output is pinned to `static` so we do not inherit the new server default. Gesture Handler 3 is installed; we only wrap the app in `GestureHandlerRootView`, so we did not migrate to the hook gesture API.
+
+---
+
 ## 2026-10-19 — LEG01 slice 1: encrypted text decisions (D33)
 
 Vault is a real Decision Ledger, not a coming-next tab. Each decision is a client UUID row: JSON (title, why, for) padded to 1 KB, encrypted with a 32-byte CEK, CEK wrapped to the current family key. Nonces are 24 bytes; wrapped CEK is 48. Writers are admin / co-admin / elder with a current wrap and recovery (two accepted contacts plus a recovery public key). Teens read. Only the author edits or deletes. Follow-ups are child rows. A former member’s name becomes “A former family member”. Drafts use a SecureStore key plus an encrypted file, wiped on Save or Discard.

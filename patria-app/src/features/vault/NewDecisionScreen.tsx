@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard, type TextInput } from 'react-native';
+import { Keyboard, type TextInputInstance } from 'react-native';
 import { z } from 'zod';
 
 import { Button, Caption, ErrorState, Field, LoadingState, Screen, Title } from '../../ui';
@@ -40,8 +40,8 @@ export function NewDecisionScreen() {
   const { userId, spaceId, current } = useCurrentFamily();
   const [formError, setFormError] = useState<string | null>(null);
   const [ready, setReady] = useState(!entryId);
-  const forRef = useRef<TextInput>(null);
-  const whyRef = useRef<TextInput>(null);
+  const forRef = useRef<TextInputInstance>(null);
+  const whyRef = useRef<TextInputInstance>(null);
   const { control, handleSubmit, getValues, reset, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { title: '', for: '', body: '' },

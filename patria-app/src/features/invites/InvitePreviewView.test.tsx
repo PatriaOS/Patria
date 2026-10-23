@@ -12,8 +12,8 @@ const preview = {
 };
 
 describe('InvitePreviewView', () => {
-  it('shows who invited, the family, role, and visibility summary before accept', () => {
-    const { getByText } = renderScreen(
+  it('shows who invited, the family, role, and visibility summary before accept', async () => {
+    const { getByText } = await renderScreen(
       <InvitePreviewView
         preview={preview}
         signedIn

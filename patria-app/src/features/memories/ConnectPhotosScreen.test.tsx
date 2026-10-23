@@ -33,9 +33,9 @@ jest.mock('./libraryAlbums', () => ({
 
 describe('Connect photos', () => {
   it('explains before asking for library access', async () => {
-    const { findByText } = renderScreen(<ConnectPhotosScreen />);
+    const { findByText } = await renderScreen(<ConnectPhotosScreen />);
     expect(await findByText(copy.memories.connectBody)).toBeTruthy();
-    fireEvent.press(await findByText(copy.memories.connectContinue));
+    await fireEvent.press(await findByText(copy.memories.connectContinue));
     await waitFor(() => {
       expect(MediaLibrary.requestPermissionsAsync).toHaveBeenCalled();
     });
@@ -46,7 +46,7 @@ describe('Connect photos', () => {
       status: 'granted',
       accessPrivileges: 'limited',
     });
-    const { findByTestId, findByText } = renderScreen(<ConnectPhotosSettingsScreen />);
+    const { findByTestId, findByText } = await renderScreen(<ConnectPhotosSettingsScreen />);
     expect(await findByTestId('limited-body')).toBeTruthy();
     expect(await findByText(copy.memories.limitedBody)).toBeTruthy();
     expect(await findByTestId('choose-allowed-photos')).toBeTruthy();

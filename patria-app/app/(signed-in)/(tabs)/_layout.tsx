@@ -1,10 +1,17 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 
 import { useHomeNoticeCount } from '../../../src/features/family/useHomeNoticeCount';
 import { copy } from '../../../src/lib/copy';
-import { hiddenRootHeader } from '../../../src/lib/navigation';
+import { hiddenRootHeader, routes } from '../../../src/lib/navigation';
 import { useTheme } from '../../../src/theme';
 import { TabBar, type TabKey } from '../../../src/ui';
+
+const TAB_HREFS = {
+  home: routes.home,
+  memories: routes.memories,
+  vault: routes.vault,
+  family: routes.family,
+} as const;
 
 function routeToTab(name: string): TabKey {
   if (name === 'memories' || name === 'vault' || name === 'family') {
@@ -16,17 +23,18 @@ function routeToTab(name: string): TabKey {
 export default function SignedInTabsLayout() {
   const noticeCount = useHomeNoticeCount();
   const { colors } = useTheme();
+  const router = useRouter();
 
   return (
     <Tabs
-      tabBar={({ state, navigation }) => {
+      tabBar={({ state }) => {
         const active = routeToTab(state.routes[state.index]?.name ?? 'home');
         return (
           <TabBar
             active={active}
             homeNoticeCount={noticeCount}
             onSelect={(tab) => {
-              navigation.navigate(tab);
+              router.navigate(TAB_HREFS[tab]);
             }}
           />
         );

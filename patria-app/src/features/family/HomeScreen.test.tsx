@@ -1,5 +1,5 @@
 import { fireEvent, waitFor } from '@testing-library/react-native';
-import { RefreshControl } from 'react-native';
+import type { TestInstance } from 'test-renderer';
 
 import { copy } from '../../lib/copy';
 import { memberDisplayName } from '../../lib/displayName';
@@ -128,11 +128,29 @@ function mockedRouter(): { push: jest.Mock; replace: jest.Mock } {
   return expoRouter.useRouter();
 }
 
+function hostByType(node: TestInstance, type: string): TestInstance {
+  if (node.type === type) {
+    return node;
+  }
+  for (const child of node.children) {
+    if (typeof child !== 'string') {
+      try {
+        return hostByType(child, type);
+      } catch {
+        continue;
+      }
+    }
+  }
+  throw new Error(`missing host ${type}`);
+}
+
 describe('HomeScreen invite entry', () => {
   // First HomeScreen mount is slow on Linux; collection is not billed to an `it`.
-  const warmed = renderScreen(<HomeScreen />);
-  warmed.unmount();
-  warmed.queryClient.clear();
+  beforeAll(async () => {
+    const warmed = await renderScreen(<HomeScreen />);
+    await warmed.unmount();
+    warmed.queryClient.clear();
+  });
 
   beforeEach(() => {
     mockedRouter().push.mockClear();
@@ -181,7 +199,7 @@ describe('HomeScreen invite entry', () => {
 
   it('shows the family key is up to date after a lost rotation race', async () => {
     (rotateFamilyKeyIfNeeded as jest.Mock).mockResolvedValue('alreadyCurrent');
-    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.rotationUpToDate)).toBeTruthy();
     expect(queryByText(copy.home.rotationFailed)).toBeNull();
   });
@@ -193,29 +211,29 @@ describe('HomeScreen invite entry', () => {
         return 'rotated';
       },
     );
-    const { findByText } = renderScreen(<HomeScreen />);
+    const { findByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.rotationUpToDate)).toBeTruthy();
   });
 
   it('marks the family Home with a stable testID', async () => {
-    const { findByTestId } = renderScreen(<HomeScreen />);
+    const { findByTestId } = await renderScreen(<HomeScreen />);
     expect(await findByTestId('home')).toBeTruthy();
   });
 
   it('shows a quiet family-keys status on Home', async () => {
-    const { findByText } = renderScreen(<HomeScreen />);
+    const { findByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysReady)).toBeTruthy();
   });
 
   it('shows a calm recovery card on Home that does not block the family', async () => {
-    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.recoveryNotSetup)).toBeTruthy();
     expect(await findByText(copy.home.recoveryCardTitle)).toBeTruthy();
     expect(queryByText(copy.home.invite)).toBeNull();
   });
 
   it('greets the family by name, not the person, and offers recent memories', async () => {
-    const { findByText, findByTestId, queryByText } = renderScreen(<HomeScreen />);
+    const { findByText, findByTestId, queryByText } = await renderScreen(<HomeScreen />);
     expect(await findByTestId('home-family-name')).toBeTruthy();
     expect(await findByText('The Riveras')).toBeTruthy();
     expect(await findByText(copy.home.recentMemories)).toBeTruthy();
@@ -226,16 +244,16 @@ describe('HomeScreen invite entry', () => {
 
   it('says this phone needs to be let in again when the family key cannot be obtained', async () => {
     (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('needsRelink');
-    const { findByText } = renderScreen(<HomeScreen />);
+    const { findByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysNeedRelink)).toBeTruthy();
     expect(await findByText(copy.home.lostPhone)).toBeTruthy();
   });
 
   it('refetches first-device notices on pull to refresh', async () => {
-    const { UNSAFE_getByType, findByText } = renderScreen(<HomeScreen />);
+    const { getByTestId, findByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysReady)).toBeTruthy();
     const callsBefore = (fetchFirstDeviceNotices as jest.Mock).mock.calls.length;
-    fireEvent(UNSAFE_getByType(RefreshControl), 'refresh');
+    await fireEvent(hostByType(getByTestId('home'), 'RCTRefreshControl'), 'refresh');
     await waitFor(() => {
       expect((fetchFirstDeviceNotices as jest.Mock).mock.calls.length).toBeGreaterThan(callsBefore);
     });
@@ -253,11 +271,11 @@ describe('HomeScreen invite entry', () => {
         kind: 'first_device',
       },
     ]);
-    const { findByText, findByTestId, getByText } = renderScreen(<HomeScreen />);
+    const { findByText, findByTestId, getByText } = await renderScreen(<HomeScreen />);
 
     expect(await findByText(`${copy.member.fallbackName} wants this phone let in`)).toBeTruthy();
     expect((await findByTestId('let-in-notice')).props.testID).toBe('let-in-notice');
-    fireEvent.press(getByText(copy.home.letIn));
+    await fireEvent.press(getByText(copy.home.letIn));
     await waitFor(() => {
       expect(approveFirstDevice).toHaveBeenCalled();
     });
@@ -275,10 +293,10 @@ describe('HomeScreen invite entry', () => {
         kind: 'extra_device',
       },
     ]);
-    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.extraDeviceOwnNotice)).toBeTruthy();
     expect(queryByText(copy.home.letIn)).toBeNull();
-    fireEvent.press(await findByText(copy.home.yesMyPhone));
+    await fireEvent.press(await findByText(copy.home.yesMyPhone));
     await waitFor(() => {
       expect(approveOwnExtraDevice).toHaveBeenCalled();
     });
@@ -296,7 +314,7 @@ describe('HomeScreen invite entry', () => {
         kind: 'extra_device',
       },
     ]);
-    const { findByText, queryByText } = renderScreen(<HomeScreen />);
+    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(`${copy.member.fallbackName} added a new phone`)).toBeTruthy();
     expect(queryByText(copy.home.letIn)).toBeNull();
     expect(queryByText(copy.home.yesMyPhone)).toBeNull();
@@ -304,7 +322,7 @@ describe('HomeScreen invite entry', () => {
 
   it('waits for one of your phones when this is an extra device', async () => {
     (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('waitingOwnPhone');
-    const { findByText } = renderScreen(<HomeScreen />);
+    const { findByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.keysWaitingOwnPhone)).toBeTruthy();
   });
 
@@ -320,17 +338,17 @@ describe('HomeScreen invite entry', () => {
       keyEpoch: 1,
       status: 'setup',
     });
-    const { findByTestId } = renderScreen(<HomeScreen />);
-    fireEvent.press(await findByTestId('create-printed-code'));
+    const { findByTestId } = await renderScreen(<HomeScreen />);
+    await fireEvent.press(await findByTestId('create-printed-code'));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/printed-code');
   });
 
   it('refetches memberships when family members fail to load', async () => {
     (fetchMembers as jest.Mock).mockRejectedValue(new Error('rls'));
-    const view = renderScreen(<HomeScreen />);
+    const view = await renderScreen(<HomeScreen />);
     expect(await view.findByText(copy.common.error)).toBeTruthy();
     const membershipsBefore = (fetchMemberships as jest.Mock).mock.calls.length;
-    fireEvent.press(view.getByText(copy.home.rotationRetry));
+    await fireEvent.press(view.getByText(copy.home.rotationRetry));
     await waitFor(() => {
       expect((fetchMemberships as jest.Mock).mock.calls.length).toBeGreaterThan(membershipsBefore);
     });
@@ -338,7 +356,7 @@ describe('HomeScreen invite entry', () => {
 
   it('drops the family from Home when memberships become empty', async () => {
     (fetchMemberships as jest.Mock).mockResolvedValue([]);
-    const { findByText } = renderScreen(<HomeScreen />);
+    const { findByText } = await renderScreen(<HomeScreen />);
     expect(await findByText(copy.home.noFamilyTitle)).toBeTruthy();
   });
 

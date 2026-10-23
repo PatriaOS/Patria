@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { StyleSheet, TextInput, View, type TextInputInstance, type TextInputProps } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { radius, space, typeScale } from '../theme/tokens';
@@ -11,7 +11,7 @@ type Props = TextInputProps & {
   error?: string;
 };
 
-export const TextField = forwardRef<TextInput, Props>(function TextField(
+export const TextField = forwardRef<TextInputInstance, Props>(function TextField(
   { label, error, ...inputProps },
   ref,
 ) {

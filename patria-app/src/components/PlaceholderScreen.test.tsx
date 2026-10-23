@@ -3,8 +3,8 @@ import { renderScreen } from '../test/renderScreen';
 import { PlaceholderScreen } from './PlaceholderScreen';
 
 describe('PlaceholderScreen', () => {
-  it('renders title and body copy', () => {
-    const { getByText } = renderScreen(
+  it('renders title and body copy', async () => {
+    const { getByText } = await renderScreen(
       <PlaceholderScreen
         title={copy.welcome.title}
         body={copy.welcome.body}

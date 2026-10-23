@@ -32,7 +32,7 @@ describe('InvitePreviewScreen invalid invite', () => {
   });
 
   it('clears the pending token as soon as the preview is invalid', async () => {
-    renderScreen(<InvitePreviewScreen token="deadbeef" />);
+    await renderScreen(<InvitePreviewScreen token="deadbeef" />);
 
     await waitFor(() => {
       expect(SecureStore.deleteItemAsync).toHaveBeenCalled();
@@ -40,13 +40,13 @@ describe('InvitePreviewScreen invalid invite', () => {
   });
 
   it('Continue replaces to the gate, which sends signed-out users to welcome', async () => {
-    const { getByText } = renderScreen(<InvitePreviewScreen token="deadbeef" />);
+    const { getByText } = await renderScreen(<InvitePreviewScreen token="deadbeef" />);
 
     await waitFor(() => {
       expect(getByText(copy.invitePreview.invalid)).toBeTruthy();
     });
     expect(getByText(copy.invitePreview.invalid).props.testID).toBe('invite-no-longer-valid');
-    fireEvent.press(getByText(copy.common.continue));
+    await fireEvent.press(getByText(copy.common.continue));
 
     await waitFor(() => {
       expect(mockedReplace()).toHaveBeenCalledWith('/');
@@ -61,12 +61,12 @@ describe('InvitePreviewScreen invalid invite', () => {
   });
 
   it('Continue then the gate sends signed-in users to create family or home, never back to the invite', async () => {
-    const { getByText } = renderScreen(<InvitePreviewScreen token="deadbeef" />);
+    const { getByText } = await renderScreen(<InvitePreviewScreen token="deadbeef" />);
 
     await waitFor(() => {
       expect(getByText(copy.common.continue)).toBeTruthy();
     });
-    fireEvent.press(getByText(copy.common.continue));
+    await fireEvent.press(getByText(copy.common.continue));
 
     await waitFor(() => {
       expect(mockedReplace()).toHaveBeenCalledWith('/');

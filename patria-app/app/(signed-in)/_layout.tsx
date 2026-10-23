@@ -34,7 +34,7 @@ export default function SignedInLayout() {
   const pushed = { ...pushedScreenHeader, ...chrome };
 
   return (
-    <Stack initialRouteName="(tabs)" screenOptions={{ ...hiddenRootHeader, ...chrome }}>
+    <Stack screenOptions={{ ...hiddenRootHeader, ...chrome }}>
       <Stack.Screen name="(tabs)" options={{ ...hiddenRootHeader, title: screenTitles.home }} />
       <Stack.Screen
         name="create"

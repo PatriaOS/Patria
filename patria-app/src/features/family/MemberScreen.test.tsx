@@ -87,8 +87,8 @@ describe('MemberScreen leave family', () => {
       expect(leave?.text).toBe(copy.member.leave);
       leave?.onPress?.();
     });
-    const { findByText } = renderScreen(<MemberScreen userId="u2" />);
-    fireEvent.press(await findByText(copy.member.leave));
+    const { findByText } = await renderScreen(<MemberScreen userId="u2" />);
+    await fireEvent.press(await findByText(copy.member.leave));
     await waitFor(() => {
       expect(leaveFamilySpace).toHaveBeenCalledWith({ spaceId: 's1', userId: 'u2' });
     });
@@ -101,8 +101,8 @@ describe('MemberScreen leave family', () => {
       const remove = buttons?.find((item) => item.style === 'destructive');
       remove?.onPress?.();
     });
-    const { findByText } = renderScreen(<MemberScreen userId="u2" />);
-    fireEvent.press(await findByText(copy.member.remove));
+    const { findByText } = await renderScreen(<MemberScreen userId="u2" />);
+    await fireEvent.press(await findByText(copy.member.remove));
     await waitFor(() => {
       expect(rotateFamilyKeyIfNeeded).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -121,8 +121,8 @@ describe('MemberScreen leave family', () => {
       const cancel = buttons?.find((item) => item.style === 'cancel');
       cancel?.onPress?.();
     });
-    const { findByText } = renderScreen(<MemberScreen userId="u2" />);
-    fireEvent.press(await findByText(copy.member.remove));
+    const { findByText } = await renderScreen(<MemberScreen userId="u2" />);
+    await fireEvent.press(await findByText(copy.member.remove));
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalled();
     });
@@ -132,7 +132,7 @@ describe('MemberScreen leave family', () => {
   });
 
   it('does not show leave on someone else’s row', async () => {
-    const { findByText, queryByText } = renderScreen(<MemberScreen userId="u1" />);
+    const { findByText, queryByText } = await renderScreen(<MemberScreen userId="u1" />);
     await findByText('Test 1');
     expect(queryByText(copy.member.leave)).toBeNull();
   });

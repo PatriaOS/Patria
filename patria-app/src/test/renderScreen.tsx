@@ -32,10 +32,10 @@ export function createTestQueryClient(): QueryClient {
   });
 }
 
-export function renderScreen(ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>) {
+export async function renderScreen(ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>) {
   const queryClient = createTestQueryClient();
   liveClients.add(queryClient);
-  const result = render(ui, {
+  const result = await render(ui, {
     ...options,
     wrapper: ({ children }) => (
       <ThemeProvider initialAppearance="light" persist={false} fontsReady>
@@ -48,11 +48,11 @@ export function renderScreen(ui: ReactElement, options?: Omit<RenderOptions, 'wr
   return Object.assign(result, { queryClient });
 }
 
-export function clearTestQueryClients(): void {
+export async function clearTestQueryClients(): Promise<void> {
   for (const client of liveClients) {
     client.clear();
   }
   liveClients.clear();
   appQueryClient.clear();
-  cleanup();
+  await cleanup();
 }

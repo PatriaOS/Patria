@@ -16,11 +16,14 @@ jest.spyOn(AppState, 'addEventListener').mockImplementation(() => ({
 }));
 
 const jestGlobal = globalThis as typeof globalThis & { __patriaRtlWarmed?: boolean };
-if (!jestGlobal.__patriaRtlWarmed) {
-  renderScreen(createElement(View));
-  clearTestQueryClients();
-  jestGlobal.__patriaRtlWarmed = true;
-}
+
+beforeAll(async () => {
+  if (!jestGlobal.__patriaRtlWarmed) {
+    await renderScreen(createElement(View));
+    await clearTestQueryClients();
+    jestGlobal.__patriaRtlWarmed = true;
+  }
+});
 
 beforeEach(() => {
   (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
@@ -28,8 +31,8 @@ beforeEach(() => {
   (SecureStore.deleteItemAsync as jest.Mock).mockResolvedValue(undefined);
 });
 
-afterEach(() => {
+afterEach(async () => {
   resetFamilyKeyMemory();
-  clearTestQueryClients();
+  await clearTestQueryClients();
   jest.useRealTimers();
 });

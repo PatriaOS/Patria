@@ -1,5 +1,4 @@
 import { fireEvent, waitFor } from '@testing-library/react-native';
-import { KeyboardAvoidingView } from 'react-native';
 
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
@@ -30,10 +29,10 @@ describe('SignInScreen', () => {
   });
 
   it('marks the screen, keeps AutoFill, and submits from the password Go key', async () => {
-    const { getByTestId, getByLabelText, UNSAFE_getByType } = renderScreen(<SignInScreen />);
+    const { getByTestId, getByLabelText } = await renderScreen(<SignInScreen />);
 
     expect(getByTestId('screen-sign-in')).toBeTruthy();
-    expect(UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
+    expect(getByTestId('screen-keyboard')).toBeTruthy();
 
     const password = getByLabelText(copy.auth.passwordLabel);
     expect(password.props.returnKeyType).toBe('go');
@@ -41,9 +40,9 @@ describe('SignInScreen', () => {
     expect(password.props.autoComplete).toBe('password');
     expect(password.props.secureTextEntry).toBe(true);
 
-    fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
-    fireEvent.changeText(password, 'secret-password');
-    fireEvent(password, 'submitEditing');
+    await fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
+    await fireEvent.changeText(password, 'secret-password');
+    await fireEvent(password, 'submitEditing');
 
     await waitFor(() => {
       expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
@@ -60,11 +59,11 @@ describe('SignInScreen', () => {
     (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
       error: { message: 'invalid' },
     });
-    const { getByLabelText, getByText, findByText } = renderScreen(<SignInScreen />);
+    const { getByLabelText, getByText, findByText } = await renderScreen(<SignInScreen />);
 
-    fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
-    fireEvent.changeText(getByLabelText(copy.auth.passwordLabel), 'secret-password');
-    fireEvent.press(getByText(copy.auth.signInSubmit));
+    await fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
+    await fireEvent.changeText(getByLabelText(copy.auth.passwordLabel), 'secret-password');
+    await fireEvent.press(getByText(copy.auth.signInSubmit));
 
     expect(await findByText(copy.auth.signInFailed)).toBeTruthy();
   });

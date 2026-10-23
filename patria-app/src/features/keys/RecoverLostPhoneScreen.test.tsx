@@ -62,8 +62,8 @@ describe('RecoverLostPhoneScreen', () => {
   });
 
   it('starts recovery from the new phone', async () => {
-    const { findByText } = renderScreen(<RecoverLostPhoneScreen />);
-    fireEvent.press(await findByText(copy.recovery.lostStart));
+    const { findByText } = await renderScreen(<RecoverLostPhoneScreen />);
+    await fireEvent.press(await findByText(copy.recovery.lostStart));
     await waitFor(() => {
       expect(startLostPhoneRecovery).toHaveBeenCalled();
     });
@@ -88,7 +88,7 @@ describe('RecoverLostPhoneScreen', () => {
         completedAt: null,
       },
     ]);
-    const { findByText } = renderScreen(<RecoverLostPhoneScreen />);
+    const { findByText } = await renderScreen(<RecoverLostPhoneScreen />);
     expect(await findByText(copy.home.recoveryCancelledByAdmin)).toBeTruthy();
   });
 
@@ -116,10 +116,10 @@ describe('RecoverLostPhoneScreen', () => {
       { slot: 'a', wrappedSecret: new Uint8Array(80) },
     ]);
     recoverFlow.finishLostPhoneRecovery.mockRejectedValueOnce(new Error('printed code failed'));
-    const { findByText, getByLabelText } = renderScreen(<RecoverLostPhoneScreen />);
+    const { findByText, getByLabelText } = await renderScreen(<RecoverLostPhoneScreen />);
     await findByText(copy.recovery.lostFinish);
-    fireEvent.changeText(getByLabelText(copy.recovery.lostPaperLabel), 'not a mnemonic at all');
-    fireEvent.press(getByLabelText(copy.recovery.lostFinish));
+    await fireEvent.changeText(getByLabelText(copy.recovery.lostPaperLabel), 'not a mnemonic at all');
+    await fireEvent.press(getByLabelText(copy.recovery.lostFinish));
     await waitFor(() => {
       expect(finishLostPhoneRecovery).toHaveBeenCalled();
     });

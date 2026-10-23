@@ -81,33 +81,33 @@ describe('Family tab', () => {
   });
 
   it('offers invite, add a child, Appearance and sign out', async () => {
-    const { findByText, findByTestId } = renderScreen(<FamilyScreen />);
+    const { findByText, findByTestId } = await renderScreen(<FamilyScreen />);
     expect(await findByTestId('screen-family')).toBeTruthy();
     expect(await findByText(copy.home.invite)).toBeTruthy();
-    fireEvent.press(await findByText(copy.home.addChild));
+    await fireEvent.press(await findByText(copy.home.addChild));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/add-child');
-    fireEvent.press(await findByText(copy.appearance.title));
+    await fireEvent.press(await findByText(copy.appearance.title));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/appearance');
   });
 
   it('offers Create another family next to Join another family', async () => {
-    const view = renderScreen(<FamilyScreen />);
+    const view = await renderScreen(<FamilyScreen />);
     await view.findByLabelText(copy.home.createAnotherFamily);
-    fireEvent.press(view.getByLabelText(copy.home.createAnotherFamily));
+    await fireEvent.press(view.getByLabelText(copy.home.createAnotherFamily));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/create');
   });
 
   it('uses a Join another family link instead of a paste box', async () => {
-    const view = renderScreen(<FamilyScreen />);
+    const view = await renderScreen(<FamilyScreen />);
     await view.findByLabelText(copy.home.joinFamily);
     expect(view.queryByText(copy.invite.pastePrompt)).toBeNull();
-    fireEvent.press(view.getByLabelText(copy.home.joinFamily));
+    await fireEvent.press(view.getByLabelText(copy.home.joinFamily));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/join-family');
   });
 
   it('signs out then replaces to welcome', async () => {
-    const { findByText } = renderScreen(<FamilyScreen />);
-    fireEvent.press(await findByText(copy.auth.signOut));
+    const { findByText } = await renderScreen(<FamilyScreen />);
+    await fireEvent.press(await findByText(copy.auth.signOut));
     await waitFor(() => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
     });
@@ -115,8 +115,8 @@ describe('Family tab', () => {
   });
 
   it('opens Your phones from Family', async () => {
-    const { findByText } = renderScreen(<FamilyScreen />);
-    fireEvent.press(await findByText(copy.home.yourPhones));
+    const { findByText } = await renderScreen(<FamilyScreen />);
+    await fireEvent.press(await findByText(copy.home.yourPhones));
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/your-phones');
   });
 
@@ -124,14 +124,14 @@ describe('Family tab', () => {
     (fetchChildren as jest.Mock).mockResolvedValueOnce([
       { id: 'c1', displayName: 'Lily', dateOfBirth: null },
     ]);
-    const { findByTestId } = renderScreen(<FamilyScreen />);
+    const { findByTestId } = await renderScreen(<FamilyScreen />);
     const subtitle = await findByTestId('child-lily-subtitle');
     expect(String(subtitle.props.children)).toMatch(/Kid profile/);
     expect(String(subtitle.props.children)).toMatch(/no email/i);
   });
 
   it('never shows a blank member card', async () => {
-    const { findAllByText, getAllByText } = renderScreen(<FamilyScreen />);
+    const { findAllByText, getAllByText } = await renderScreen(<FamilyScreen />);
     expect((await findAllByText(copy.member.fallbackName)).length).toBeGreaterThan(0);
     expect(getAllByText(copy.roles.co_admin).length).toBeGreaterThan(0);
   });

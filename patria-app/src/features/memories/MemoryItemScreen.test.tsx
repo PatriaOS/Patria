@@ -70,8 +70,8 @@ describe('Memory item', () => {
   });
 
   it('asks to confirm when moving to a circle that includes someone new', async () => {
-    const { findByTestId } = renderScreen(<MemoryItemScreen />);
-    fireEvent.press(await findByTestId('move-circle-extended_family'));
+    const { findByTestId } = await renderScreen(<MemoryItemScreen />);
+    await fireEvent.press(await findByTestId('move-circle-extended_family'));
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
         copy.memories.widenTitle,
@@ -83,7 +83,7 @@ describe('Memory item', () => {
 
   it('hides Move and Delete when the viewer is not the uploader', async () => {
     (fetchMemoryItem as jest.Mock).mockResolvedValue({ ...item, uploaderId: 'other' });
-    const { findByText, queryByText } = renderScreen(<MemoryItemScreen />);
+    const { findByText, queryByText } = await renderScreen(<MemoryItemScreen />);
     expect(await findByText('Picnic')).toBeTruthy();
     expect(queryByText(copy.memories.delete)).toBeNull();
     expect(queryByText(copy.memories.move)).toBeNull();
@@ -96,7 +96,7 @@ describe('Memory item', () => {
       durationSeconds: 2,
       caption: null,
     });
-    const { findByText, queryByText } = renderScreen(<MemoryItemScreen />);
+    const { findByText, queryByText } = await renderScreen(<MemoryItemScreen />);
     expect(await findByText(copy.memories.noLocationVideo)).toBeTruthy();
     expect(queryByText(copy.memories.noLocation)).toBeNull();
   });

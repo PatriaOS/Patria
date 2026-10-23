@@ -16,15 +16,15 @@ describe('JoinFamilyScreen', () => {
     mockedPush().mockClear();
   });
 
-  it('opens a pasted invite on the accept screen', () => {
-    const { getByLabelText, getByText } = renderScreen(<JoinFamilyScreen />);
+  it('opens a pasted invite on the accept screen', async () => {
+    const { getByLabelText, getByText } = await renderScreen(<JoinFamilyScreen />);
 
     expect(getByText(copy.home.joinFamily)).toBeTruthy();
-    fireEvent.changeText(
+    await fireEvent.changeText(
       getByLabelText(copy.invite.pasteLabel),
       'patria://invite/abc123def456',
     );
-    fireEvent.press(getByText(copy.invite.openLink));
+    await fireEvent.press(getByText(copy.invite.openLink));
 
     expect(mockedPush()).toHaveBeenCalledWith('/invite/abc123def456');
   });

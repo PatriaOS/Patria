@@ -49,10 +49,10 @@ describe('YourNameScreen', () => {
   });
 
   it('saves a name with existing copy then returns to the gate', async () => {
-    const { getByLabelText, getByText } = renderScreen(<YourNameScreen />);
+    const { getByLabelText, getByText } = await renderScreen(<YourNameScreen />);
 
-    fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Elena Rivera');
-    fireEvent.press(getByText(copy.common.save));
+    await fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Elena Rivera');
+    await fireEvent.press(getByText(copy.common.save));
 
     await waitFor(() => {
       expect(mockedProfiles.from).toHaveBeenCalledWith('profiles');

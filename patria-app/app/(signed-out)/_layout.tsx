@@ -32,7 +32,7 @@ export default function SignedOutLayout() {
   }
 
   return (
-    <Stack initialRouteName="welcome" screenOptions={{ ...hiddenRootHeader, ...chrome }}>
+    <Stack screenOptions={{ ...hiddenRootHeader, ...chrome }}>
       <Stack.Screen name="welcome" options={{ ...hiddenRootHeader, title: screenTitles.welcome }} />
       <Stack.Screen
         name="sign-in"
