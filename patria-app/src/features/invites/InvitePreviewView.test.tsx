@@ -1,3 +1,5 @@
+import { fireEvent } from '@testing-library/react-native';
+
 import { copy } from '../../lib/copy';
 import { renderScreen } from '../../test/renderScreen';
 import { InvitePreviewView } from './InvitePreviewView';
@@ -31,5 +33,23 @@ describe('InvitePreviewView', () => {
     expect(getByText(preview.visibility_summary)).toBeTruthy();
     expect(getByText(copy.invitePreview.accept)).toBeTruthy();
     expect(getByText(copy.invitePreview.decline)).toBeTruthy();
+  });
+
+  it('accepts on the first tap', async () => {
+    const onAccept = jest.fn();
+    const { getByText } = await renderScreen(
+      <InvitePreviewView
+        preview={preview}
+        signedIn
+        busy={false}
+        error={null}
+        onAccept={onAccept}
+        onDecline={() => undefined}
+        onSignIn={() => undefined}
+        onSignUp={() => undefined}
+      />,
+    );
+    await fireEvent.press(getByText(copy.invitePreview.accept));
+    expect(onAccept).toHaveBeenCalledTimes(1);
   });
 });

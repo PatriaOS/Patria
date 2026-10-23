@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Pressable, StyleSheet, View } from 'react-native';
@@ -12,6 +12,7 @@ import {
   LoadingState,
   Muted,
   Screen,
+  StatusPill,
   Title,
 } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
@@ -23,6 +24,7 @@ import { routes } from '../../lib/navigation';
 import { isMemoryRole } from '../../lib/roles';
 import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
+import { libraryStatusTone } from './connectSettings';
 import { deleteConnection, fetchOwnConnection, patchConnection } from './libraryApi';
 import { runLibrarySync } from './librarySync';
 import {
@@ -51,6 +53,7 @@ export function MemoriesScreen() {
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const previousIds = useRef<string[]>([]);
+  const syncGeneration = useRef(0);
   const [status, setStatus] = useState<string | null>(null);
   const [hasConnection, setHasConnection] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -76,18 +79,24 @@ export function MemoriesScreen() {
     if (!userId || !spaceId || !isMemoryRole(role)) {
       return;
     }
+    const generation = ++syncGeneration.current;
     const device = await ensureDeviceIdentity(userId);
     const connection = await fetchOwnConnection(userId, spaceId, device.deviceId);
+    if (syncGeneration.current !== generation) {
+      return;
+    }
     setHasConnection(Boolean(connection));
     setPaused(Boolean(connection?.paused));
     if (!connection) {
       setStatus(null);
       return;
     }
+    setStatus((current) => current ?? copy.memories.statusUpToDate);
     await runLibrarySync({
       userId,
       spaceId,
       deviceId: device.deviceId,
+      shouldContinue: () => syncGeneration.current === generation,
       confirm: (count, circleName) =>
         new Promise((resolve) => {
           Alert.alert(
@@ -99,8 +108,15 @@ export function MemoriesScreen() {
             ],
           );
         }),
-      onProgress: (progress) => setStatus(progress.status),
+      onProgress: (progress) => {
+        if (syncGeneration.current === generation) {
+          setStatus(progress.status);
+        }
+      },
     });
+    if (syncGeneration.current !== generation) {
+      return;
+    }
     const after = await fetchOwnConnection(userId, spaceId, device.deviceId);
     setPaused(Boolean(after?.paused));
     if (after?.needs_circle) {
@@ -118,11 +134,12 @@ export function MemoriesScreen() {
     void cleanupStaleUploads(userId);
   }, [userId, role]);
 
-  useEffect(() => {
-    // Library sync on open (D31): pause, status and uploads live in React state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- foreground sync is an external trigger
-    void syncNow();
-  }, [syncNow]);
+  useFocusEffect(
+    useCallback(() => {
+      // Library sync on open (D31): pause, status and uploads live in React state.
+      void syncNow();
+    }, [syncNow]),
+  );
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -149,12 +166,16 @@ export function MemoriesScreen() {
     if (!userId || !spaceId) {
       return;
     }
+    const nextPaused = !paused;
+    syncGeneration.current += 1;
+    setPaused(nextPaused);
+    setStatus(nextPaused ? copy.memories.statusPaused : copy.memories.statusUpToDate);
     const device = await ensureDeviceIdentity(userId);
     const connection = await fetchOwnConnection(userId, spaceId, device.deviceId);
     if (!connection) {
       return;
     }
-    await patchConnection(connection.id, { paused: !connection.paused });
+    await patchConnection(connection.id, { paused: nextPaused });
     await syncNow();
   };
 
@@ -208,13 +229,14 @@ export function MemoriesScreen() {
       onRefresh={onRefresh}
     >
       <Title>{copy.memories.title}</Title>
-      {status ? <Muted testID="library-status">{status}</Muted> : null}
+      {status ? <StatusPill testID="library-status" label={status} tone={libraryStatusTone(status)} /> : null}
       <Button label={copy.memories.addPhotos} onPress={() => router.push(routes.memoriesAdd)} />
       {hasConnection ? (
         <>
           <Button
             label={paused ? copy.memories.resume : copy.memories.pause}
             variant="secondary"
+            testID={paused ? 'resume' : 'pause'}
             onPress={() => void onPauseToggle()}
           />
           <Button

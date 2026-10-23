@@ -1,11 +1,12 @@
 import { Image } from 'expo-image';
 import { Play } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
 import { decorativeA11y } from './a11y';
 import { Icon } from './Icon';
+import { Pressable } from './Pressable';
 import { Caption } from './Text';
 
 type Props = {

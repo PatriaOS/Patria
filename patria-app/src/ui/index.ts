@@ -11,6 +11,7 @@ export { IconButton } from './IconButton';
 export { IconCircle } from './IconCircle';
 export { ListRow } from './ListRow';
 export { PhotoTile } from './PhotoTile';
+export { Pressable } from './Pressable';
 export { Screen } from './Screen';
 export { ErrorState, LoadingState } from './Status';
 export { Skeleton } from './Skeleton';

@@ -31,8 +31,28 @@ appId: app.patria.dev
           visible:
             id: "turn-on-sharing"
           timeout: 20000
+      - assertVisible:
+          id: "step-what"
+      - assertVisible:
+          id: "step-who"
+      - assertVisible:
+          id: "photo-access-full"
+      - assertNotVisible:
+          id: "open-settings"
+      - assertVisible:
+          id: "choose-who"
+      - tapOn:
+          id: "turn-on-sharing"
+      - assertVisible:
+          id: "choose-who"
+      - assertVisible:
+          id: "screen-memories-connect-settings"
       - tapOn:
           id: "connect-circle-household"
+      - extendedWaitUntil:
+          visible:
+            id: "connect-circle-household-selected"
+          timeout: 10000
       - tapOn:
           id: "start-today"
       - tapOn:

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import {
   Body,
@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   Muted,
+  Pressable,
   Screen,
   Title,
 } from '../../ui';

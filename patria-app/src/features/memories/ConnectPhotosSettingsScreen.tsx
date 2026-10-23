@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import {
   Body,
@@ -12,6 +12,7 @@ import {
   LoadingState,
   Muted,
   Screen,
+  Section,
   Title,
 } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
@@ -22,6 +23,7 @@ import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { space } from '../../theme/tokens';
 import { circleExplanation } from './circleAudience';
+import { canTurnOnSharing } from './connectSettings';
 import { writeAlbumIds } from './libraryAlbums';
 import { upsertConnection, type LibraryMode } from './libraryApi';
 import { fetchUploaderCircles } from './memoryApi';
@@ -33,6 +35,8 @@ export function ConnectPhotosSettingsScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const userId = session?.user.id;
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const whoY = useRef(0);
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [access, setAccess] = useState<Access>('none');
   const [mode, setMode] = useState<LibraryMode>('all_new');
@@ -78,12 +82,15 @@ export function ConnectPhotosSettingsScreen() {
     void refreshAccess();
   }, []);
 
+  const ready = canTurnOnSharing({ mode, circleId, albumIds });
+
   const onTurnOn = async () => {
-    if (!spaceId || !userId || !circleId) {
+    if (!circleId) {
       setError(copy.memories.chooseCircleFirst);
+      scrollRef.current?.scrollTo({ y: Math.max(0, whoY.current - space.md), animated: true });
       return;
     }
-    if (mode === 'selected_albums' && albumIds.length === 0) {
+    if (!ready || !spaceId || !userId) {
       setError(copy.memories.chooseCircleFirst);
       return;
     }
@@ -123,10 +130,14 @@ export function ConnectPhotosSettingsScreen() {
   return (
     <Screen
       withHeader
+      scrollRef={scrollRef}
       testID="screen-memories-connect-settings"
       accessibilityLabel={copy.memories.connectTitle}
     >
       <Title>{copy.memories.connectTitle}</Title>
+      {access === 'all' ? (
+        <Muted testID="photo-access-full">{copy.memories.photoAccessFull}</Muted>
+      ) : null}
       {access === 'limited' ? <Muted testID="limited-body">{copy.memories.limitedBody}</Muted> : null}
       {access === 'limited' ? (
         <Button
@@ -140,15 +151,23 @@ export function ConnectPhotosSettingsScreen() {
           }}
         />
       ) : null}
-      <Button
-        label={copy.memories.openSettings}
-        testID="open-settings"
-        variant="secondary"
-        onPress={() => {
-          void Linking.openSettings();
-        }}
-      />
-      <Muted>{copy.memories.modeAll}</Muted>
+      {access === 'none' ? (
+        <Muted testID="photo-access-denied">{copy.memories.photoAccessDenied}</Muted>
+      ) : null}
+      {access !== 'all' ? (
+        <Button
+          label={copy.memories.openSettings}
+          testID="open-settings"
+          variant="secondary"
+          onPress={() => {
+            void Linking.openSettings();
+          }}
+        />
+      ) : null}
+
+      <View testID="step-what">
+        <Section>{copy.memories.stepWhat}</Section>
+      </View>
       <View style={styles.chips}>
         <ChoiceChip
           label={copy.memories.modeAll}
@@ -167,9 +186,10 @@ export function ConnectPhotosSettingsScreen() {
           }}
           testID="mode-albums"
         />
-        <ChoiceChip label={copy.memories.modeFaces} selected={false} onPress={() => undefined} testID="mode-faces" />
       </View>
-      <Muted>{copy.memories.modeFacesLater}</Muted>
+      <Muted testID="mode-faces">
+        {copy.memories.modeFaces}. {copy.memories.modeFacesLater}
+      </Muted>
       {access !== 'all' ? <Muted testID="albums-need-full">{copy.memories.albumsNeedFull}</Muted> : null}
       {mode === 'selected_albums' && access === 'all'
         ? albums.map((album) => {
@@ -188,7 +208,15 @@ export function ConnectPhotosSettingsScreen() {
             );
           })
         : null}
-      <Muted>{copy.memories.chooseCircle}</Muted>
+
+      <View
+        testID="step-who"
+        onLayout={(event) => {
+          whoY.current = event.nativeEvent.layout.y;
+        }}
+      >
+        <Section>{copy.memories.stepWho}</Section>
+      </View>
       <View style={styles.chips}>
         {(circlesQuery.data ?? []).map((circle) => {
           const on = circle.id === circleId;
@@ -198,12 +226,23 @@ export function ConnectPhotosSettingsScreen() {
               testID={`connect-circle-${circle.kind}${on ? '-selected' : ''}`}
               label={circle.name}
               selected={on}
-              onPress={() => setCircleId(circle.id)}
+              onPress={() => {
+                setCircleId(circle.id);
+                setError(null);
+              }}
             />
           );
         })}
       </View>
-      {selected ? <Muted>{circleExplanation(selected.kind)}</Muted> : <Muted>{copy.memories.chooseCircleFirst}</Muted>}
+      {selected ? (
+        <Muted>{circleExplanation(selected.kind)}</Muted>
+      ) : (
+        <Muted testID="choose-who">{copy.memories.chooseCircleFirst}</Muted>
+      )}
+
+      <View testID="step-start">
+        <Section>{copy.memories.stepStart}</Section>
+      </View>
       <View style={styles.chips}>
         <ChoiceChip
           label={copy.memories.startToday}
@@ -217,6 +256,10 @@ export function ConnectPhotosSettingsScreen() {
           onPress={() => setStartChoice('last_30_days')}
           testID="start-month"
         />
+      </View>
+
+      <View testID="step-network">
+        <Section>{copy.memories.stepNetwork}</Section>
       </View>
       <View style={styles.row}>
         <Body>{copy.memories.useCellular}</Body>
@@ -233,7 +276,6 @@ export function ConnectPhotosSettingsScreen() {
         testID="turn-on-sharing"
         onPress={() => void onTurnOn()}
         busy={busy}
-        disabled={!circleId}
       />
     </Screen>
   );

@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { lightCardShadow, radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { Pressable } from './Pressable';
 
 export type CardVariant = 'default' | 'hero' | 'soft';
 

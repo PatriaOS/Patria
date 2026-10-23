@@ -337,8 +337,15 @@ export const copy = {
     startToday: 'From today',
     startMonth: 'Last 30 days',
     useCellular: 'Use cellular data',
+    stepWhat: '1 What to share',
+    stepWho: '2 Who will see them',
+    stepStart: '3 Start from',
+    stepNetwork: '4 Network',
     chooseCircle: 'Who should see these photos?',
-    chooseCircleFirst: 'Choose a circle before you turn this on.',
+    chooseCircleFirst: 'Choose who will see these photos',
+    photoAccessFull: 'Photo access: Full',
+    photoAccessDenied:
+      'Patria cannot see your photos. Open Settings to allow access if you want to share them.',
     albumsNeedFull:
       'Selected albums needs access to your whole photo library. You can share All new photos among the photos you have allowed, or open Settings.',
     limitedBody:

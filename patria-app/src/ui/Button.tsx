@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { Pressable } from './Pressable';
 import { AppText } from './Text';
 
 export type ButtonVariant = 'primary' | 'accent' | 'ghost' | 'danger' | 'secondary';

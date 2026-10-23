@@ -59,4 +59,15 @@ describe('SignUpScreen', () => {
       expect(mockedReplace()).toHaveBeenCalledWith(routes.gate);
     });
   });
+
+  it('submits from the first tap after the fields are filled', async () => {
+    const { getByLabelText, getByText } = await renderScreen(<SignUpScreen />);
+    await fireEvent.changeText(getByLabelText(copy.auth.nameLabel), 'Test 1');
+    await fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
+    await fireEvent.changeText(getByLabelText(copy.auth.passwordLabel), 'secret-password');
+    await fireEvent.press(getByText(copy.auth.signUpSubmit));
+    await waitFor(() => {
+      expect(supabase.auth.signUp).toHaveBeenCalledTimes(1);
+    });
+  });
 });

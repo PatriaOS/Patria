@@ -1,9 +1,10 @@
 import { type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { space } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { Pressable } from './Pressable';
 import { Body, Caption } from './Text';
 
 type Props = {

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +13,8 @@ import { space } from '../theme/tokens';
 import { useTheme } from '../theme';
 import { screenSafeEdges } from './screenEdges';
 
+type ScrollViewRef = ComponentRef<typeof ScrollView>;
+
 type Props = {
   children: ReactNode;
   accessibilityLabel?: string;
@@ -23,6 +25,7 @@ type Props = {
   refreshing?: boolean;
   onRefresh?: () => void;
   scroll?: boolean;
+  scrollRef?: Ref<ScrollViewRef>;
 };
 
 export function Screen({
@@ -35,10 +38,12 @@ export function Screen({
   refreshing = false,
   onRefresh,
   scroll = true,
+  scrollRef,
 }: Props) {
   const { colors } = useTheme();
   const body = scroll ? (
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={[
         styles.scroll,
         {

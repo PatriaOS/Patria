@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
+import { Pressable } from './Pressable';
 
 type Props = {
   icon: LucideIcon;

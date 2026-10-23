@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { space, stroke } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { Pressable } from './Pressable';
 import { Small } from './Text';
 
 export type UnderlineTab = {

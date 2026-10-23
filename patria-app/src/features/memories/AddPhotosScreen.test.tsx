@@ -89,12 +89,13 @@ describe('Add photos', () => {
     });
   });
 
-  it('offers Share after photos are picked', async () => {
-    const { findByText } = await renderScreen(<AddPhotosScreen />);
-    const share = await findByText(copy.memories.share);
-    await fireEvent.press(share);
+  it('shares on the first tap after photos are picked', async () => {
+    (uploadPreparedPhoto as jest.Mock).mockClear();
+    const { findByTestId, findByText } = await renderScreen(<AddPhotosScreen />);
+    expect(await findByTestId('circle-household-selected')).toBeTruthy();
+    await fireEvent.press(await findByText(copy.memories.share));
     await waitFor(() => {
-      expect(share).toBeTruthy();
+      expect(uploadPreparedPhoto).toHaveBeenCalled();
     });
   });
 

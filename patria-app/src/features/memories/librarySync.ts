@@ -27,6 +27,10 @@ export type SyncProgress = {
   waiting: number;
 };
 
+export function shouldKeepSharing(shouldContinue?: () => boolean): boolean {
+  return shouldContinue ? shouldContinue() : true;
+}
+
 function mediaLibrary(): typeof import('expo-media-library/legacy') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require('expo-media-library/legacy');
@@ -71,6 +75,7 @@ export async function runLibrarySync(input: {
   deviceId: string;
   confirm?: (count: number, circleName: string) => Promise<boolean>;
   onProgress?: (progress: SyncProgress) => void;
+  shouldContinue?: () => boolean;
 }): Promise<void> {
   if (!librarySyncSupported() || Platform.OS !== 'ios') {
     return;
@@ -139,11 +144,14 @@ export async function runLibrarySync(input: {
 async function shareAssets(
   waiting: WaitingItem[],
   connection: LibraryConnectionRow,
-  input: { userId: string; spaceId: string },
+  input: { userId: string; spaceId: string; shouldContinue?: () => boolean },
   secret: Uint8Array,
 ): Promise<void> {
   const MediaLibrary = mediaLibrary();
   for (const item of waiting) {
+    if (!shouldKeepSharing(input.shouldContinue)) {
+      return;
+    }
     const info = await MediaLibrary.getAssetInfoAsync(item.assetId);
     const uri = info.localUri ?? info.uri;
     if (!uri) {
@@ -174,6 +182,9 @@ async function shareAssets(
     } catch {
       // One failure does not stop the rest.
     }
+  }
+  if (!shouldKeepSharing(input.shouldContinue)) {
+    return;
   }
   await patchConnection(connection.id, { last_synced_at: new Date().toISOString() });
 }

@@ -55,6 +55,16 @@ describe('SignInScreen', () => {
     });
   });
 
+  it('submits from the first tap after the fields are filled', async () => {
+    const { getByLabelText, getByText } = await renderScreen(<SignInScreen />);
+    await fireEvent.changeText(getByLabelText(copy.auth.emailLabel), 'test1@example.com');
+    await fireEvent.changeText(getByLabelText(copy.auth.passwordLabel), 'secret-password');
+    await fireEvent.press(getByText(copy.auth.signInSubmit));
+    await waitFor(() => {
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('shows a calm error when sign in fails', async () => {
     (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
       error: { message: 'invalid' },

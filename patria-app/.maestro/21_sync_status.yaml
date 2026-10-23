@@ -23,14 +23,25 @@ appId: app.patria.dev
     timeout: 20000
 - tapOn:
     id: "connect-circle-household"
+- extendedWaitUntil:
+    visible:
+      id: "connect-circle-household-selected"
+    timeout: 10000
 - tapOn:
     id: "use-cellular"
 - tapOn:
     id: "turn-on-sharing"
+- tapOn:
+    optional: true
+    text: "Share them"
 - extendedWaitUntil:
     visible:
-      id: "screen-memories"
+      id: "library-status"
     timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "pause"
+    timeout: 10000
 - tapOn:
     id: "pause"
 - extendedWaitUntil:

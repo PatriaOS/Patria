@@ -190,10 +190,10 @@ Pass when: steps 1 to 3 behave as written. Over-limit and located videos stay of
 ### 19. Connect the photo library (MEM01 slice 2)
 Areas: memories
 1. As Test 1, on Memories tap Connect my photos. Pass if an explainer appears before any permission sheet, in plain words, and nothing is shared yet.
-2. Continue, allow photos, pick Household (no silent default), leave From today selected, and turn sharing on. Pass if the library shows a status such as Up to date, Sharing N, Waiting for WiFi, or Paused.
+2. Continue, allow photos. Pass if the setup is numbered steps (What to share, Who will see them, Start from, Network), no circle is preselected, and Turn on sharing does not pick a circle for you. Tap Household, leave From today selected, and turn sharing on. Pass if Memories shows a status pill (Up to date, Sharing N, Waiting for WiFi, or Paused) and a sync starts.
 3. Take a new camera photo while sharing is on. Pass if it appears within a minute on WiFi, marked automatic. **(manual)**
 4. Add a new photo to the Simulator library (`simctl addmedia`) while Patria is open. The file must have today's Photos creation date (the Simulator uses the file birthdate, not mtime). Pass if it appears, marked automatic, older photos from before today are not uploaded, and Test 2 sees it.
-5. Limited access **(manual)**: pass if the screen explains that new camera photos are not shared until they are added to the allowed photos, offers Choose allowed photos and Open Settings, and Selected albums is shown only with full access plus a short reason otherwise.
+5. Photo access **(manual for Limited and Denied)**: Full access shows “Photo access: Full” and no Open Settings button. Limited: the Limited explanation with Choose allowed photos and Open Settings, and Selected albums is shown only with full access plus a short reason otherwise. Denied: an explanation and Open Settings.
 Pass when: steps 1, 2 and 4 behave as written on iOS. Camera and Limited access stay manual. Android library sync waits for a development build.
 
 ### 20. Share only selected albums (MEM01 slice 2)

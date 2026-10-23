@@ -1,5 +1,5 @@
 import { Home, Images, Lock, Users } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { copy } from '../lib/copy';
@@ -7,6 +7,7 @@ import { testIdFromLabel } from '../lib/testId';
 import { space, stroke } from '../theme/tokens';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
+import { Pressable } from './Pressable';
 import { Caption } from './Text';
 
 export const TAB_KEYS = ['home', 'memories', 'vault', 'family'] as const;

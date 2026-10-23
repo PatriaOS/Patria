@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { Pressable } from './Pressable';
 import { Caption } from './Text';
 
 type Props = {
@@ -25,8 +26,9 @@ export function ChoiceChip({ label, selected = false, onPress, testID, accessibi
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? colors.primary : colors.softSurface,
+          backgroundColor: selected ? colors.primary : colors.surface,
           borderColor: selected ? colors.primary : colors.hairline,
+          borderWidth: selected ? 2 : 1,
         },
       ]}
     >
@@ -38,7 +40,6 @@ export function ChoiceChip({ label, selected = false, onPress, testID, accessibi
 const styles = StyleSheet.create({
   chip: {
     borderRadius: radius.button,
-    borderWidth: 1,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     minHeight: 44,

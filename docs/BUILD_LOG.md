@@ -7,6 +7,22 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-23 — Shared Pressable so first taps land
+
+Turn on sharing, circle chips, Pause, and Vault Save all needed a later layout change (a Switch, a permission sheet, or a navigation) before a tap fired. That was not screen-specific. React Native 0.88 Pressable writes `disabled` onto native `enabled`. After a true → false flip the host can stay enabled=false (treated as box-none) until something else invalidates layout — the same class as RN #56777. JS-responder Pressable inside ScrollView also drops the first tap after the keyboard, a permission sheet, or a push.
+
+`src/ui/Pressable` now wraps Gesture Handler, always passes a boolean `disabled`, and ignores presses while inactive. Button, chips, ListRow, IconButton, Card, PhotoTile, tabs, and recovery contact rows use it.
+
+---
+
+## 2026-10-23 — Connect photos setup is numbered steps
+
+A real iPhone recording showed Connect my photos never starting a sync because Who will see them was easy to miss and Turn on sharing felt dead until Use cellular data was toggled. No circle is preselected (still correct). The settings screen is now four numbered sections. Family faces only is Coming later, not a third mode chip. Full access shows “Photo access: Full” and hides Open Settings; Limited and Denied keep Settings.
+
+The cellular toggle did not gate the button in code. `disabled={!circleId}` left the Pressable un-hittable after a circle was chosen until the Switch forced a layout. Turn on sharing stays pressable; without a circle it scrolls to step 2 and says “Choose who will see these photos”. Sharing still cannot start without a circle. Circle chips use Gesture Handler so a tap after the permission sheet actually selects. After Turn on sharing, Memories shows the status pill and runs a sync. Pause updates the pill immediately and cancels an in-flight sync so “Sharing N” cannot hide Paused.
+
+---
+
 ## 2026-10-23 — SDK 58 follow-up: tab switch after addMedia, library date stamp
 
 Test 18 stayed on Home after Maestro `addMedia` because the custom tab bar used `router.navigate`. That tap completed and the tab bar looked fine — no Photos alert, no crash — but the tab did not switch until later. Tab switches now use Expo Router 58’s `navigateToTab(route.key)`. The flow also waits for the UI to settle after seeding the gallery.
