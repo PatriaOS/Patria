@@ -9,9 +9,11 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ## 2026-10-23 — Shared Pressable so first taps land
 
-Turn on sharing, circle chips, Pause, and Vault Save all needed a later layout change (a Switch, a permission sheet, or a navigation) before a tap fired. That was not screen-specific. React Native 0.88 Pressable writes `disabled` onto native `enabled`. After a true → false flip the host can stay enabled=false (treated as box-none) until something else invalidates layout — the same class as RN #56777. JS-responder Pressable inside ScrollView also drops the first tap after the keyboard, a permission sheet, or a push.
+Turn on sharing, circle chips, Pause, and Vault Save all needed a later layout change (a Switch, a permission sheet, or a navigation) before a tap fired. That was not screen-specific. React Native 0.88 Pressable writes `disabled` onto native `enabled`. After a true → false flip the host can stay enabled=false (treated as box-none) until something else invalidates layout — the same class as RN #56777.
 
-`src/ui/Pressable` now wraps Gesture Handler, always passes a boolean `disabled`, and ignores presses while inactive. Button, chips, ListRow, IconButton, Card, PhotoTile, tabs, and recovery contact rows use it.
+The first shared wrapper used Gesture Handler and still passed native `disabled`. That made Ask these people and Save hittable after enable, but Gesture Handler can fire `onPress` twice (a recovery row would select then unselect) and can drop the first tab tap after Maestro `addMedia`. Tabs never set `disabled`, so the inactive guard was not why test 18 missed Memories.
+
+`src/ui/Pressable` is React Native Pressable again. It never sets native `disabled` (the wrapper no-ops while inactive), always attaches `onPress`, and ignores a second press within 300ms. Circle chips still use Gesture Handler so a tap after the Photos permission sheet selects.
 
 ---
 

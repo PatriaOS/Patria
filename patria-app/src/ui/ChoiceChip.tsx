@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native';
+import { Pressable as GesturePressable } from 'react-native-gesture-handler';
 
 import { testIdFromLabel } from '../lib/testId';
 import { radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
-import { Pressable } from './Pressable';
 import { Caption } from './Text';
 
 type Props = {
@@ -17,11 +17,12 @@ type Props = {
 export function ChoiceChip({ label, selected = false, onPress, testID, accessibilityLabel }: Props) {
   const { colors } = useTheme();
   return (
-    <Pressable
+    <GesturePressable
       testID={testID ?? testIdFromLabel(label)}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected }}
+      collapsable={false}
       onPress={onPress}
       style={[
         styles.chip,
@@ -33,7 +34,7 @@ export function ChoiceChip({ label, selected = false, onPress, testID, accessibi
       ]}
     >
       <Caption color={selected ? colors.onPrimary : colors.text}>{label}</Caption>
-    </Pressable>
+    </GesturePressable>
   );
 }
 
