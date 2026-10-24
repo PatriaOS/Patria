@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-24 — MEM01 slice 2 and LEG01 slice 1 done on a real iPhone
+
+Tests 18, 19 and 26 to 30 passed on a real iPhone (Expo Go, hosted). MEM01 slice 2 is done: pick many items, share a short video, and connect the iOS photo library while Patria is open. Tests 20–23 stay as written. Camera, Limited access, Family faces only, and upload while Patria is closed stay later. LEG01 slice 1 is done: type a decision, teen read-only, follow-up, recovery first, still readable after the family key rotates. Voice, AI, video and sealing wait.
+
+---
+
 ## 2026-10-23 — Shared Pressable so first taps land
 
 Turn on sharing, circle chips, Pause, and Vault Save all needed a later layout change (a Switch, a permission sheet, or a navigation) before a tap fired. That was not screen-specific. React Native 0.88 Pressable writes `disabled` onto native `enabled`. After a true → false flip the host can stay enabled=false (treated as box-none) until something else invalidates layout — the same class as RN #56777.

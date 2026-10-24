@@ -145,6 +145,8 @@ Pass when steps 1 to 9 behave as written and no screen or log shows a key.
 
 MEM01 slice 1 is done: tests 14, 15 and 16 passed on a real iPhone after D30 was on the hosted test project. Test 17 step 2 is still pending by hand.
 
+MEM01 slice 2 is done: tests 18 and 19 passed on a real iPhone (Expo Go, hosted). Tests 20–23 stay as written.
+
 Before you start (all memories tests): Test 1 is Family admin (Household and Extended Family by default). Test 2 is an Elder in Household and Extended Family (D30). Test 3 is an Extended relative in the Extended Family circle only. Close Friends stays empty until an admin adds people, so it does not appear in the picker. Have two or three photos on the phone or Simulator (the automated run adds sample photos to each Simulator).
 
 ### 14. Add photos to the family library (MEM01)
@@ -245,7 +247,7 @@ Areas: navigation
 
 ## Decision Ledger (D33)
 
-Text decisions, encrypted on the phone with a per-entry key wrapped to the family key. Voice, AI summaries and sealing wait for later slices.
+LEG01 slice 1 is done: tests 26 to 30 passed on a real iPhone (Expo Go, hosted). Text decisions, encrypted on the phone with a per-entry key wrapped to the family key. Voice, AI summaries and sealing wait for later slices.
 
 ### 26. Write a decision
 Areas: vault, keys

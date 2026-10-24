@@ -425,8 +425,10 @@ Slice 1 is done (real iPhone tests 14–16 after D30 on hosted). Test 17 step 2 
 * [x] Slice 2: pick up to 30 photos or short videos at once; each uploads on its own; a failure does not stop the others, and the person is told which item was skipped and why.
 * [x] Slice 2: short videos (≤60s, ≤50 MB after Medium export) play in the library; location must be gone or the video is refused. Add photos names that limit before the picker opens. Over-limit videos are refused as soon as the picker returns. The library tile shows a JPEG frame (or a clean placeholder) with play and length overlaid.
 * [x] Slice 2: a member can connect their photo library (All new photos or Selected albums) in under 3 minutes, pick a circle, and start from today or the last 30 days.
-* [ ] New photos appear in the family library within 1 hour when the phone is on WiFi (slice 2: while Patria is open, phone test 19 step 4; camera and background upload later).
+* [x] New photos appear in the family library within 1 hour when the phone is on WiFi (slice 2: while Patria is open, phone test 19; camera and background upload later).
 * [ ] "Family faces only" mode uploads no photo without a recognized family member.
+
+Slice 2 is done (real iPhone tests 18 and 19 on Expo Go, hosted). Tests 20–23 stay as written (album isolation, cellular when WiFi is unavailable, deleted sync photo). Camera, Limited access, Family faces only, and upload while Patria is closed stay later.
 
 **Left for later slices:** upload while Patria is closed, Family faces only (MEM05), video from library sync, Android library sync, smart cleanup (MEM02), Stories (MEM03), the whole back catalogue, Private Memories.
 
@@ -808,6 +810,9 @@ flowchart TD
 
 * [x] An adult key holder with recovery can type a decision, save it, and another key holder can read it (phone tests 26–28).
 * [x] The server stores only ciphertext, nonces and wrapped CEKs; family key rotation re-wraps every CEK in the same call (pgTAP).
+
+Slice 1 is done (real iPhone tests 26–30 on Expo Go, hosted). Voice, recordings and the external security review stay later.
+
 * [ ] An entry can be created by voice in under 2 minutes.
 * [ ] Original recordings are kept and playable alongside the structured summary.
 * [ ] An external security review confirms the server cannot decrypt Ledger content.
