@@ -14,7 +14,7 @@ const ENTRY = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const AUDIO = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
 describe('vault audio upload', () => {
-  it('inserts once without upsert and treats a leftover object as already uploaded', async () => {
+  it('inserts once without upsert and refuses a path that already exists', async () => {
     const upload = jest.fn(async (): Promise<{
       error: { message: string; statusCode: string } | null;
     }> => ({ error: null }));
@@ -42,7 +42,7 @@ describe('vault audio upload', () => {
         audioId: AUDIO,
         ciphertext: new Uint8Array([1, 2, 3]),
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ statusCode: '409' });
 
     upload.mockResolvedValueOnce({
       error: { message: 'new row violates row-level security policy', statusCode: '403' },

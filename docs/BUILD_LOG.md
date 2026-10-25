@@ -11,7 +11,7 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 Text decisions could not yet hold a voice or stay with the author only. Slice 2 adds in-app voice notes (AAC mono, 5-minute stop, per-file key, private `vault` bucket) and Only me entries under a personal key minted once by `create_personal_key`. Follow-ups inherit parent visibility; a parent switch re-wraps children in one call. Family-key rotation ignores private rows. A role change keeps Only me; leaving deletes it. Playback uses a cache file wiped on leave and on app start.
 
-The first voice save stayed on the form because `upload(..., { upsert: true })` needs an UPDATE policy, and the vault bucket correctly has none. The phone now inserts once; a 409 on retry is the same object. Visibility switches always go through `commit_vault_visibility_switch` (even with no follow-ups) so `patria.vault_switch` is set. A failed save shows Try again, keeps the draft, and deletes the new upload when it can (hourly orphan cleanup otherwise). Local phone tests 26–35, 10, 13 and smoke passed. No hosted schema push in this slice.
+The first voice save stayed on the form because `upload(..., { upsert: true })` needs an UPDATE policy, and the vault bucket correctly has none. The phone inserts once with `upsert: false`, and every save remints a fresh audio id so a half-finished earlier object is never treated as good (orphans go to hourly cleanup). Visibility switches always go through `commit_vault_visibility_switch` (even with no follow-ups) so `patria.vault_switch` is set. A failed save shows Try again, keeps the draft, and deletes the new upload when it can. Local phone tests 26–35, 10, 13 and smoke passed. No hosted schema push in this slice.
 
 ---
 

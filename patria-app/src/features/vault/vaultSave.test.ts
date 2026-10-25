@@ -30,7 +30,7 @@ describe('persistVaultDecision', () => {
     jest.clearAllMocks();
   });
 
-  it('uploads a family voice note, and removes that upload if the entry insert is refused', async () => {
+  it('remints a fresh audio id on upload, and removes that upload if the entry insert is refused', async () => {
     const familyKey = randomKey32();
     const prepared = prepareVaultAudio({
       spaceId: SPACE,
@@ -58,16 +58,21 @@ describe('persistVaultDecision', () => {
         audioCiphertext: prepared.ciphertext,
       }),
     ).rejects.toThrow(/row-level security/);
-    expect(uploadVaultAudio).toHaveBeenCalledWith({
-      spaceId: SPACE,
-      entryId: ENTRY,
-      audioId: prepared.ref.id,
-      ciphertext: prepared.ciphertext,
-    });
+    expect(uploadVaultAudio).toHaveBeenCalledWith(
+      expect.objectContaining({
+        spaceId: SPACE,
+        entryId: ENTRY,
+        ciphertext: expect.any(Uint8Array),
+      }),
+    );
+    const uploaded = (uploadVaultAudio as jest.Mock).mock.calls[0]?.[0] as {
+      audioId: string;
+    };
+    expect(uploaded.audioId).not.toBe(prepared.ref.id);
     expect(deleteVaultAudio).toHaveBeenCalledWith({
       spaceId: SPACE,
       entryId: ENTRY,
-      audioId: prepared.ref.id,
+      audioId: uploaded.audioId,
     });
     expect(commitVaultVisibilitySwitch).not.toHaveBeenCalled();
     expect(updateVaultEntry).not.toHaveBeenCalled();

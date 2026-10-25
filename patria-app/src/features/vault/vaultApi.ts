@@ -198,10 +198,6 @@ export async function deleteVaultEntry(id: string): Promise<void> {
   }
 }
 
-function isExistingObjectError(error: { message: string; statusCode?: string }): boolean {
-  return error.statusCode === '409' || /already exists/i.test(error.message);
-}
-
 export async function uploadVaultAudio(input: {
   spaceId: string;
   entryId: string;
@@ -212,12 +208,13 @@ export async function uploadVaultAudio(input: {
   const bytes = Uint8Array.from(input.ciphertext);
   const body = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   // Insert only: the vault bucket has no UPDATE policy, and upsert:true is
-  // refused even for a new path. A 409 is a retry after a previous upload.
+  // refused even for a new path. Each save remints a fresh audio id so a
+  // leftover object is never treated as a successful upload.
   const uploaded = await supabase.storage.from('vault').upload(path, body, {
     contentType: 'application/octet-stream',
     upsert: false,
   });
-  if (uploaded.error && !isExistingObjectError(uploaded.error)) {
+  if (uploaded.error) {
     throw uploaded.error;
   }
 }

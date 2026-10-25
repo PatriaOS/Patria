@@ -1,11 +1,12 @@
 import { wipe } from '../../lib/crypto/bytes';
 import { obtainPersonalKey } from '../../lib/crypto/personalKey';
 import { randomUuid } from '../../lib/crypto/random';
-import { sealVaultAudio } from '../../lib/crypto/vaultAudio';
+import { openVaultAudio, sealVaultAudio } from '../../lib/crypto/vaultAudio';
 import {
   sealPrivateVaultDecision,
   sealVaultDecision,
   vaultAudioRefFromSeal,
+  vaultAudioRefKeys,
   type SealedVaultEntry,
   type VaultDecisionContent,
   type VaultVisibility,
@@ -41,6 +42,36 @@ export function prepareVaultAudio(input: {
     ref: vaultAudioRefFromSeal(audioId, input.durationSeconds, sealed.fileKey, sealed.nonce),
     ciphertext: sealed.ciphertext,
   };
+}
+
+/** Fresh audio id (and path) for every upload attempt; leftover objects stay orphans. */
+export function remintVaultAudioForUpload(input: {
+  spaceId: string;
+  entryId: string;
+  audio: NonNullable<VaultDecisionContent['audio']>;
+  ciphertext: Uint8Array;
+}): PreparedVaultAudio {
+  const keys = vaultAudioRefKeys(input.audio);
+  let plain: Uint8Array | null = null;
+  try {
+    plain = openVaultAudio(keys.fileKey, keys.nonce, input.ciphertext, {
+      familySpaceId: input.spaceId,
+      entryId: input.entryId,
+      audioId: input.audio.id,
+    });
+    return prepareVaultAudio({
+      spaceId: input.spaceId,
+      entryId: input.entryId,
+      durationSeconds: input.audio.durationSeconds,
+      plain,
+    });
+  } finally {
+    if (plain) {
+      wipe(plain);
+    }
+    wipe(keys.fileKey);
+    wipe(keys.nonce);
+  }
 }
 
 export function sealVaultContent(input: {
@@ -93,6 +124,7 @@ export async function persistVaultDecision(input: {
 }): Promise<void> {
   let personalKey: Uint8Array | null = null;
   let uploadedAudioId: string | null = null;
+  let content = input.content;
   try {
     if (input.visibility === 'private') {
       personalKey = await obtainPersonalKey({
@@ -100,19 +132,23 @@ export async function persistVaultDecision(input: {
         userId: input.userId,
       });
     }
-    if (input.audioCiphertext && input.content.audio) {
+    if (input.audioCiphertext && content.audio) {
+      const prepared = remintVaultAudioForUpload({
+        spaceId: input.spaceId,
+        entryId: input.entryId,
+        audio: content.audio,
+        ciphertext: input.audioCiphertext,
+      });
+      content = { ...content, audio: prepared.ref };
       await uploadVaultAudio({
         spaceId: input.spaceId,
         entryId: input.entryId,
-        audioId: input.content.audio.id,
-        ciphertext: input.audioCiphertext,
+        audioId: prepared.ref.id,
+        ciphertext: prepared.ciphertext,
       });
-      uploadedAudioId = input.content.audio.id;
+      uploadedAudioId = prepared.ref.id;
     }
-    if (
-      input.previousAudioId &&
-      input.previousAudioId !== input.content.audio?.id
-    ) {
+    if (input.previousAudioId && input.previousAudioId !== content.audio?.id) {
       await deleteVaultAudio({
         spaceId: input.spaceId,
         entryId: input.entryId,
@@ -130,7 +166,7 @@ export async function persistVaultDecision(input: {
       visibility: input.visibility,
       familyKey: input.familyKey,
       personalKey,
-      content: input.content,
+      content,
       spaceId: input.spaceId,
       entryId: input.entryId,
       version: parentVersion,
