@@ -48,9 +48,6 @@ export function Screen({
         styles.scroll,
         {
           backgroundColor: colors.background,
-          // Tab screens sit under the status bar via SafeArea; keep side padding but
-          // avoid a second empty band above the first content.
-          paddingTop: withTabBar && !withHeader ? space.xs : space.screen,
           paddingBottom: withTabBar ? space.xxl + 80 : space.xxl,
         },
       ]}

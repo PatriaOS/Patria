@@ -1,12 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { avatarToneForId } from '../theme/avatarTone';
-import { fontFamilies, radius } from '../theme/tokens';
+import { radius, space, stroke } from '../theme/tokens';
 import { useTheme } from '../theme';
 import { decorativeA11y } from './a11y';
-
-const STACK_SIZE = 32;
-const STACK_OVERLAP = 8;
+import { Caption } from './Text';
 
 function initialsFrom(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -21,7 +19,7 @@ function initialsFrom(name: string): string {
 
 type AvatarProps = {
   name: string;
-  /** Member or child id — picks a stable soft tone. */
+  /** Member or child id — picks a stable soft tone from the avatar palette. */
   id?: string;
   /** Other ids in the same family / stack (≤6 get distinct tones). */
   peerIds?: readonly string[];
@@ -44,10 +42,6 @@ export function Avatar({
   const tone = id
     ? avatarToneForId(id, scheme, peerIds)
     : { background: colors.primary, text: colors.onPrimary };
-  const ring = ringColor ? 2 : 0;
-  // Fixed size so Dynamic Type never clips two-letter initials in the circle.
-  const fontSize = size <= 32 ? 11 : Math.max(11, Math.round(size * 0.32));
-  const inner = size - ring * 2;
   return (
     <View
       {...(decorative ? decorativeA11y : {})}
@@ -58,39 +52,13 @@ export function Avatar({
           width: size,
           height: size,
           borderRadius: radius.avatar,
-          backgroundColor: ringColor ?? 'transparent',
-          borderWidth: 0,
-          padding: ring,
+          backgroundColor: tone.background,
+          borderWidth: ringColor ? stroke.hairline + 1 : 0,
+          borderColor: ringColor ?? 'transparent',
         },
       ]}
     >
-      <View
-        style={{
-          width: inner,
-          height: inner,
-          borderRadius: radius.avatar,
-          backgroundColor: tone.background,
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-        }}
-      >
-        <Text
-          allowFontScaling={false}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.65}
-          style={{
-            fontFamily: fontFamilies.bodyMedium,
-            fontSize,
-            lineHeight: fontSize,
-            color: tone.text,
-            textAlign: 'center',
-          }}
-        >
-          {initials}
-        </Text>
-      </View>
+      <Caption color={tone.text}>{initials}</Caption>
     </View>
   );
 }
@@ -123,13 +91,13 @@ export function AvatarStack({ people, names, max = 4 }: StackProps) {
       {shown.map((person, index) => (
         <View
           key={person.id}
-          style={[styles.stackItem, { marginLeft: index === 0 ? 0 : -STACK_OVERLAP }]}
+          style={[styles.stackItem, { marginLeft: index === 0 ? 0 : -space.xs }]}
         >
           <Avatar
             id={person.id}
             name={person.name}
             peerIds={peerIds}
-            size={STACK_SIZE}
+            size={28}
             decorative
             ringColor={colors.background}
           />
@@ -143,7 +111,6 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   stack: {
     flexDirection: 'row',

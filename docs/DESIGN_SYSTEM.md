@@ -2,6 +2,10 @@
 
 D32. Tokens, type, shared `src/ui` components, tabs, Appearance, and restyled screens.
 
+## Freeze (D32)
+
+D32 design tokens, type scale, spacing, radii and component styles are fixed. Do not change them without Femi's explicit approval. New tokens may only be added, must use the Hearth palette, and must pass the contrast test. The only approved deviation is light terracotta `#A84C2A` (instead of `#B5532F`) for 4.5:1 contrast.
+
 ## Color (Hearth)
 
 Two palettes, same roles. Body text meets WCAG AA 4.5:1. Large type (24pt+ or 18pt+ bold) may use 3:1. Contrast pairs live in `patria-app/src/theme/contrastPairs.ts`.

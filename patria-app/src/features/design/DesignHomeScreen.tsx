@@ -177,10 +177,8 @@ function PreviewBody() {
         <View style={styles.header}>
           <View style={styles.headerCopy}>
             <Overline tone="terracotta">{homeDateOverline(now)}</Overline>
-            <Display testID="home-greeting" style={styles.greetingLine}>
-              {homeGreeting(now)}
-            </Display>
-            <DisplayItalic testID="home-family-name" tone="primary" style={styles.greetingLine}>
+            <Display testID="home-greeting">{homeGreeting(now)}</Display>
+            <DisplayItalic testID="home-family-name" tone="primary">
               {homeFamilyLine('Rivera')}
             </DisplayItalic>
           </View>
@@ -241,10 +239,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: {
     flex: 1,
-    gap: 0,
-  },
-  greetingLine: {
-    marginTop: -4,
+    gap: space.xxs,
   },
   avatars: {
     minHeight: 44,

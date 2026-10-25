@@ -729,10 +729,8 @@ export function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Overline tone="terracotta">{homeDateOverline()}</Overline>
-          <Display testID="home-greeting" style={styles.greetingLine}>
-            {homeGreeting()}
-          </Display>
-          <DisplayItalic testID="home-family-name" tone="primary" style={styles.greetingLine}>
+          <Display testID="home-greeting">{homeGreeting()}</Display>
+          <DisplayItalic testID="home-family-name" tone="primary">
             {homeFamilyLine(current.space.name)}
           </DisplayItalic>
         </View>
@@ -760,11 +758,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: {
     flex: 1,
-    gap: 0,
-  },
-  greetingLine: {
-    // Tighter than default Display so "Good evening," and the family line sit close.
-    marginTop: -4,
+    gap: space.xxs,
   },
   avatars: {
     minHeight: 44,

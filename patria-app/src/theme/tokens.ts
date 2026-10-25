@@ -136,8 +136,8 @@ export const fontFamilies = {
 } as const;
 
 export const typeScale = {
-  display: { size: 36, line: 0.95, font: 'display' as const },
-  displayItalic: { size: 36, line: 0.95, font: 'displayItalic' as const },
+  display: { size: 36, line: 1.02, font: 'display' as const },
+  displayItalic: { size: 36, line: 1.02, font: 'displayItalic' as const },
   title: { size: 23, line: 1.2, font: 'display' as const },
   section: { size: 21, line: 1.25, font: 'displayItalic' as const },
   body: { size: 15, line: 1.5, font: 'body' as const },

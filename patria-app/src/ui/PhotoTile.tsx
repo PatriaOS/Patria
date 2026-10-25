@@ -16,7 +16,7 @@ type Props = {
   accessibilityLabel: string;
   onPress?: () => void;
   durationLabel?: string;
-  /** Tile edge length; On this day uses 88. */
+  /** Override the default 108pt tile edge (On this day uses 88). */
   size?: number;
   testID?: string;
 };
@@ -27,7 +27,7 @@ export function PhotoTile({
   accessibilityLabel,
   onPress,
   durationLabel,
-  size = 108,
+  size,
   testID,
 }: Props) {
   const { colors } = useTheme();
@@ -36,11 +36,8 @@ export function PhotoTile({
       testID={testID}
       style={[
         styles.tile,
-        {
-          width: size,
-          height: size,
-          backgroundColor: colors.softSurface,
-        },
+        { backgroundColor: colors.softSurface },
+        size != null ? { width: size, height: size } : null,
       ]}
     >
       {source != null ? (
@@ -76,9 +73,10 @@ export function PhotoTile({
 
 const styles = StyleSheet.create({
   tile: {
+    width: 108,
+    height: 108,
     borderRadius: radius.tile,
     overflow: 'hidden',
-    flexShrink: 0,
   },
   image: {
     width: '100%',

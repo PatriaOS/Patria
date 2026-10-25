@@ -67,7 +67,6 @@ export function AppText({
         {
           fontFamily: theme.fontFamily(spec.font),
           fontSize: spec.size * theme.previewScale,
-          lineHeight: spec.size * spec.line * theme.previewScale,
           letterSpacing: 'letterSpacing' in spec ? spec.letterSpacing : undefined,
           fontVariant: spec.font === 'display' || spec.font === 'displayItalic' ? ['lining-nums'] : undefined,
           color: color ?? toneColor(tone, theme.colors),
