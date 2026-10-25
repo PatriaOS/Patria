@@ -62,6 +62,7 @@ export type RecoveryAccessGateway = {
     userId: string;
     publicKey: Uint8Array;
     recoveryKeyEpoch: number;
+    personalSeal?: Uint8Array | null;
   }): Promise<void>;
   insertHolderSecret(input: {
     spaceId: string;
@@ -271,14 +272,14 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
   },
 
   async insertRecoveryPublicKey(input) {
-    const { error } = await supabase.from('recovery_public_keys').insert({
-      family_space_id: input.spaceId,
-      user_id: input.userId,
-      public_key: toPgBytea(input.publicKey),
-      recovery_key_epoch: input.recoveryKeyEpoch,
+    const { error } = await supabase.rpc('replace_recovery_public_key', {
+      p_space_id: input.spaceId,
+      p_public_key: toPgBytea(input.publicKey),
+      p_recovery_key_epoch: input.recoveryKeyEpoch,
+      p_personal_seal: input.personalSeal ? toPgBytea(input.personalSeal) : null,
     });
     if (error) {
-      logKeyStep('insert_recovery_public_key', error.code ?? 'unknown');
+      logKeyStep('replace_recovery_public_key', error.code ?? 'unknown');
       throw error;
     }
   },

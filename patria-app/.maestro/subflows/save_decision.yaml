@@ -9,12 +9,21 @@ appId: app.patria.dev
       true: ${DECISION_FOR != ''}
     commands:
       - inputText: ${DECISION_FOR}
-- pressKey: Enter
+      - pressKey: Enter
+- tapOn:
+    id: "why"
 - inputText: ${DECISION_WHY}
-- pressKey: Enter
+- hideKeyboard
 - waitForAnimationToEnd:
     timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: "save"
+    direction: DOWN
+    timeout: 20000
 - tapOn:
     id: "save"
-    optional: true
-    retryTapIfNoChange: false
+- extendedWaitUntil:
+    notVisible:
+      id: "the-decision"
+    timeout: 45000

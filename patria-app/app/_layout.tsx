@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { assertE2ePhotoSamplesGated } from '../src/features/memories/e2ePhotoSamples';
+import { assertE2eVoiceSampleGated } from '../src/features/vault/e2eVoiceSample';
+import { wipeVaultAudioCache } from '../src/features/vault/vaultPlayback';
 import { AuthProvider } from '../src/lib/auth-context';
 import { hiddenRootHeader, pushedScreenHeader, screenTitles } from '../src/lib/navigation';
 import { queryClient } from '../src/lib/queryClient';
@@ -60,6 +62,8 @@ function ThemedRootStack() {
 }
 
 assertE2ePhotoSamplesGated();
+assertE2eVoiceSampleGated();
+void wipeVaultAudioCache();
 
 if (process.env.EXPO_PUBLIC_E2E === '1') {
   LogBox.ignoreAllLogs(true);

@@ -40,12 +40,30 @@ jest.mock('lucide-react-native', () => {
 
 jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: 'file:///mock-docs/',
+  cacheDirectory: 'file:///mock-cache/',
   EncodingType: { UTF8: 'utf8', Base64: 'base64' },
   writeAsStringAsync: jest.fn(async () => undefined),
   readAsStringAsync: jest.fn(async () => {
     throw new Error('missing');
   }),
+  readDirectoryAsync: jest.fn(async () => []),
   deleteAsync: jest.fn(async () => undefined),
+}));
+
+jest.mock('expo-audio', () => ({
+  useAudioRecorder: () => ({
+    prepareToRecordAsync: jest.fn(async () => undefined),
+    record: jest.fn(),
+    stop: jest.fn(async () => undefined),
+    uri: null,
+  }),
+  useAudioRecorderState: () => ({ isRecording: false, durationMillis: 0 }),
+  useAudioPlayer: () => ({ play: jest.fn(), pause: jest.fn(), replace: jest.fn() }),
+  requestRecordingPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  setAudioModeAsync: jest.fn(async () => undefined),
+  RecordingPresets: { HIGH_QUALITY: {} },
+  AudioQuality: { MIN: 0, LOW: 32, MEDIUM: 64, HIGH: 96, MAX: 127 },
+  IOSOutputFormat: { MPEG4AAC: 'aac ' },
 }));
 
 jest.mock('expo-secure-store', () => ({

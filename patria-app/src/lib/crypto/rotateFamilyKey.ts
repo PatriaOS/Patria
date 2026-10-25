@@ -116,8 +116,9 @@ export const supabaseRotateFamilyKeyGateway: RotateFamilyKeyGateway = {
   async listVaultCeks(spaceId) {
     const { data, error } = await supabase
       .from('vault_entries')
-      .select('id, version, key_epoch, cek_nonce, wrapped_cek')
-      .eq('family_space_id', spaceId);
+      .select('id, version, key_epoch, cek_nonce, wrapped_cek, visibility')
+      .eq('family_space_id', spaceId)
+      .eq('visibility', 'family');
     if (error) {
       logKeyStep('list_vault_ceks', error.code ?? 'unknown');
       throw error;

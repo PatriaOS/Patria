@@ -22,6 +22,8 @@ describe('copy', () => {
     expect(copy.home.createAnotherFamily).toBe('Create another family');
     expect(copy.member.leave).toBe('Leave family');
     expect(copy.member.leaveConfirm).toMatch(/recovery contact/i);
+    expect(copy.member.leaveConfirm).toMatch(/Only me entries/);
+    expect(copy.member.removeConfirm).toMatch(/Only me entries/);
     expect(copy.home.keysReady).toBe('Family keys: set up on this phone');
     expect(copy.home.keysWaiting).toBe('Waiting for a family admin to let this phone in');
     expect(copy.home.keysWaitingOwnPhone).toBe(
@@ -51,6 +53,8 @@ describe('copy', () => {
     expect(copy.vault.emptyTitle).toMatch(/No decisions yet/);
     expect(copy.vault.formerMember).toBe('A former family member');
     expect(copy.vault.lockNote).toMatch(/family key/);
+    expect(copy.vault.onlyMe).toBe('Only me');
+    expect(copy.vault.approveOtherPhone).toMatch(/other phones/);
   });
 });
 

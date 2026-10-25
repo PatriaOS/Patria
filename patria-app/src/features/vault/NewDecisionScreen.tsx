@@ -3,25 +3,32 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard, type TextInputInstance } from 'react-native';
+import { Alert, Keyboard, View, type TextInputInstance } from 'react-native';
 import { z } from 'zod';
 
-import { Button, Caption, ErrorState, Field, LoadingState, Screen, Title } from '../../ui';
+import { Button, Caption, ChoiceChip, ErrorState, Field, LoadingState, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
+import { wipe } from '../../lib/crypto/bytes';
+import { personalKeyNeedsOtherPhone } from '../../lib/crypto/keyStore';
 import { randomUuid } from '../../lib/crypto/random';
-import { clearVaultDraft, loadVaultDraft, saveVaultDraft } from '../../lib/crypto/vaultDrafts';
-import { openVaultDecision, sealVaultDecision } from '../../lib/crypto/vaultEnvelope';
+import {
+  clearVaultDraft,
+  loadVaultDraft,
+  loadVaultDraftAudio,
+  saveVaultDraft,
+  saveVaultDraftAudio,
+} from '../../lib/crypto/vaultDrafts';
+import type { VaultDecisionContent, VaultVisibility } from '../../lib/crypto/vaultEnvelope';
 import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { isVaultWriterRole } from '../../lib/roles';
 import { useCurrentFamily } from '../family/useCurrentFamily';
-import { loadFamilyKeyForVault, withFamilyKey } from './useFamilyKey';
-import {
-  fetchFamilyKeyEpoch,
-  fetchVaultEntries,
-  insertVaultEntry,
-  updateVaultEntry,
-} from './vaultApi';
+import { VoiceNoteField, type VoiceDraft } from './VoiceNoteField';
+import { loadFamilyKeyForVault } from './useFamilyKey';
+import { openVaultEntryContent } from './vaultOpen';
+import { persistVaultDecision, prepareVaultAudio } from './vaultSave';
+import { fetchFamilyKeyEpoch, fetchVaultEntries, type VaultEntryRow } from './vaultApi';
+import { loadPersonalKeyIfPresent } from '../../lib/crypto/personalKey';
 
 const schema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -31,22 +38,60 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+function confirmVisibilityChange(
+  next: VaultVisibility,
+  onConfirm: () => void,
+): void {
+  if (next === 'private') {
+    Alert.alert(copy.vault.onlyMe, copy.vault.switchToOnlyMe, [
+      { text: copy.common.cancel, style: 'cancel' },
+      { text: copy.common.continue, onPress: onConfirm },
+    ]);
+    return;
+  }
+  Alert.alert(copy.vault.family, copy.vault.switchToFamily, [
+    { text: copy.common.cancel, style: 'cancel' },
+    { text: copy.common.continue, onPress: onConfirm },
+  ]);
+}
+
 export function NewDecisionScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ parentId?: string; entryId?: string }>();
   const parentId = typeof params.parentId === 'string' ? params.parentId : undefined;
-  const entryId = typeof params.entryId === 'string' ? params.entryId : undefined;
+  const entryIdParam = typeof params.entryId === 'string' ? params.entryId : undefined;
   const { userId, spaceId, current } = useCurrentFamily();
   const [formError, setFormError] = useState<string | null>(null);
-  const [ready, setReady] = useState(!entryId);
+  const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(!entryIdParam);
+  const [visibility, setVisibility] = useState<VaultVisibility>('family');
+  const [draftId] = useState(() => entryIdParam ?? randomUuid());
+  const [existing, setExisting] = useState<VaultEntryRow | undefined>();
+  const [children, setChildren] = useState<{ row: VaultEntryRow; content: VaultDecisionContent }[]>(
+    [],
+  );
+  const [audio, setAudio] = useState<VaultDecisionContent['audio']>();
+  const [audioCiphertext, setAudioCiphertext] = useState<Uint8Array | null>(null);
+  const [previousAudioId, setPreviousAudioId] = useState<string | null>(null);
   const forRef = useRef<TextInputInstance>(null);
   const whyRef = useRef<TextInputInstance>(null);
-  const { control, handleSubmit, getValues, reset, formState } = useForm<FormValues>({
+  const { control, getValues, reset, setError: setFieldError } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { title: '', for: '', body: '' },
   });
-  const isRootDraft = !parentId && !entryId;
+  const existingRef = useRef(existing);
+  existingRef.current = existing;
+  const visibilityRef = useRef(visibility);
+  visibilityRef.current = visibility;
+  const audioRef = useRef(audio);
+  audioRef.current = audio;
+  const audioCiphertextRef = useRef(audioCiphertext);
+  audioCiphertextRef.current = audioCiphertext;
+  const childrenRef = useRef(children);
+  childrenRef.current = children;
+  const isRootDraft = !parentId && !entryIdParam;
+  const canChangeVisibility = !parentId;
 
   const epochQuery = useQuery({
     queryKey: ['familyKeyEpoch', spaceId],
@@ -55,46 +100,105 @@ export function NewDecisionScreen() {
   });
 
   useEffect(() => {
-    if (!userId || !spaceId || entryId) {
+    if (!userId || !spaceId || entryIdParam) {
       return;
     }
     if (!isRootDraft) {
       return;
     }
-    void loadVaultDraft(userId, spaceId).then((draft) => {
-      if (draft) {
-        reset(draft);
+    void (async () => {
+      const draft = await loadVaultDraft(userId, spaceId);
+      if (!draft) {
+        return;
       }
-    });
-  }, [userId, spaceId, entryId, isRootDraft, reset]);
+      reset(draft);
+      if (draft.audio) {
+        setAudio(draft.audio);
+        const ciphertext = await loadVaultDraftAudio(
+          userId,
+          spaceId,
+          draftId,
+          draft.audio.id,
+        );
+        if (ciphertext) {
+          setAudioCiphertext(ciphertext);
+        }
+      }
+    })();
+  }, [userId, spaceId, entryIdParam, isRootDraft, reset, draftId]);
 
   useEffect(() => {
-    if (!userId || !spaceId || !entryId) {
+    if (!userId || !spaceId) {
       return;
     }
     void (async () => {
       try {
         const rows = await fetchVaultEntries(spaceId);
-        const row = rows.find((item) => item.id === entryId);
+        if (parentId) {
+          const parent = rows.find((row) => row.id === parentId);
+          if (parent) {
+            setVisibility(parent.visibility);
+          }
+        }
+        if (!entryIdParam) {
+          return;
+        }
+        const row = rows.find((item) => item.id === entryIdParam);
         if (!row) {
           setFormError(copy.common.error);
           return;
         }
         const familyKey = await loadFamilyKeyForVault(userId, spaceId);
-        if (!familyKey) {
-          setFormError(copy.vault.noKey);
+        let personalKey: Uint8Array | null = null;
+        try {
+          personalKey = await loadPersonalKeyIfPresent({ spaceId, userId });
+        } catch (error) {
+          if (error instanceof Error && error.message === personalKeyNeedsOtherPhone) {
+            setFormError(copy.vault.approveOtherPhone);
+            return;
+          }
+          throw error;
+        }
+        const content = openVaultEntryContent(row, { familyKey, personalKey });
+        if (familyKey) {
+          wipe(familyKey);
+        }
+        if (personalKey) {
+          wipe(personalKey);
+        }
+        if (!content) {
+          setFormError(copy.vault.openFailed);
           return;
         }
-        const content = withFamilyKey(familyKey, (key) =>
-          openVaultDecision(key, row.sealed, {
-            familySpaceId: row.familySpaceId,
-            entryId: row.id,
-            version: row.version,
-            authorId: row.authorId,
-            keyEpoch: row.keyEpoch,
-          }),
-        );
         reset(content);
+        setExisting(row);
+        setVisibility(row.visibility);
+        setAudio(content.audio);
+        setPreviousAudioId(content.audio?.id ?? null);
+        const openedChildren: { row: VaultEntryRow; content: VaultDecisionContent }[] = [];
+        const childFamily = await loadFamilyKeyForVault(userId, spaceId);
+        let childPersonal: Uint8Array | null = null;
+        try {
+          childPersonal = await loadPersonalKeyIfPresent({ spaceId, userId });
+        } catch {
+          childPersonal = null;
+        }
+        for (const child of rows.filter((item) => item.parentEntryId === row.id)) {
+          const childContent = openVaultEntryContent(child, {
+            familyKey: childFamily,
+            personalKey: childPersonal,
+          });
+          if (childContent) {
+            openedChildren.push({ row: child, content: childContent });
+          }
+        }
+        if (childFamily) {
+          wipe(childFamily);
+        }
+        if (childPersonal) {
+          wipe(childPersonal);
+        }
+        setChildren(openedChildren);
       } catch (error) {
         logFailedAction(error);
         setFormError(copy.vault.openFailed);
@@ -102,25 +206,68 @@ export function NewDecisionScreen() {
         setReady(true);
       }
     })();
-  }, [userId, spaceId, entryId, reset]);
+  }, [userId, spaceId, entryIdParam, parentId, reset]);
 
-  const persistDraft = () => {
+  const persistDraft = (nextAudio?: VaultDecisionContent['audio'] | null) => {
     if (!userId || !spaceId || !isRootDraft) {
       return;
     }
     const values = getValues();
-    if (!values.title && !values.body && !values.for) {
+    const next = nextAudio === undefined ? audio : (nextAudio ?? undefined);
+    if (!values.title && !values.body && !values.for && !next) {
       return;
     }
     void saveVaultDraft(userId, spaceId, {
       title: values.title,
       body: values.body,
       for: values.for,
+      audio: next,
     });
   };
 
-  const onSave = handleSubmit(async (form) => {
+  const onRecorded = (draft: VoiceDraft) => {
+    if (!spaceId) {
+      wipe(draft.plain);
+      return;
+    }
+    try {
+      const prepared = prepareVaultAudio({
+        spaceId,
+        entryId: draftId,
+        durationSeconds: draft.durationSeconds,
+        plain: draft.plain,
+      });
+      setAudio(prepared.ref);
+      setAudioCiphertext(prepared.ciphertext);
+      persistDraft(prepared.ref);
+      if (userId && isRootDraft) {
+        void saveVaultDraftAudio(userId, spaceId, draftId, prepared.ref.id, prepared.ciphertext);
+      }
+    } finally {
+      wipe(draft.plain);
+    }
+  };
+
+  const onRemoveVoice = () => {
+    setAudio(undefined);
+    setAudioCiphertext(null);
+    persistDraft(null);
+  };
+
+  const onSave = async () => {
     Keyboard.dismiss();
+    const parsed = schema.safeParse(getValues());
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      if (first?.path[0] === 'title') {
+        setFieldError('title', { type: 'manual' });
+      }
+      if (first?.path[0] === 'body') {
+        setFieldError('body', { type: 'manual' });
+      }
+      setFormError(copy.vault.saveFailed);
+      return;
+    }
     try {
       if (!userId || !spaceId || !isVaultWriterRole(current?.role)) {
         setFormError(copy.vault.saveFailed);
@@ -132,41 +279,35 @@ export function NewDecisionScreen() {
         return;
       }
       setFormError(null);
-      const id = entryId ?? randomUuid();
+      setSaving(true);
       const familyKey = await loadFamilyKeyForVault(userId, spaceId);
-      if (!familyKey) {
+      const nextVisibility = visibilityRef.current;
+      if (!familyKey && nextVisibility === 'family') {
         setFormError(copy.vault.noKey);
         return;
       }
-      const existing = entryId
-        ? (await fetchVaultEntries(spaceId)).find((row) => row.id === entryId)
-        : undefined;
-      const version = existing ? existing.version + 1 : 1;
-      const sealed = withFamilyKey(familyKey, (key) =>
-        sealVaultDecision(key, form, {
-          familySpaceId: spaceId,
-          entryId: id,
-          version,
-          authorId: existing?.authorId ?? userId,
-          keyEpoch: epoch,
-        }),
-      );
-      if (existing) {
-        await updateVaultEntry({
-          id,
-          expectedVersion: existing.version,
-          keyEpoch: epoch,
-          sealed,
-        });
-      } else {
-        await insertVaultEntry({
-          id,
-          familySpaceId: spaceId,
-          authorId: userId,
-          parentEntryId: parentId ?? null,
-          keyEpoch: epoch,
-          sealed,
-        });
+      const content: VaultDecisionContent = {
+        title: parsed.data.title,
+        body: parsed.data.body,
+        for: parsed.data.for,
+        audio: audioRef.current,
+      };
+      await persistVaultDecision({
+        userId,
+        spaceId,
+        entryId: existingRef.current?.id ?? draftId,
+        parentEntryId: parentId ?? null,
+        existing: existingRef.current,
+        children: childrenRef.current,
+        visibility: nextVisibility,
+        content,
+        familyKey,
+        keyEpoch: epoch,
+        audioCiphertext: audioCiphertextRef.current,
+        previousAudioId,
+      });
+      if (familyKey) {
+        wipe(familyKey);
       }
       if (isRootDraft) {
         await clearVaultDraft(userId, spaceId);
@@ -176,20 +317,34 @@ export function NewDecisionScreen() {
         router.replace(routes.vaultEntry(parentId));
         return;
       }
-      if (entryId) {
-        router.replace(routes.vaultEntry(entryId));
+      if (entryIdParam) {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace(routes.vaultEntry(entryIdParam));
+        }
         return;
       }
       router.replace(routes.vault);
     } catch (error) {
       logFailedAction(error);
+      if (error instanceof Error && error.message === personalKeyNeedsOtherPhone) {
+        setFormError(copy.vault.approveOtherPhone);
+        return;
+      }
       const message =
         error instanceof Error && error.message === 'too large'
           ? copy.vault.tooLarge
           : copy.vault.saveFailed;
-      setFormError(message);
+      const detail =
+        process.env.EXPO_PUBLIC_E2E === '1' && error instanceof Error
+          ? ` ${error.message.slice(0, 80)}`
+          : '';
+      setFormError(`${message}${detail}`);
+    } finally {
+      setSaving(false);
     }
-  });
+  };
 
   const onDiscard = async () => {
     if (userId && spaceId && isRootDraft) {
@@ -209,7 +364,62 @@ export function NewDecisionScreen() {
   return (
     <Screen withHeader keyboardAware accessibilityLabel={copy.vault.newDecision}>
       <Title>{parentId ? copy.vault.followUp : copy.vault.newDecision}</Title>
-      <Caption>{copy.vault.lockNote}</Caption>
+      {formError ? (
+        <>
+          <ErrorState message={formError} />
+          <Button
+            label={copy.common.tryAgain}
+            variant="secondary"
+            onPress={() => void onSave()}
+            busy={saving}
+          />
+        </>
+      ) : null}
+      <Caption>
+        {visibility === 'private' ? copy.vault.onlyMeHint : copy.vault.lockNote}
+      </Caption>
+      {canChangeVisibility ? (
+        <>
+          <Caption>{copy.vault.whoCanRead}</Caption>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <ChoiceChip
+              label={copy.vault.family}
+              selected={visibility === 'family'}
+              onPress={() => {
+                if (visibility === 'family') {
+                  return;
+                }
+                if (existing) {
+                  confirmVisibilityChange('family', () => setVisibility('family'));
+                  return;
+                }
+                setVisibility('family');
+              }}
+            />
+            <ChoiceChip
+              label={copy.vault.onlyMe}
+              selected={visibility === 'private'}
+              onPress={() => {
+                if (visibility === 'private') {
+                  return;
+                }
+                if (existing) {
+                  confirmVisibilityChange('private', () => setVisibility('private'));
+                  return;
+                }
+                setVisibility('private');
+              }}
+            />
+          </View>
+          <Caption>
+            {visibility === 'private' ? copy.vault.onlyMeHint : copy.vault.familyHint}
+          </Caption>
+        </>
+      ) : (
+        <Caption>
+          {visibility === 'private' ? copy.vault.onlyMeHint : copy.vault.familyHint}
+        </Caption>
+      )}
       <Controller
         control={control}
         name="title"
@@ -262,23 +472,26 @@ export function NewDecisionScreen() {
               persistDraft();
             }}
             multiline
-            returnKeyType="done"
-            blurOnSubmit
-            onSubmitEditing={() => void onSave()}
+            returnKeyType="default"
+            blurOnSubmit={false}
             error={fieldState.error ? copy.vault.bodyLabel : undefined}
           />
         )}
       />
-      {formError ? <ErrorState message={formError} /> : null}
+      <VoiceNoteField
+        durationSeconds={audio?.durationSeconds ?? null}
+        onRecorded={onRecorded}
+        onRemove={onRemoveVoice}
+      />
       <Button
         label={copy.vault.save}
         onPress={() => void onSave()}
-        busy={formState.isSubmitting}
-        disabled={epochQuery.data == null}
+        busy={saving}
       />
       {isRootDraft ? (
         <Button label={copy.vault.discard} variant="ghost" onPress={() => void onDiscard()} />
       ) : null}
+      <View style={{ height: 80 }} />
     </Screen>
   );
 }

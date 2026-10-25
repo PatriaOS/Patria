@@ -26,6 +26,10 @@ import {
 import { getSecretBytes } from './secureKeys';
 import { unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 
+jest.mock('./personalKey', () => ({
+  wrapPersonalKeyForApprovedDeviceIfPresent: jest.fn(async () => undefined),
+}));
+
 const SPACE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const ELENA = '11111111-1111-1111-1111-111111111111';
 const MARCO = '22222222-2222-2222-2222-222222222222';

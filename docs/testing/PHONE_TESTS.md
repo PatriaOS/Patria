@@ -247,7 +247,41 @@ Areas: navigation
 
 ## Decision Ledger (D33)
 
-LEG01 slice 1 is done: tests 26 to 30 passed on a real iPhone (Expo Go, hosted). Text decisions, encrypted on the phone with a per-entry key wrapped to the family key. Voice, AI summaries and sealing wait for later slices.
+LEG01 slice 1 is done: tests 26 to 30 passed on a real iPhone (Expo Go, hosted). Text decisions, encrypted on the phone with a per-entry key wrapped to the family key. Slice 2 (D34) adds voice notes and Only me entries; tests 31 to 35.
+
+### 31. Add a voice note to a decision
+Areas: vault, keys
+1. Sign in as Test 1, with recovery already set up. Open **Vault**, tap **New decision**, and tap **Record a voice note**. Record about 20 seconds, then **Play** before saving. Pass if you hear the recording.
+2. Add a title and why, tap **Save**, and open the decision. Pass if the voice note shows its length and **Play** works.
+3. Sign in as Test 2. Pass if Test 2 can play the same family voice note. (manual)
+4. Pass if recording stops on its own at 5 minutes and explains why. (manual)
+5. Pass if the stored audio object is unreadable bytes. (manual)
+
+### 32. Only me entries
+Areas: vault, keys
+1. Sign in as Test 1 with recovery set up. Write a decision, choose **Only me**, and save.
+2. Pass if the list and the entry show an **Only me** badge.
+3. Sign in as Test 2. Pass if there is no sign of that entry. (manual)
+4. Pass if the server returns nothing to Test 2 for the entry or its voice note. (manual)
+
+### 33. Change who can read an entry
+Areas: vault, keys
+1. Sign in as Test 1. Open an **Only me** decision, tap **Edit**, tap **Family**, and confirm. Pass if the confirm explains that people who hold the family key will be able to read this.
+2. Sign in as Test 2. Pass if Test 2 can now read it. (manual)
+3. As Test 1, switch it back to **Only me**. Pass if the confirm warns that people who already read it may remember it.
+4. Sign in as Test 2. Pass if Test 2 cannot see it. (manual)
+
+### 34. Only me entries on a new phone
+Areas: vault, keys, devices, rotation
+1. Sign in as Test 1 with an **Only me** decision. Approve your own new phone. Pass if that phone can open the Only me decision. (manual)
+2. Write a family decision with a voice note. Remove Test 3 so the family key changes. Pass if the Only me decision still opens and the family voice note still plays.
+3. After recovery on a new phone, pass if Only me entries open. (manual)
+
+### 35. Leaving deletes Only me entries
+Areas: vault, membership
+1. Sign in as Test 1. Open your member screen and tap **Leave family**. Pass if a confirm appears and **Cancel** is there. Pass if the warning mentions Only me entries. (manual)
+2. After Test 2 leaves, pass if Test 1 still sees Test 2’s family entry as **A former family member**. (manual)
+3. Pass if Test 2’s private entries, voice notes and personal key rows are gone. (manual)
 
 ### 26. Write a decision
 Areas: vault, keys

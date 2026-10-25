@@ -4,13 +4,19 @@ import * as SecureStore from 'expo-secure-store';
 import { secretsEqual, wipe } from './bytes';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { cacheFamilySecrets, familyKeyStoreKey, resetFamilyKeyMemory } from './keyStore';
-import { randomKey32 } from './random';
+import { randomKey32, randomNonce24 } from './random';
 import {
   homeRotationUiFromOutcome,
   rotateFamilyKeyIfNeeded,
   type RotateFamilyKeyGateway,
 } from './rotateFamilyKey';
-import { openVaultDecision, sealVaultDecision } from './vaultEnvelope';
+import {
+  openPrivateVaultDecision,
+  openVaultDecision,
+  sealPrivateVaultDecision,
+  sealVaultDecision,
+  vaultAudioRefFromSeal,
+} from './vaultEnvelope';
 import { unwrapFamilyKeyFromRecoveryPrivate, unwrapKeyFromDevice, wrapKeyToDevice } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
 import { getSecretBytes } from './secureKeys';
@@ -285,6 +291,117 @@ describe('rotate family key', () => {
     );
     expect(opened.title).toBe('We moved');
     wipe(oldKey);
+    if (cached) {
+      wipe(cached);
+    }
+  });
+
+  it('leaves a private entry untouched and keeps a family voice note playable after rotation', async () => {
+    const store = new Map<string, string>();
+    installMemoryStore(store);
+    resetFamilyKeyMemory();
+    const adminDevice = await ensureDeviceIdentity(ADMIN);
+    const oldKey = randomKey32();
+    const personalKey = randomKey32();
+    const wrappedOld = wrapKeyToDevice(oldKey, adminDevice.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: ADMIN,
+      deviceId: adminDevice.deviceId,
+    });
+    (supabaseDeviceAccessGateway.fetchOwnWrap as jest.Mock).mockResolvedValue({
+      wrappedKey: wrappedOld,
+      keyEpoch: 1,
+    });
+    await cacheFamilySecrets(ADMIN, SPACE, oldKey);
+    const familyId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    const privateId = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    const audio = vaultAudioRefFromSeal(
+      'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      20,
+      randomKey32(),
+      randomNonce24(),
+    );
+    const familySealed = sealVaultDecision(
+      oldKey,
+      { title: 'Family note', body: 'With a voice.', for: '', audio },
+      {
+        familySpaceId: SPACE,
+        entryId: familyId,
+        version: 1,
+        authorId: ADMIN,
+        keyEpoch: 1,
+      },
+    );
+    const privateSealed = sealPrivateVaultDecision(
+      personalKey,
+      { title: 'Only me', body: 'Stays mine.', for: '' },
+      {
+        familySpaceId: SPACE,
+        entryId: privateId,
+        version: 1,
+        authorId: ADMIN,
+      },
+    );
+    const committed: { entryIds?: string[]; wrappedCeks?: Uint8Array[]; cekNonces?: Uint8Array[] } =
+      {};
+    const gateway: RotateFamilyKeyGateway = {
+      fetchRotationNeeded: async () => ({ needed: true, keyEpoch: 1 }),
+      listWrapTargets: async () => [
+        {
+          userId: ADMIN,
+          deviceId: adminDevice.deviceId,
+          publicKey: adminDevice.publicKey,
+        },
+      ],
+      listSealTargets: async () => [],
+      listVaultCeks: async () => [
+        {
+          id: familyId,
+          version: 1,
+          keyEpoch: 1,
+          cekNonce: familySealed.cekNonce,
+          wrappedCek: familySealed.wrappedCek,
+        },
+      ],
+      commitRotation: async (input) => {
+        committed.entryIds = input.entryIds;
+        committed.wrappedCeks = input.wrappedCeks;
+        committed.cekNonces = input.cekNonces;
+        return 2;
+      },
+    };
+    await expect(
+      rotateFamilyKeyIfNeeded({ spaceId: SPACE, userId: ADMIN, role: 'family_admin' }, gateway),
+    ).resolves.toBe('rotated');
+    expect(committed.entryIds).toEqual([familyId]);
+    const cached = await getSecretBytes(familyKeyStoreKey(ADMIN, SPACE));
+    const familyOpened = openVaultDecision(
+      cached as Uint8Array,
+      {
+        contentNonce: familySealed.contentNonce,
+        ciphertext: familySealed.ciphertext,
+        cekNonce: committed.cekNonces?.[0] as Uint8Array,
+        wrappedCek: committed.wrappedCeks?.[0] as Uint8Array,
+      },
+      {
+        familySpaceId: SPACE,
+        entryId: familyId,
+        version: 1,
+        authorId: ADMIN,
+        keyEpoch: 2,
+      },
+    );
+    expect(familyOpened.audio?.durationSeconds).toBe(20);
+    const privateOpened = openPrivateVaultDecision(personalKey, privateSealed, {
+      familySpaceId: SPACE,
+      entryId: privateId,
+      version: 1,
+      authorId: ADMIN,
+    });
+    expect(privateOpened.title).toBe('Only me');
+    wipe(oldKey);
+    wipe(personalKey);
     if (cached) {
       wipe(cached);
     }

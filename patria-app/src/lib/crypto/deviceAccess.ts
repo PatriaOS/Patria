@@ -6,6 +6,7 @@ import { wipe } from './bytes';
 import type { DeviceIdentity } from './deviceIdentity';
 import { obtainFamilyKey } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
+import { wrapPersonalKeyForApprovedDeviceIfPresent } from './personalKey';
 import { wrapKeyToDevice, type MemberWrapAad } from './wrap';
 
 export type DeviceNoticeKind = 'first_device' | 'extra_device' | 'rejected_device';
@@ -424,6 +425,12 @@ export async function approveOwnExtraDevice(
       wrappedKey: wrapped,
       keyEpoch: aad.keyEpoch,
       approvedBy: input.userId,
+    });
+    await wrapPersonalKeyForApprovedDeviceIfPresent({
+      spaceId: input.spaceId,
+      userId: input.notice.userId,
+      deviceId: input.notice.deviceId,
+      publicKey: recipientPublicKey,
     });
     await gateway.deleteNotice(input.notice.id);
     logKeyStep('approve_own_extra_device', `${input.spaceId} ${input.notice.deviceId}`);

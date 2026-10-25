@@ -30,13 +30,13 @@ export function scenarioForTest(testNumber) {
   if (testNumber === 15 || testNumber === 16 || testNumber === 17) {
     return 'admin-elder-extended';
   }
-  if (testNumber === 26 || testNumber === 28 || testNumber === 30) {
+  if (testNumber === 26 || testNumber === 28 || testNumber === 30 || testNumber === 31 || testNumber === 32 || testNumber === 33 || testNumber === 34) {
     return 'admin-elders';
   }
   if (testNumber === 27) {
     return 'admin-elder-teen';
   }
-  if (testNumber === 29) {
+  if (testNumber === 29 || testNumber === 35) {
     return 'admin-elder';
   }
   return 'admin';
@@ -494,7 +494,7 @@ export function mapFileToAreas(file) {
     areas.add('memories');
   }
   if (
-    /patria-app\/src\/features\/vault|vaultEnvelope|vaultDrafts|vault_entries|leg01|26_write|27_teen|28_follow|29_recovery_first|30_read_after/.test(
+    /patria-app\/src\/features\/vault|vaultEnvelope|vaultDrafts|vaultAudio|personalKey|vault_entries|leg01|d34|26_write|27_teen|28_follow|29_recovery_first|30_read_after|31_voice|32_only_me|33_visibility|34_only_me_phone|35_leave_only_me/.test(
       n,
     )
   ) {
@@ -504,7 +504,7 @@ export function mapFileToAreas(file) {
   if (n.includes('patria-app/supabase')) {
     if (/memory_items|mem_rls|memories/.test(n)) {
       areas.add('memories');
-    } else if (/vault_entries|leg01/.test(n)) {
+    } else if (/vault_entries|leg01|d34_vault|vault_voice/.test(n)) {
       areas.add('vault');
       areas.add('keys');
       areas.add('rotation');

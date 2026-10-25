@@ -1,14 +1,17 @@
 // SECURITY REVIEW REQUIRED
 import { secretsEqual, wipe } from './bytes';
-import { randomKey32 } from './random';
+import { randomKey32, randomNonce24 } from './random';
 import {
+  openPrivateVaultDecision,
   openVaultDecision,
   padVaultPlaintext,
   rewrapVaultCek,
+  sealPrivateVaultDecision,
   sealVaultDecision,
   serializeVaultDecision,
   unpadVaultPlaintext,
   VAULT_PAD_BLOCK,
+  vaultAudioRefFromSeal,
 } from './vaultEnvelope';
 
 const SPACE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -122,5 +125,46 @@ describe('vault envelope', () => {
     expect(opened.title).toBe('A');
     wipe(oldKey);
     wipe(newKey);
+  });
+
+  it('round-trips a private decision and keeps audio metadata inside the CEK', () => {
+    const personalKey = randomKey32();
+    const audio = vaultAudioRefFromSeal(
+      'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      20,
+      randomKey32(),
+      randomNonce24(),
+    );
+    const content = {
+      title: 'Only me',
+      body: 'Kept to myself.',
+      for: '',
+      audio,
+    };
+    const sealed = sealPrivateVaultDecision(personalKey, content, {
+      familySpaceId: SPACE,
+      entryId: ENTRY,
+      version: 1,
+      authorId: AUTHOR,
+    });
+    const opened = openPrivateVaultDecision(personalKey, sealed, {
+      familySpaceId: SPACE,
+      entryId: ENTRY,
+      version: 1,
+      authorId: AUTHOR,
+    });
+    expect(opened).toEqual(content);
+    const familyKey = randomKey32();
+    expect(() =>
+      openVaultDecision(familyKey, sealed, {
+        familySpaceId: SPACE,
+        entryId: ENTRY,
+        version: 1,
+        authorId: AUTHOR,
+        keyEpoch: 1,
+      }),
+    ).toThrow('unwrap failed');
+    wipe(personalKey);
+    wipe(familyKey);
   });
 });

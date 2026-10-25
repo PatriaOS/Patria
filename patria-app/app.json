@@ -12,7 +12,8 @@
       "bundleIdentifier": "app.patria.dev",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Patria can share new photos with your family while the app is open, if you turn that on.",
-        "NSPhotoLibraryAddUsageDescription": "Patria does not save photos to your library."
+        "NSPhotoLibraryAddUsageDescription": "Patria does not save photos to your library.",
+        "NSMicrophoneUsageDescription": "Patria records a voice note only when you tap Record, and keeps it in the vault."
       }
     },
     "android": {
@@ -54,6 +55,12 @@
         }
       ],
       "expo-video",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Patria records a voice note only when you tap Record, and keeps it in the vault."
+        }
+      ],
       "expo-font"
     ]
   }

@@ -1,0 +1,28 @@
+# PHONE_TESTS: 35
+# AREAS: vault, membership
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "member-test-1"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "member-test-1"
+- scrollUntilVisible:
+    element:
+      id: "^leave-family$"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "^leave-family$"
+- extendedWaitUntil:
+    visible: "Cancel"
+    timeout: 10000
+- assertVisible: "Leave family"
+- tapOn:
+    text: "Cancel"

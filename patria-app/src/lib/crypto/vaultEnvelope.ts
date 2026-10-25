@@ -3,6 +3,8 @@ import {
   decryptXChaCha20Poly1305Raw,
   encryptXChaCha20Poly1305Raw,
 } from './aead';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+
 import {
   concatBytes,
   encodeUtf8Prefixed,
@@ -19,12 +21,23 @@ export const VAULT_MAX_CIPHERTEXT = 65536;
 export const VAULT_WRAPPED_CEK_BYTES = 48;
 const CONTENT_CONTEXT = utf8ToBytes('patria/vault/v1');
 const CEK_CONTEXT = utf8ToBytes('patria/vault-cek/v1');
+const PRIVATE_CEK_CONTEXT = utf8ToBytes('patria/vault-cek-private/v1');
+
+export type VaultAudioRef = {
+  id: string;
+  fileKey: string;
+  nonce: string;
+  durationSeconds: number;
+};
 
 export type VaultDecisionContent = {
   title: string;
   body: string;
   for: string;
+  audio?: VaultAudioRef;
 };
+
+export type VaultVisibility = 'family' | 'private';
 
 export type VaultContentAad = {
   familySpaceId: string;
@@ -38,6 +51,13 @@ export type VaultCekAad = {
   entryId: string;
   version: number;
   keyEpoch: number;
+};
+
+export type VaultPrivateCekAad = {
+  familySpaceId: string;
+  entryId: string;
+  version: number;
+  userId: string;
 };
 
 export type SealedVaultEntry = {
@@ -67,6 +87,16 @@ export function encodeVaultCekAad(aad: VaultCekAad): Uint8Array {
   );
 }
 
+export function encodePrivateVaultCekAad(aad: VaultPrivateCekAad): Uint8Array {
+  return concatBytes(
+    PRIVATE_CEK_CONTEXT,
+    encodeUtf8Prefixed(aad.familySpaceId),
+    encodeUtf8Prefixed(aad.entryId),
+    u32be(aad.version),
+    encodeUtf8Prefixed(aad.userId),
+  );
+}
+
 export function padVaultPlaintext(jsonBytes: Uint8Array): Uint8Array {
   const total = 4 + jsonBytes.length;
   const padded = Math.ceil(total / VAULT_PAD_BLOCK) * VAULT_PAD_BLOCK;
@@ -92,12 +122,70 @@ export function unpadVaultPlaintext(padded: Uint8Array): Uint8Array {
   return padded.subarray(4, 4 + length);
 }
 
+function isHex(value: string, byteLength: number): boolean {
+  return value.length === byteLength * 2 && /^[0-9a-f]+$/i.test(value);
+}
+
+function parseAudioRef(value: unknown): VaultAudioRef | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!value || typeof value !== 'object') {
+    throw new Error('unwrap failed');
+  }
+  const row = value as {
+    id?: unknown;
+    fileKey?: unknown;
+    nonce?: unknown;
+    durationSeconds?: unknown;
+  };
+  if (
+    typeof row.id !== 'string' ||
+    typeof row.fileKey !== 'string' ||
+    typeof row.nonce !== 'string' ||
+    typeof row.durationSeconds !== 'number' ||
+    !Number.isFinite(row.durationSeconds) ||
+    !isHex(row.fileKey, KEY_BYTES) ||
+    !isHex(row.nonce, XCHACHA_NONCE_BYTES)
+  ) {
+    throw new Error('unwrap failed');
+  }
+  return {
+    id: row.id,
+    fileKey: row.fileKey,
+    nonce: row.nonce,
+    durationSeconds: row.durationSeconds,
+  };
+}
+
+export function vaultAudioRefFromSeal(
+  id: string,
+  durationSeconds: number,
+  fileKey: Uint8Array,
+  nonce: Uint8Array,
+): VaultAudioRef {
+  return {
+    id,
+    fileKey: bytesToHex(fileKey),
+    nonce: bytesToHex(nonce),
+    durationSeconds,
+  };
+}
+
+export function vaultAudioRefKeys(ref: VaultAudioRef): { fileKey: Uint8Array; nonce: Uint8Array } {
+  return {
+    fileKey: hexToBytes(ref.fileKey),
+    nonce: hexToBytes(ref.nonce),
+  };
+}
+
 export function serializeVaultDecision(content: VaultDecisionContent): Uint8Array {
   return utf8ToBytes(
     JSON.stringify({
       title: content.title,
       body: content.body,
       for: content.for,
+      ...(content.audio ? { audio: content.audio } : {}),
     }),
   );
 }
@@ -112,7 +200,7 @@ export function parseVaultDecision(jsonBytes: Uint8Array): VaultDecisionContent 
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('unwrap failed');
   }
-  const row = parsed as { title?: unknown; body?: unknown; for?: unknown };
+  const row = parsed as { title?: unknown; body?: unknown; for?: unknown; audio?: unknown };
   if (typeof row.title !== 'string' || typeof row.body !== 'string') {
     throw new Error('unwrap failed');
   }
@@ -120,6 +208,7 @@ export function parseVaultDecision(jsonBytes: Uint8Array): VaultDecisionContent 
     title: row.title,
     body: row.body,
     for: typeof row.for === 'string' ? row.for : '',
+    audio: parseAudioRef(row.audio),
   };
 }
 
@@ -147,6 +236,42 @@ export function openVaultCek(
   requireLength(wrappedCek, VAULT_WRAPPED_CEK_BYTES);
   requireLength(nonce, XCHACHA_NONCE_BYTES);
   return decryptXChaCha20Poly1305Raw(familyKey, nonce, wrappedCek, encodeVaultCekAad(aad));
+}
+
+export function wrapPrivateVaultCek(
+  personalKey: Uint8Array,
+  cek: Uint8Array,
+  aad: VaultPrivateCekAad,
+  nonce: Uint8Array = randomNonce24(),
+): { nonce: Uint8Array; wrappedCek: Uint8Array } {
+  requireLength(personalKey, KEY_BYTES);
+  requireLength(cek, KEY_BYTES);
+  requireLength(nonce, XCHACHA_NONCE_BYTES);
+  const wrappedCek = encryptXChaCha20Poly1305Raw(
+    personalKey,
+    nonce,
+    cek,
+    encodePrivateVaultCekAad(aad),
+  );
+  requireLength(wrappedCek, VAULT_WRAPPED_CEK_BYTES);
+  return { nonce, wrappedCek };
+}
+
+export function openPrivateVaultCek(
+  personalKey: Uint8Array,
+  wrappedCek: Uint8Array,
+  nonce: Uint8Array,
+  aad: VaultPrivateCekAad,
+): Uint8Array {
+  requireLength(personalKey, KEY_BYTES);
+  requireLength(wrappedCek, VAULT_WRAPPED_CEK_BYTES);
+  requireLength(nonce, XCHACHA_NONCE_BYTES);
+  return decryptXChaCha20Poly1305Raw(
+    personalKey,
+    nonce,
+    wrappedCek,
+    encodePrivateVaultCekAad(aad),
+  );
 }
 
 export function rewrapVaultCek(
@@ -180,12 +305,13 @@ export function rewrapVaultCek(
   }
 }
 
-export function sealVaultDecision(
-  familyKey: Uint8Array,
+function sealDecisionWithCek(
+  wrappingKey: Uint8Array,
   content: VaultDecisionContent,
-  aad: VaultContentAad & { keyEpoch: number },
+  aad: VaultContentAad,
+  wrap: (cek: Uint8Array) => { nonce: Uint8Array; wrappedCek: Uint8Array },
 ): SealedVaultEntry {
-  requireLength(familyKey, KEY_BYTES);
+  requireLength(wrappingKey, KEY_BYTES);
   const jsonBytes = serializeVaultDecision(content);
   const padded = padVaultPlaintext(jsonBytes);
   const cek = randomKey32();
@@ -200,12 +326,7 @@ export function sealVaultDecision(
     if (ciphertext.length > VAULT_MAX_CIPHERTEXT) {
       throw new Error('too large');
     }
-    const wrapped = wrapVaultCek(familyKey, cek, {
-      familySpaceId: aad.familySpaceId,
-      entryId: aad.entryId,
-      version: aad.version,
-      keyEpoch: aad.keyEpoch,
-    });
+    const wrapped = wrap(cek);
     return {
       contentNonce,
       ciphertext,
@@ -218,17 +339,11 @@ export function sealVaultDecision(
   }
 }
 
-export function openVaultDecision(
-  familyKey: Uint8Array,
+function openDecisionWithCek(
+  cek: Uint8Array,
   sealed: SealedVaultEntry,
-  aad: VaultContentAad & { keyEpoch: number },
+  aad: VaultContentAad,
 ): VaultDecisionContent {
-  const cek = openVaultCek(familyKey, sealed.wrappedCek, sealed.cekNonce, {
-    familySpaceId: aad.familySpaceId,
-    entryId: aad.entryId,
-    version: aad.version,
-    keyEpoch: aad.keyEpoch,
-  });
   try {
     const padded = decryptXChaCha20Poly1305Raw(
       cek,
@@ -244,4 +359,62 @@ export function openVaultDecision(
   } finally {
     wipe(cek);
   }
+}
+
+export function sealVaultDecision(
+  familyKey: Uint8Array,
+  content: VaultDecisionContent,
+  aad: VaultContentAad & { keyEpoch: number },
+): SealedVaultEntry {
+  return sealDecisionWithCek(familyKey, content, aad, (cek) =>
+    wrapVaultCek(familyKey, cek, {
+      familySpaceId: aad.familySpaceId,
+      entryId: aad.entryId,
+      version: aad.version,
+      keyEpoch: aad.keyEpoch,
+    }),
+  );
+}
+
+export function sealPrivateVaultDecision(
+  personalKey: Uint8Array,
+  content: VaultDecisionContent,
+  aad: VaultContentAad,
+): SealedVaultEntry {
+  return sealDecisionWithCek(personalKey, content, aad, (cek) =>
+    wrapPrivateVaultCek(personalKey, cek, {
+      familySpaceId: aad.familySpaceId,
+      entryId: aad.entryId,
+      version: aad.version,
+      userId: aad.authorId,
+    }),
+  );
+}
+
+export function openVaultDecision(
+  familyKey: Uint8Array,
+  sealed: SealedVaultEntry,
+  aad: VaultContentAad & { keyEpoch: number },
+): VaultDecisionContent {
+  const cek = openVaultCek(familyKey, sealed.wrappedCek, sealed.cekNonce, {
+    familySpaceId: aad.familySpaceId,
+    entryId: aad.entryId,
+    version: aad.version,
+    keyEpoch: aad.keyEpoch,
+  });
+  return openDecisionWithCek(cek, sealed, aad);
+}
+
+export function openPrivateVaultDecision(
+  personalKey: Uint8Array,
+  sealed: SealedVaultEntry,
+  aad: VaultContentAad,
+): VaultDecisionContent {
+  const cek = openPrivateVaultCek(personalKey, sealed.wrappedCek, sealed.cekNonce, {
+    familySpaceId: aad.familySpaceId,
+    entryId: aad.entryId,
+    version: aad.version,
+    userId: aad.authorId,
+  });
+  return openDecisionWithCek(cek, sealed, aad);
 }

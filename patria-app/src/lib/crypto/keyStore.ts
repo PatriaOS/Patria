@@ -9,6 +9,12 @@ export function familyKeyStoreKey(userId: string, spaceId: string): string {
   return `patria.u.${userId}.familyKey.${spaceId}`;
 }
 
+export function personalKeyStoreKey(userId: string, spaceId: string): string {
+  return `patria.u.${userId}.personalKey.${spaceId}`;
+}
+
+export const personalKeyNeedsOtherPhone = 'approve-other-phone';
+
 export function recoveryKeyStoreKey(userId: string, spaceId: string): string {
   return `patria.u.${userId}.recoveryKey.${spaceId}`;
 }
@@ -70,8 +76,31 @@ export async function discardLocalFamilySecrets(userId: string, spaceId: string)
   }
   await deleteSecret(familyKeyStoreKey(userId, spaceId));
   await deleteSecret(recoveryKeyStoreKey(userId, spaceId));
+  await deleteSecret(personalKeyStoreKey(userId, spaceId));
   await deleteSecret(legacyFamilyKeyStoreKey(spaceId));
   await deleteSecret(legacyRecoveryKeyStoreKey(spaceId));
+}
+
+export async function cachePersonalKey(
+  userId: string,
+  spaceId: string,
+  personalKey: Uint8Array,
+): Promise<void> {
+  await setSecretBytes(personalKeyStoreKey(userId, spaceId), personalKey);
+}
+
+export async function loadCachedPersonalKey(
+  userId: string,
+  spaceId: string,
+): Promise<Uint8Array | null> {
+  return getSecretBytes(personalKeyStoreKey(userId, spaceId));
+}
+
+export async function unwrapCachedPersonalKey(
+  userId: string,
+  spaceId: string,
+): Promise<Uint8Array | null> {
+  return loadCachedPersonalKey(userId, spaceId);
 }
 
 export async function cacheFamilySecrets(

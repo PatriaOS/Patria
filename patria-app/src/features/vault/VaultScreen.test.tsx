@@ -43,6 +43,10 @@ jest.mock('./useFamilyKey', () => ({
   withFamilyKey: (_key: Uint8Array, run: (key: Uint8Array) => unknown) => run(new Uint8Array(32)),
 }));
 
+jest.mock('../../lib/crypto/personalKey', () => ({
+  loadPersonalKeyIfPresent: jest.fn(async () => null),
+}));
+
 const adminFamily = {
   userId: 'u1',
   spaceId: 's1',

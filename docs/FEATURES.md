@@ -811,9 +811,11 @@ flowchart TD
 * [x] An adult key holder with recovery can type a decision, save it, and another key holder can read it (phone tests 26–28).
 * [x] The server stores only ciphertext, nonces and wrapped CEKs; family key rotation re-wraps every CEK in the same call (pgTAP).
 
-Slice 1 is done (real iPhone tests 26–30 on Expo Go, hosted). Voice, recordings and the external security review stay later.
+Slice 1 is done (real iPhone tests 26–30 on Expo Go, hosted).
 
-* [ ] An entry can be created by voice in under 2 minutes.
+**Slice 2 (D34).** Voice notes (recorded in Patria, up to 5 minutes, no AI) and Only me entries (personal key with recovery). Writers stay Family admin, Co admin and Elder with recovery. Follow-ups keep the parent’s visibility. Hosted phone tests 31–35 wait.
+
+* [ ] An entry can be created by voice in under 2 minutes (phone tests 31–35).
 * [ ] Original recordings are kept and playable alongside the structured summary.
 * [ ] An external security review confirms the server cannot decrypt Ledger content.
 

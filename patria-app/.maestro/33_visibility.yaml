@@ -1,0 +1,97 @@
+# PHONE_TESTS: 33
+# AREAS: vault, keys
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- tapOn:
+    id: "new-decision"
+- extendedWaitUntil:
+    visible:
+      id: "only-me"
+    timeout: 15000
+- tapOn:
+    id: "only-me"
+- runFlow:
+    file: subflows/save_decision.yaml
+    env:
+      DECISION_TITLE: "Kept to myself"
+      DECISION_FOR: ""
+      DECISION_WHY: "A note only I should read."
+- extendedWaitUntil:
+    visible:
+      id: "kept-to-myself"
+    timeout: 20000
+- tapOn:
+    id: "kept-to-myself"
+- scrollUntilVisible:
+    element:
+      id: "edit"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "edit"
+- extendedWaitUntil:
+    visible:
+      id: "family"
+    timeout: 15000
+- tapOn:
+    id: "family"
+- tapOn:
+    text: "Continue"
+- extendedWaitUntil:
+    notVisible: "People who hold the family key will be able to read this."
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "save"
+    direction: DOWN
+    timeout: 15000
+    centerElement: true
+    visibilityPercentage: 100
+- tapOn:
+    id: "save"
+- extendedWaitUntil:
+    notVisible:
+      id: "the-decision"
+    timeout: 45000
+- extendedWaitUntil:
+    visible: "A note only I should read."
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "edit"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "edit"
+- extendedWaitUntil:
+    visible:
+      id: "only-me"
+    timeout: 15000
+- tapOn:
+    id: "only-me"
+- tapOn:
+    text: "Continue"
+- extendedWaitUntil:
+    notVisible: "People who already read this may remember it"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "save"
+    direction: DOWN
+    timeout: 15000
+    centerElement: true
+    visibilityPercentage: 100
+- tapOn:
+    id: "save"
+- extendedWaitUntil:
+    visible:
+      id: "only-me-badge"
+    timeout: 45000

@@ -11,17 +11,22 @@ import {
   ListRow,
   LoadingState,
   Screen,
+  StatusPill,
 } from '../../ui';
 import { copy } from '../../lib/copy';
+import { wipe } from '../../lib/crypto/bytes';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { personalKeyNeedsOtherPhone } from '../../lib/crypto/keyStore';
+import { loadPersonalKeyIfPresent } from '../../lib/crypto/personalKey';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
-import { openVaultDecision, type VaultDecisionContent } from '../../lib/crypto/vaultEnvelope';
+import type { VaultDecisionContent } from '../../lib/crypto/vaultEnvelope';
 import { fetchMembers } from '../../lib/family';
 import { routes } from '../../lib/navigation';
 import { isKeyEligibleRole, isVaultWriterRole } from '../../lib/roles';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import { formatVaultDate, vaultAuthorLabel } from './vaultAuthor';
-import { loadFamilyKeyForVault, withFamilyKey } from './useFamilyKey';
+import { formatVoiceLength, openVaultEntryContent } from './vaultOpen';
+import { loadFamilyKeyForVault } from './useFamilyKey';
 import { fetchVaultEntries, type VaultEntryRow } from './vaultApi';
 
 export type VaultListItem = {
@@ -29,6 +34,7 @@ export type VaultListItem = {
   createdAt: string;
   authorId: string;
   authorLabel: string;
+  visibility: VaultEntryRow['visibility'];
   content: VaultDecisionContent | null;
 };
 
@@ -47,33 +53,20 @@ export function canWriteVault(input: {
 }
 
 function decryptRoots(
-  familyKey: Uint8Array,
   rows: VaultEntryRow[],
   members: { userId: string; displayName: string }[],
+  keys: { familyKey: Uint8Array | null; personalKey: Uint8Array | null },
 ): VaultListItem[] {
   return rows
     .filter((row) => row.parentEntryId == null)
-    .map((row) => {
-      let content: VaultDecisionContent | null = null;
-      try {
-        content = openVaultDecision(familyKey, row.sealed, {
-          familySpaceId: row.familySpaceId,
-          entryId: row.id,
-          version: row.version,
-          authorId: row.authorId,
-          keyEpoch: row.keyEpoch,
-        });
-      } catch {
-        content = null;
-      }
-      return {
-        id: row.id,
-        createdAt: row.createdAt,
-        authorId: row.authorId,
-        authorLabel: vaultAuthorLabel(row.authorId, members),
-        content,
-      };
-    });
+    .map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      authorId: row.authorId,
+      authorLabel: vaultAuthorLabel(row.authorId, members),
+      visibility: row.visibility,
+      content: openVaultEntryContent(row, keys),
+    }));
 }
 
 export function VaultScreen() {
@@ -84,7 +77,7 @@ export function VaultScreen() {
 
   const keyStatusQuery = useQuery({
     queryKey: ['familyKeyStatus', spaceId, userId, role],
-    enabled: Boolean(spaceId && userId && current),
+    enabled: Boolean(spaceId && userId && current && isKeyEligibleRole(role)),
     queryFn: () =>
       ensureKeysForOpenFamily({
         spaceId: spaceId as string,
@@ -101,20 +94,44 @@ export function VaultScreen() {
 
   const entriesQuery = useQuery({
     queryKey: ['vaultEntries', spaceId, userId],
-    enabled: Boolean(spaceId && userId && keyHolder && keyStatusQuery.data === 'ready'),
+    enabled: Boolean(spaceId && userId && current),
     queryFn: async () => {
       const [rows, members] = await Promise.all([
         fetchVaultEntries(spaceId as string),
         fetchMembers(spaceId as string),
       ]);
-      const familyKey = await loadFamilyKeyForVault(userId as string, spaceId as string);
-      if (!familyKey) {
-        return { locked: true as const, items: [] as VaultListItem[] };
+      const familyKey =
+        keyHolder && keyStatusQuery.data === 'ready'
+          ? await loadFamilyKeyForVault(userId as string, spaceId as string)
+          : null;
+      let personalKey: Uint8Array | null = null;
+      let needsOtherPhone = false;
+      try {
+        personalKey = await loadPersonalKeyIfPresent({
+          spaceId: spaceId as string,
+          userId: userId as string,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === personalKeyNeedsOtherPhone) {
+          needsOtherPhone = true;
+        } else {
+          throw error;
+        }
       }
-      return withFamilyKey(familyKey, (key) => ({
-        locked: false as const,
-        items: decryptRoots(key, rows, members),
-      }));
+      try {
+        return {
+          locked: !familyKey && rows.some((row) => row.visibility === 'family'),
+          needsOtherPhone,
+          items: decryptRoots(rows, members, { familyKey, personalKey }),
+        };
+      } finally {
+        if (familyKey) {
+          wipe(familyKey);
+        }
+        if (personalKey) {
+          wipe(personalKey);
+        }
+      }
     },
   });
 
@@ -126,19 +143,18 @@ export function VaultScreen() {
     }
   }, [queryClient, spaceId]);
 
-  const keyReady = keyStatusQuery.data === 'ready';
   const writer = canWriteVault({
     role,
-    keyReady,
+    keyReady: keyStatusQuery.data === 'ready',
     acceptedContacts: recoveryQuery.data?.accepted ?? 0,
     hasRecoveryPublic: Boolean(recoveryQuery.data?.hasRecoveryPublic),
   });
   const needsRecovery =
     isVaultWriterRole(role) &&
-    keyReady &&
+    keyStatusQuery.data === 'ready' &&
     ((recoveryQuery.data?.accepted ?? 0) < 2 || !recoveryQuery.data?.hasRecoveryPublic);
 
-  if (!current || keyStatusQuery.isLoading || recoveryQuery.isLoading) {
+  if (!current || (isKeyEligibleRole(role) && keyStatusQuery.isLoading) || recoveryQuery.isLoading) {
     return (
       <Screen withTabBar testID="screen-vault" accessibilityLabel={copy.vault.title}>
         <LoadingState message={copy.common.loading} />
@@ -146,20 +162,15 @@ export function VaultScreen() {
     );
   }
 
-  if (!isKeyEligibleRole(role)) {
-    return (
-      <Screen withTabBar testID="screen-vault" accessibilityLabel={copy.vault.title}>
-        <EmptyState title={copy.vault.title} message={copy.vault.notForYou} />
-      </Screen>
-    );
-  }
-
-  if (keyStatusQuery.data && keyStatusQuery.data !== 'ready') {
-    return (
-      <Screen withTabBar testID="screen-vault" accessibilityLabel={copy.vault.title}>
-        <EmptyState title={copy.vault.title} message={copy.vault.waitingPhone} />
-      </Screen>
-    );
+  if (isKeyEligibleRole(role) && keyStatusQuery.data && keyStatusQuery.data !== 'ready') {
+    const privateItems = entriesQuery.data?.items.filter((item) => item.visibility === 'private') ?? [];
+    if (privateItems.length === 0 && !entriesQuery.data?.needsOtherPhone) {
+      return (
+        <Screen withTabBar testID="screen-vault" accessibilityLabel={copy.vault.title}>
+          <EmptyState title={copy.vault.title} message={copy.vault.waitingPhone} />
+        </Screen>
+      );
+    }
   }
 
   if (entriesQuery.isLoading) {
@@ -180,6 +191,14 @@ export function VaultScreen() {
 
   const items = entriesQuery.data?.items ?? [];
   const locked = entriesQuery.data?.locked === true;
+
+  if (!isKeyEligibleRole(role) && items.length === 0 && !writer) {
+    return (
+      <Screen withTabBar testID="screen-vault" accessibilityLabel={copy.vault.title}>
+        <EmptyState title={copy.vault.title} message={copy.vault.notForYou} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen
@@ -202,6 +221,9 @@ export function VaultScreen() {
           }
         />
       ) : null}
+      {entriesQuery.data?.needsOtherPhone ? (
+        <Banner message={copy.vault.approveOtherPhone} tone="warning" />
+      ) : null}
       {locked ? <Banner message={copy.vault.noKey} tone="warning" /> : null}
       {writer ? (
         <Button label={copy.vault.newDecision} onPress={() => router.push(routes.vaultNew)} />
@@ -212,7 +234,10 @@ export function VaultScreen() {
         items.map((item) => {
           const title = item.content?.title ?? copy.vault.openFailed;
           const forLine = item.content?.for ? `For ${item.content.for}` : '';
-          const body = [item.authorLabel, formatVaultDate(item.createdAt), forLine]
+          const voiceLine = item.content?.audio
+            ? formatVoiceLength(item.content.audio.durationSeconds)
+            : '';
+          const body = [item.authorLabel, formatVaultDate(item.createdAt), forLine, voiceLine]
             .filter(Boolean)
             .join(' · ');
           return (
@@ -220,6 +245,11 @@ export function VaultScreen() {
               key={item.id}
               title={title}
               body={body}
+              trailing={
+                item.visibility === 'private' ? (
+                  <StatusPill label={copy.vault.onlyMe} tone="neutral" testID="only-me-badge" />
+                ) : undefined
+              }
               onPress={() => router.push(routes.vaultEntry(item.id))}
             />
           );

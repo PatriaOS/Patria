@@ -12,6 +12,7 @@ import {
 } from './vaultEnvelope';
 
 const DRAFT_CONTEXT = utf8ToBytes('patria/vault-draft/v1');
+const DRAFT_AUDIO_CONTEXT = utf8ToBytes('patria/vault-draft-audio/v1');
 
 export type VaultDraftFileGateway = {
   documentDirectory(): string | null;
@@ -59,8 +60,31 @@ export function vaultDraftFilePath(
   return `${documentDirectory}patria-vault-draft-${userId}-${spaceId}.bin`;
 }
 
+export function vaultDraftAudioFilePath(
+  userId: string,
+  spaceId: string,
+  documentDirectory: string,
+): string {
+  return `${documentDirectory}patria-vault-draft-audio-${userId}-${spaceId}.bin`;
+}
+
 function draftAad(userId: string, spaceId: string): Uint8Array {
   return concatBytes(DRAFT_CONTEXT, encodeUtf8Prefixed(userId), encodeUtf8Prefixed(spaceId));
+}
+
+function draftAudioAad(
+  userId: string,
+  spaceId: string,
+  entryId: string,
+  audioId: string,
+): Uint8Array {
+  return concatBytes(
+    DRAFT_AUDIO_CONTEXT,
+    encodeUtf8Prefixed(userId),
+    encodeUtf8Prefixed(spaceId),
+    encodeUtf8Prefixed(entryId),
+    encodeUtf8Prefixed(audioId),
+  );
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -138,6 +162,71 @@ export async function loadVaultDraft(
   }
 }
 
+export async function saveVaultDraftAudio(
+  userId: string,
+  spaceId: string,
+  entryId: string,
+  audioId: string,
+  vaultCiphertext: Uint8Array,
+  files: VaultDraftFileGateway = expoVaultDraftFileGateway,
+): Promise<void> {
+  const directory = files.documentDirectory();
+  if (!directory) {
+    throw new Error('draft store unavailable');
+  }
+  let key = await getSecretBytes(vaultDraftKeyStoreKey(userId, spaceId));
+  if (!key) {
+    key = randomKey32();
+    await setSecretBytes(vaultDraftKeyStoreKey(userId, spaceId), key);
+  }
+  try {
+    const sealed = sealXChaCha20Poly1305(
+      key,
+      vaultCiphertext,
+      draftAudioAad(userId, spaceId, entryId, audioId),
+    );
+    await files.writeBase64(
+      vaultDraftAudioFilePath(userId, spaceId, directory),
+      bytesToBase64(sealed),
+    );
+  } finally {
+    wipe(key);
+  }
+}
+
+export async function loadVaultDraftAudio(
+  userId: string,
+  spaceId: string,
+  entryId: string,
+  audioId: string,
+  files: VaultDraftFileGateway = expoVaultDraftFileGateway,
+): Promise<Uint8Array | null> {
+  const directory = files.documentDirectory();
+  if (!directory) {
+    return null;
+  }
+  const key = await getSecretBytes(vaultDraftKeyStoreKey(userId, spaceId));
+  if (!key) {
+    return null;
+  }
+  const encoded = await files.readBase64(vaultDraftAudioFilePath(userId, spaceId, directory));
+  if (!encoded) {
+    wipe(key);
+    return null;
+  }
+  try {
+    return openXChaCha20Poly1305(
+      key,
+      base64ToBytes(encoded),
+      draftAudioAad(userId, spaceId, entryId, audioId),
+    );
+  } catch {
+    return null;
+  } finally {
+    wipe(key);
+  }
+}
+
 export async function clearVaultDraft(
   userId: string,
   spaceId: string,
@@ -146,6 +235,7 @@ export async function clearVaultDraft(
   const directory = files.documentDirectory();
   if (directory) {
     await files.delete(vaultDraftFilePath(userId, spaceId, directory));
+    await files.delete(vaultDraftAudioFilePath(userId, spaceId, directory));
   }
   await deleteSecret(vaultDraftKeyStoreKey(userId, spaceId));
 }

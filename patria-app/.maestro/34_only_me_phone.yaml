@@ -1,0 +1,93 @@
+# PHONE_TESTS: 34
+# AREAS: vault, keys, devices, rotation
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'write'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - tapOn:
+          id: "new-decision"
+      - tapOn:
+          id: "only-me"
+      - runFlow:
+          file: subflows/save_decision.yaml
+          env:
+            DECISION_TITLE: "Kept to myself"
+            DECISION_FOR: ""
+            DECISION_WHY: "A note only I should read."
+      - extendedWaitUntil:
+          visible:
+            id: "kept-to-myself"
+          timeout: 20000
+      - tapOn:
+          id: "new-decision"
+      - tapOn:
+          id: "record-a-voice-note"
+      - runFlow:
+          file: subflows/save_decision.yaml
+          env:
+            DECISION_TITLE: "We moved"
+            DECISION_FOR: ""
+            DECISION_WHY: "For school."
+      - extendedWaitUntil:
+          visible:
+            id: "we-moved"
+          timeout: 20000
+- runFlow:
+    when:
+      true: ${PHASE == 'remove_and_read'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "member-test-3"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "member-test-3"
+      - tapOn:
+          id: "^remove-from-this-family$"
+      - tapOn:
+          text: "Remove from this family"
+          index: 1
+      - extendedWaitUntil:
+          visible: "The family key is up to date"
+          timeout: 30000
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - tapOn:
+          id: "kept-to-myself"
+      - extendedWaitUntil:
+          visible: "A note only I should read."
+          timeout: 15000
+      # Maestro `back` is a no-op on this iOS stack; use the nav chevron.
+      - tapOn:
+          id: "BackButton"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - tapOn:
+          id: "we-moved"
+      - extendedWaitUntil:
+          visible:
+            id: "voice-note"
+          timeout: 15000
+      - tapOn:
+          id: "play"

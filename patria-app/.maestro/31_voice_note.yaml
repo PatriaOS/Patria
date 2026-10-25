@@ -1,0 +1,43 @@
+# PHONE_TESTS: 31
+# AREAS: vault, keys
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- tapOn:
+    id: "new-decision"
+- extendedWaitUntil:
+    visible:
+      id: "the-decision"
+    timeout: 15000
+- tapOn:
+    id: "record-a-voice-note"
+- extendedWaitUntil:
+    visible: "0:20"
+    timeout: 15000
+- tapOn:
+    id: "play"
+- runFlow:
+    file: subflows/save_decision.yaml
+    env:
+      DECISION_TITLE: "We moved"
+      DECISION_FOR: "Lily"
+      DECISION_WHY: "So they could be near Abuela."
+- extendedWaitUntil:
+    visible:
+      id: "we-moved"
+    timeout: 20000
+- tapOn:
+    id: "we-moved"
+- extendedWaitUntil:
+    visible:
+      id: "voice-note"
+    timeout: 15000
+- tapOn:
+    id: "play"

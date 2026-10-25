@@ -44,9 +44,9 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible:
-          id: "home-keys-status"
-          text: ".*Waiting for a family admin.*"
+      - extendedWaitUntil:
+          visible: "Waiting for a family admin to let this phone in"
+          timeout: 20000
 - runFlow:
     when:
       true: ${PHASE == 'let_in'}
@@ -72,9 +72,9 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible:
-          id: "home-keys-status"
-          text: ".*Family keys: set up on this phone.*"
+      - extendedWaitUntil:
+          visible: "Family keys: set up on this phone"
+          timeout: 20000
 - runFlow:
     when:
       true: ${PHASE == 'no_notice'}

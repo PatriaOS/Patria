@@ -236,3 +236,15 @@ LEG01 text-only. Voice, AI summaries, video and sealing (LEG02) wait.
 * Entries stay when a member is removed. If the author is no longer a member, the app shows **A former family member**.
 * Family key rotation re-wraps every vault CEK in the same `rotate_family_key` call as the new family-key wraps and recovery seals. The set of entry ids must be exactly the rows at the old epoch, once each, with exact sizes; compare-and-swap on the epoch; all or nothing. If a row is created meanwhile, the call is refused and the phone retries. There is no `familyKeyPrev` and no later re-wrap pass. Very large vaults may need batching later (see KEYS.md).
 * Drafts: a random draft key in SecureStore and the ciphertext as a file in the app document directory. Both are deleted on Save or Discard.
+
+## D34. Decision Ledger slice 2 (24 October 2026)
+
+Voice notes and Only me entries. No AI, no transcripts.
+
+* Voice: recorded in Patria with expo-audio (AAC mono ~64 kbps), hard stop at 5 minutes. Each recording has its own 32-byte file key. AAD `patria/vault-audio/v1` + family + entry + audio id. Pad to 256 KB, cap ~6 MB. File key, nonce, duration and audio id live in the entry JSON (CEK-protected). Ciphertext goes to a private `vault` bucket, path `family/entry/audio`. Playback decrypts to a cache file; that file is deleted when leaving the screen and on app start (honest limit: a determined person with the unlocked phone could copy it while it exists).
+* Only me: `visibility` `family` | `private`. Personal key is 32 bytes per member per family, created once by `create_personal_key` (exact approved-device set + recovery seal, or refuse). If a key already exists, the phone unwraps its own device wrap; if it has none, it shows **Approve this phone from one of your other phones**. Device wrap AAD `patria/personal-key/v1` + family + user + device. Recovery seal AAD `patria/personal-key-recovery/v1` + family + user. Private CEK AAD `patria/vault-cek-private/v1` + family + entry + version + user. `key_epoch` is null for private rows.
+* No direct UPDATE/DELETE on `personal_key_under_recovery`. Recovery re-seal happens only inside `replace_recovery_public_key` with the new public key. Wrap DELETE is only for a device you own.
+* Follow-ups always match the parent visibility. Switching a parent re-wraps every follow-up in `commit_vault_visibility_switch`.
+* Family-key rotation’s exact set is `visibility = 'family'` only. A role change to a non-key role keeps Only me entries and the personal key. Only membership delete removes them.
+* Storage INSERT: writer, and the entry id in the path is missing or owned by the uploader. Orphan cleanup deletes vault objects older than one hour with no entry.
+* Leave / Remove copy warns that Only me entries will be deleted, with no counts or titles.

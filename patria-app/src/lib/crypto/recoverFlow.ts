@@ -3,6 +3,7 @@ import { logKeyStep } from '../devLog';
 import { supabase } from '../supabase';
 import { concatBytes, encodeUtf8Prefixed, wipe } from './bytes';
 import { cacheFamilySecrets } from './keyStore';
+import { restorePersonalKeyFromRecovery } from './personalKey';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { decodePrintedCode } from './printedCode';
 import {
@@ -565,6 +566,13 @@ export async function finishLostPhoneRecovery(
       approvedBy: input.userId,
     });
     await cacheFamilySecrets(input.userId, input.spaceId, familyKey);
+    await restorePersonalKeyFromRecovery({
+      spaceId: input.spaceId,
+      userId: input.userId,
+      deviceId: input.deviceId,
+      publicKey: input.publicKey,
+      recoveryPrivateKey: recoveryPrivate,
+    });
     await gateway.completeRequest(input.request.id);
   } finally {
     for (const secret of opened) {

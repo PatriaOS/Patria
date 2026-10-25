@@ -2,9 +2,11 @@
 import { logKeyStep } from '../devLog';
 import { isKeyEligibleRole, type SpaceRole } from '../roles';
 import { wipe } from './bytes';
+import { supabaseDeviceAccessGateway } from './deviceAccess';
 import { ensureDeviceIdentity } from './deviceIdentity';
 import { obtainFamilyKey } from './keyStore';
 import { requireX25519PublicKey } from './pgBytea';
+import { personalSealForRecoveryChange } from './personalKey';
 import {
   generatePrintedCode,
   printedChecksMatch,
@@ -26,7 +28,6 @@ import {
 import { deleteSecret, getSecretBytes, setSecretBytes } from './secureKeys';
 import { wrapFamilyKeyToRecoveryPublic, wrapKeyToDevice, type MemberWrapAad } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
-import { supabaseDeviceAccessGateway } from './deviceAccess';
 
 export type RecoveryHomeStatus =
   | 'not_setup'
@@ -551,11 +552,17 @@ export async function rotateRecoveryKey(
   const device = await ensureDeviceIdentity(input.memberUserId);
   const meta = await gateway.fetchMeta(input.spaceId);
   try {
+    const personalSeal = await personalSealForRecoveryChange({
+      spaceId: input.spaceId,
+      userId: input.memberUserId,
+      recoveryPublicKey: pair.publicKey,
+    });
     await gateway.insertRecoveryPublicKey({
       spaceId: input.spaceId,
       userId: input.memberUserId,
       publicKey: pair.publicKey,
       recoveryKeyEpoch: nextEpoch,
+      personalSeal,
     });
     await sealFamilyUnderRecovery(
       {

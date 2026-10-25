@@ -581,14 +581,21 @@ function seedLetIn(memberN, device) {
 }
 
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 12, 13, 26, 28, 30].includes(testNumber)) {
+  if (![9, 10, 11, 12, 13, 26, 28, 30, 31, 32, 33, 34, 35].includes(testNumber)) {
     return;
   }
   seedAdminKeys();
-  if (testNumber === 26 || testNumber === 28) {
+  if (
+    testNumber === 26 ||
+    testNumber === 28 ||
+    testNumber === 31 ||
+    testNumber === 32 ||
+    testNumber === 33 ||
+    testNumber === 35
+  ) {
     return;
   }
-  if (testNumber === 30) {
+  if (testNumber === 30 || testNumber === 34) {
     const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
     const third = args.devices >= 3 && deviceC ? deviceC : other;
     seedLetIn(2, other);
@@ -707,7 +714,7 @@ try {
     testDeadline =
       Date.now() +
       timeoutMsForTest(test.number) +
-      ([9, 10, 11, 13].includes(test.number) ? 15 * 60 * 1000 : 0);
+      ([9, 10, 11, 13, 30, 34].includes(test.number) ? 15 * 60 * 1000 : 0);
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
     } catch (error) {
@@ -759,7 +766,7 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 12, 13, 26, 28, 30].includes(test.number)) {
+    if ([9, 10, 11, 12, 13, 26, 28, 30, 31, 32, 33, 34, 35].includes(test.number)) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
@@ -1679,6 +1686,97 @@ try {
         });
       });
       step(30, 3, 'Decision still opens after rotation', () => result('pass'));
+    }
+
+    if (test.number === 31) {
+      step(31, 1, 'Record and play before saving', () => {
+        maestro({
+          flow: flow('31_voice_note.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(31, 2, 'Saved voice note shows length and plays', () => result('pass'));
+      step(31, 3, 'Test 2 can play the family voice note', () =>
+        result('skip', 'manual: second account on another phone'),
+      );
+      step(31, 4, 'Recording stops at five minutes', () =>
+        result('skip', 'manual: hold Record until the five-minute stop'),
+      );
+      step(31, 5, 'Stored audio is unreadable bytes', () =>
+        result('skip', 'manual: inspect the vault object on the server'),
+      );
+    }
+
+    if (test.number === 32) {
+      step(32, 1, 'Write an Only me decision', () => {
+        maestro({
+          flow: flow('32_only_me.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(32, 2, 'Only me badge is on the list and entry', () => result('pass'));
+      step(32, 3, 'Test 2 sees no sign of it', () =>
+        result('skip', 'manual: second account on another phone'),
+      );
+      step(32, 4, 'Server returns nothing to Test 2', () =>
+        result('skip', 'manual: inspect the hosted query as Test 2'),
+      );
+    }
+
+    if (test.number === 33) {
+      step(33, 1, 'Switch Only me to Family and confirm', () => {
+        maestro({
+          flow: flow('33_visibility.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(33, 2, 'Test 2 can read after the switch', () =>
+        result('skip', 'manual: second account on another phone'),
+      );
+      step(33, 3, 'Switch back to Only me warns they may remember it', () => result('pass'));
+      step(33, 4, 'Test 2 cannot see it after the switch back', () =>
+        result('skip', 'manual: second account on another phone'),
+      );
+    }
+
+    if (test.number === 34) {
+      step(34, 1, 'Approve your own new phone opens Only me', () =>
+        result('skip', 'manual: needs a second phone for Test 1'),
+      );
+      step(34, 2, 'After a family key change, Only me and family voice still open', () => {
+        maestro({
+          flow: flow('34_only_me_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'write' },
+        });
+        maestro({
+          flow: flow('34_only_me_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'remove_and_read' },
+        });
+      });
+      step(34, 3, 'After recovery on a new phone, Only me opens', () =>
+        result('skip', 'manual: recover on a new phone'),
+      );
+    }
+
+    if (test.number === 35) {
+      step(35, 1, 'Leave family warning mentions Only me entries', () => {
+        maestro({
+          flow: flow('35_leave_only_me.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(35, 2, 'After Test 2 leaves, their family entry stays as a former member', () =>
+        result('skip', 'manual: Test 2 leaves, Test 1 opens the family entry'),
+      );
+      step(35, 3, 'Test 2 private rows and personal keys are gone', () =>
+        result('skip', 'manual: inspect the database after Test 2 leaves'),
+      );
     }
     } catch (error) {
       if (!(error instanceof Error) || error.message !== 'timed out') {

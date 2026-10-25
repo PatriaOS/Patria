@@ -276,8 +276,26 @@ if (scenario === 'admin-elder-extended') {
 if (scenario === 'admin-elder-teen') {
   await inviteAndAccept(3, 'teen', householdId);
 }
+if (testNumber === 35) {
+  const otherAdmin = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
+  sql(
+    dbUrl,
+    `UPDATE public.space_members
+        SET role = 'co_admin'
+      WHERE family_space_id = '${spaceId}'
+        AND user_id = '${otherAdmin.userId}';`,
+  );
+}
 
-if (testNumber === 26 || testNumber === 28 || testNumber === 30) {
+if (
+  testNumber === 26 ||
+  testNumber === 28 ||
+  testNumber === 30 ||
+  testNumber === 31 ||
+  testNumber === 32 ||
+  testNumber === 33 ||
+  testNumber === 34
+) {
   const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
   const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));
   sql(

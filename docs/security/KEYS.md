@@ -2,7 +2,7 @@
 
 **CIR05 step 2.** Protocol approved (with per-member recovery key pairs, D27, and backup-excluded SecureStore). Implementation waits on `docs/security/KEYS_IMPLEMENTATION.md` Step 1.
 
-This slice creates and stores keys so the Legacy Vault can encrypt on the device. **LEG01 slice 1 (D33) encrypts text decisions** with a per-entry CEK wrapped to the family key. Voice, letters and documents follow. Successors getting keys at handover is **GROW04**, not now.
+This slice creates and stores keys so the Legacy Vault can encrypt on the device. **LEG01 slice 1 (D33) encrypts text decisions** with a per-entry CEK wrapped to the family key. **LEG01 slice 2 (D34) adds voice notes and Only me entries** (personal key + per-recording file key). Letters and documents follow. Successors getting keys at handover is **GROW04**, not now.
 
 Every future file that generates, wraps, stores or uses keys must start with:
 
@@ -49,6 +49,10 @@ Patria should keep a family’s vault (letters, decisions, documents, health, te
 | Perfect erasure of content a removed member already read or screenshotted | Honest limit. Rotation stops **future** access, not memory. |
 
 We do **not** encrypt the slice 1 family home (space name, member list, invites) with the family key. That data is already private between families via RLS. The family key is for the **vault tier** listed in the project rules.
+
+**Personal key (D34).** One 32-byte key per member per family, minted once by `create_personal_key` for the exact set of that member’s approved devices and sealed to their recovery public key. Only-me CEKs wrap to this key (`patria/vault-cek-private/v1`). Approving your own extra phone also wraps it; removing a phone deletes that wrap; recovery restores it from the seal; rotating recovery requires a new seal in the same call. A role change does not delete it. Membership delete does.
+
+**Voice notes (D34).** Per-recording file key inside the entry JSON. Playback writes plaintext to the cache directory and deletes it when leaving the screen and on app start. That file can exist while the note is playing; that is an honest limit, not a second store.
 
 **Note for the Legacy Vault design:** With a single family key, **circles are not protected by encryption**. Anyone who holds the family key can decrypt any vault blob if they can fetch it. RLS still hides rows from the wrong people on the honest server, but a stolen database dump, a bug in Storage policies, or a future leak of ciphertext would let every key-holder read every circle’s vault items. **Vault items should use per-item or per-circle keys** (wrapped to the family key or to the members of that circle), so Household vs Extended Family vs Only Me is enforced by cryptography, not only by RLS. That work belongs with LEG01+, not CIR05.
 
@@ -362,7 +366,7 @@ GROW04 later: different split. Do not overload CIR05 tables for death handover.
 2. We **rotate the family key** on remaining **already-approved** devices (not a back door for new devices).
 3. Seal the **new** family key to each remaining member’s recovery **public** key (existing wrap module). The rotating admin cannot open those private keys.
 4. Delete Marco’s family-key wraps, recovery public key, and sealed boxes. If Marco was a **recovery contact**, the people who named him see “Recovery needs attention” and must redo setup when they are ready; until then remaining contact plus printed code still work, and Marco cannot approve.
-5. **Content he already saw:** we cannot unsay it. **LEG01 slice 1 (D33):** the rotating admin phone unwraps each vault CEK with the old family key, wraps it for the new epoch, and sends those re-wraps in the same `rotate_family_key` call as the new family-key wraps and recovery seals. The server checks that every `vault_entries` row at the old epoch is present exactly once (24-byte CEK nonce, 48-byte wrap), then compare-and-swaps the epoch and commits all or nothing. If a row is missing (for example someone saved meanwhile), it refuses and the phone retries with a fresh list. There is no previous-family-key cache and no later “finish re-wrap” pass. **Very large vaults may need batching later** (payload and statement limits); until then rotation sends the full set in one call.
+5. **Content he already saw:** we cannot unsay it. **LEG01 slice 1 (D33) / slice 2 (D34):** the rotating admin phone unwraps each **family** vault CEK with the old family key, wraps it for the new epoch, and sends those re-wraps in the same `rotate_family_key` call as the new family-key wraps and recovery seals. The server checks that every `vault_entries` row with `visibility = 'family'` at the old epoch is present exactly once (24-byte CEK nonce, 48-byte wrap), then compare-and-swaps the epoch and commits all or nothing. Only-me rows and their personal keys are not in that set. Voice-note objects are not re-encrypted: the file key lives inside the entry JSON. If a family row is missing (for example someone saved meanwhile), it refuses and the phone retries with a fresh list. There is no previous-family-key cache and no later “finish re-wrap” pass. **Very large vaults may need batching later** (payload and statement limits); until then rotation sends the full family set in one call.
 6. CIR05: remaining members’ existing devices get new family-key wraps; we never wrap to an unapproved device during rotation.
 
 **Technical**

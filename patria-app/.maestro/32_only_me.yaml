@@ -1,0 +1,39 @@
+# PHONE_TESTS: 32
+# AREAS: vault, keys
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- tapOn:
+    id: "new-decision"
+- extendedWaitUntil:
+    visible:
+      id: "only-me"
+    timeout: 15000
+- tapOn:
+    id: "only-me"
+- runFlow:
+    file: subflows/save_decision.yaml
+    env:
+      DECISION_TITLE: "Kept to myself"
+      DECISION_FOR: ""
+      DECISION_WHY: "A note only I should read."
+- extendedWaitUntil:
+    visible:
+      id: "kept-to-myself"
+    timeout: 20000
+- assertVisible:
+    id: "only-me-badge"
+- tapOn:
+    id: "kept-to-myself"
+- extendedWaitUntil:
+    visible: "A note only I should read."
+    timeout: 15000
+- assertVisible:
+    id: "only-me-badge"

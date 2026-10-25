@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { secretsEqual, wipe } from './bytes';
 import { generatePrintedCode } from './printedCode';
+import { familyKeyStoreKey, recoveryKeyStoreKey } from './keyStore';
 import { randomKey32 } from './random';
 import { createRecoveryBoxes } from './recovery';
 import {
@@ -16,6 +17,7 @@ import {
   type RecoverFlowGateway,
   type RecoveryRequestRow,
 } from './recoverFlow';
+import { getSecretBytes } from './secureKeys';
 import {
   unwrapKeyFromDevice,
   unwrapSecretWithAad,
@@ -24,8 +26,10 @@ import {
   wrapSecretWithAad,
 } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
-import { familyKeyStoreKey, recoveryKeyStoreKey } from './keyStore';
-import { getSecretBytes } from './secureKeys';
+
+jest.mock('./personalKey', () => ({
+  restorePersonalKeyFromRecovery: jest.fn(async () => undefined),
+}));
 
 const SPACE = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const USER = '11111111-1111-1111-1111-111111111111';

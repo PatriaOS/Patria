@@ -7,6 +7,14 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-24 — LEG01 slice 2: voice notes and Only me (D34)
+
+Text decisions could not yet hold a voice or stay with the author only. Slice 2 adds in-app voice notes (AAC mono, 5-minute stop, per-file key, private `vault` bucket) and Only me entries under a personal key minted once by `create_personal_key`. Follow-ups inherit parent visibility; a parent switch re-wraps children in one call. Family-key rotation ignores private rows. A role change keeps Only me; leaving deletes it. Playback uses a cache file wiped on leave and on app start.
+
+The first voice save stayed on the form because `upload(..., { upsert: true })` needs an UPDATE policy, and the vault bucket correctly has none. The phone now inserts once; a 409 on retry is the same object. Visibility switches always go through `commit_vault_visibility_switch` (even with no follow-ups) so `patria.vault_switch` is set. A failed save shows Try again, keeps the draft, and deletes the new upload when it can (hourly orphan cleanup otherwise). Local phone tests 26–35, 10, 13 and smoke passed. No hosted schema push in this slice.
+
+---
+
 ## 2026-10-24 — MEM01 slice 2 and LEG01 slice 1 done on a real iPhone
 
 Tests 18, 19 and 26 to 30 passed on a real iPhone (Expo Go, hosted). MEM01 slice 2 is done: pick many items, share a short video, and connect the iOS photo library while Patria is open. Tests 20–23 stay as written. Camera, Limited access, Family faces only, and upload while Patria is closed stay later. LEG01 slice 1 is done: type a decision, teen read-only, follow-up, recovery first, still readable after the family key rotates. Voice, AI, video and sealing wait.

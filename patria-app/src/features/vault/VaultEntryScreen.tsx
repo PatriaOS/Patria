@@ -11,16 +11,22 @@ import {
   LoadingState,
   Muted,
   Screen,
+  StatusPill,
   Title,
 } from '../../ui';
 import { copy } from '../../lib/copy';
+import { wipe } from '../../lib/crypto/bytes';
+import { personalKeyNeedsOtherPhone } from '../../lib/crypto/keyStore';
+import { loadPersonalKeyIfPresent } from '../../lib/crypto/personalKey';
 import { logFailedAction } from '../../lib/devLog';
 import { fetchMembers } from '../../lib/family';
 import { routes } from '../../lib/navigation';
-import { openVaultDecision, type VaultDecisionContent } from '../../lib/crypto/vaultEnvelope';
+import { type VaultDecisionContent } from '../../lib/crypto/vaultEnvelope';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import { formatVaultDate, vaultAuthorLabel } from './vaultAuthor';
-import { loadFamilyKeyForVault, withFamilyKey } from './useFamilyKey';
+import { openVaultEntryContent } from './vaultOpen';
+import { loadFamilyKeyForVault } from './useFamilyKey';
+import { VoicePlayer } from './VoicePlayer';
 import { deleteVaultEntry, fetchVaultEntries, type VaultEntryRow } from './vaultApi';
 
 type Opened = {
@@ -30,25 +36,13 @@ type Opened = {
 };
 
 function openRow(
-  familyKey: Uint8Array,
+  keys: { familyKey: Uint8Array | null; personalKey: Uint8Array | null },
   row: VaultEntryRow,
   members: { userId: string; displayName: string }[],
 ): Opened {
-  let content: VaultDecisionContent | null = null;
-  try {
-    content = openVaultDecision(familyKey, row.sealed, {
-      familySpaceId: row.familySpaceId,
-      entryId: row.id,
-      version: row.version,
-      authorId: row.authorId,
-      keyEpoch: row.keyEpoch,
-    });
-  } catch {
-    content = null;
-  }
   return {
     row,
-    content,
+    content: openVaultEntryContent(row, keys),
     authorLabel: vaultAuthorLabel(row.authorId, members),
   };
 }
@@ -69,21 +63,37 @@ export function VaultEntryScreen() {
         fetchMembers(spaceId as string),
       ]);
       const familyKey = await loadFamilyKeyForVault(userId as string, spaceId as string);
-      if (!familyKey) {
-        return null;
+      let personalKey: Uint8Array | null = null;
+      try {
+        personalKey = await loadPersonalKeyIfPresent({
+          spaceId: spaceId as string,
+          userId: userId as string,
+        });
+      } catch (error) {
+        if (!(error instanceof Error && error.message === personalKeyNeedsOtherPhone)) {
+          throw error;
+        }
       }
-      return withFamilyKey(familyKey, (key) => {
+      try {
         const root = rows.find((row) => row.id === entryId);
         if (!root) {
           return null;
         }
+        const keys = { familyKey, personalKey };
         return {
-          root: openRow(key, root, members),
+          root: openRow(keys, root, members),
           followUps: rows
             .filter((row) => row.parentEntryId === entryId)
-            .map((row) => openRow(key, row, members)),
+            .map((row) => openRow(keys, row, members)),
         };
-      });
+      } finally {
+        if (familyKey) {
+          wipe(familyKey);
+        }
+        if (personalKey) {
+          wipe(personalKey);
+        }
+      }
     },
   });
 
@@ -119,7 +129,14 @@ export function VaultEntryScreen() {
   if (entryQuery.isError || !entryQuery.data) {
     return (
       <Screen withHeader accessibilityLabel={copy.vault.title}>
-        <ErrorState message={copy.vault.openFailed} />
+        <ErrorState
+          message={
+            entryQuery.error instanceof Error &&
+            entryQuery.error.message === personalKeyNeedsOtherPhone
+              ? copy.vault.approveOtherPhone
+              : copy.vault.openFailed
+          }
+        />
       </Screen>
     );
   }
@@ -130,7 +147,12 @@ export function VaultEntryScreen() {
 
   return (
     <Screen withHeader accessibilityLabel={title}>
-      <Caption>{copy.vault.lockNote}</Caption>
+      <Caption>
+        {root.row.visibility === 'private' ? copy.vault.onlyMeHint : copy.vault.lockNote}
+      </Caption>
+      {root.row.visibility === 'private' ? (
+        <StatusPill label={copy.vault.onlyMe} testID="only-me-badge" />
+      ) : null}
       <Title>{title}</Title>
       <Muted>
         {root.authorLabel}
@@ -138,6 +160,9 @@ export function VaultEntryScreen() {
       </Muted>
       {root.content?.for ? <Caption>For {root.content.for}</Caption> : null}
       {root.content ? <Body>{root.content.body}</Body> : <ErrorState message={copy.vault.openFailed} />}
+      {root.content?.audio && spaceId ? (
+        <VoicePlayer spaceId={spaceId} entryId={root.row.id} audio={root.content.audio} />
+      ) : null}
       {isAuthor ? (
         <>
           <Button
@@ -147,9 +172,12 @@ export function VaultEntryScreen() {
               router.push(`/(signed-in)/vault-new?entryId=${encodeURIComponent(entryId)}`)
             }
           />
-          <Button label={copy.vault.followUp} onPress={() =>
-            router.push(`/(signed-in)/vault-new?parentId=${encodeURIComponent(entryId)}`)
-          } />
+          <Button
+            label={copy.vault.followUp}
+            onPress={() =>
+              router.push(`/(signed-in)/vault-new?parentId=${encodeURIComponent(entryId)}`)
+            }
+          />
           <Button label={copy.vault.delete} variant="danger" onPress={onDelete} />
         </>
       ) : null}

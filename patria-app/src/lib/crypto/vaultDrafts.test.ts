@@ -1,7 +1,14 @@
 // SECURITY REVIEW REQUIRED
 import * as SecureStore from 'expo-secure-store';
 
-import { clearVaultDraft, loadVaultDraft, saveVaultDraft, type VaultDraftFileGateway } from './vaultDrafts';
+import {
+  clearVaultDraft,
+  loadVaultDraft,
+  loadVaultDraftAudio,
+  saveVaultDraft,
+  saveVaultDraftAudio,
+  type VaultDraftFileGateway,
+} from './vaultDrafts';
 
 function installMemoryStore(store: Map<string, string>): void {
   (SecureStore.getItemAsync as jest.Mock).mockImplementation(async (key: string) => {
@@ -49,5 +56,25 @@ describe('vault drafts', () => {
     expect(store.size).toBe(0);
     expect(files.files.size).toBe(0);
     await expect(loadVaultDraft('u1', 's1', files)).resolves.toBeNull();
+  });
+
+  it('stores draft audio under the draft key and wipes it with the draft', async () => {
+    const store = new Map<string, string>();
+    installMemoryStore(store);
+    const files = memoryFiles();
+    const audio = {
+      id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      fileKey: 'aa'.repeat(32),
+      nonce: 'bb'.repeat(24),
+      durationSeconds: 20,
+    };
+    await saveVaultDraft('u1', 's1', { title: 'Move', body: 'Near Abuela.', for: 'Lily', audio }, files);
+    await saveVaultDraftAudio('u1', 's1', 'e1', audio.id, new Uint8Array([1, 2, 3, 4]), files);
+    expect(files.files.size).toBe(2);
+    const loaded = await loadVaultDraftAudio('u1', 's1', 'e1', audio.id, files);
+    expect(loaded).toEqual(new Uint8Array([1, 2, 3, 4]));
+    await clearVaultDraft('u1', 's1', files);
+    expect(files.files.size).toBe(0);
+    await expect(loadVaultDraftAudio('u1', 's1', 'e1', audio.id, files)).resolves.toBeNull();
   });
 });
