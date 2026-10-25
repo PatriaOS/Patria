@@ -352,6 +352,7 @@ export const PHONE_AREA_LIST = [
   'membership',
   'memories',
   'vault',
+  'sync',
 ];
 
 export const SMOKE_TEST_NUMBERS = [1, 3, 8];
@@ -501,8 +502,18 @@ export function mapFileToAreas(file) {
     areas.add('vault');
     areas.add('keys');
   }
+  if (
+    /patria-app\/src\/features\/sync|patria-app\/app\/\(signed-in\)\/(\(tabs\)\/)?sync|gov02|weekly_family_sync|3[6-9]_sync|4[01]_sync/.test(
+      n,
+    )
+  ) {
+    areas.add('sync');
+    areas.add('navigation');
+  }
   if (n.includes('patria-app/supabase')) {
-    if (/memory_items|mem_rls|memories/.test(n)) {
+    if (/weekly_family_sync|gov02/.test(n)) {
+      areas.add('sync');
+    } else if (/memory_items|mem_rls|memories/.test(n)) {
       areas.add('memories');
     } else if (/vault_entries|leg01|d34_vault|vault_voice/.test(n)) {
       areas.add('vault');

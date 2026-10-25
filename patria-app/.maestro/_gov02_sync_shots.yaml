@@ -1,0 +1,72 @@
+# GOV02 Sync polish screenshots. Not a numbered phone test.
+appId: app.patria.dev
+---
+- openLink: patria://design-sync?view=hub&appearance=light
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "design-sync"
+    timeout: 45000
+- assertVisible: "Family Sync"
+- takeScreenshot: "GOV02-sync-hub-light"
+- openLink: patria://design-sync?view=hub&appearance=dark
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "design-sync"
+    timeout: 20000
+- takeScreenshot: "GOV02-sync-hub-dark"
+- openLink: patria://design-sync?view=meeting&appearance=light
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "sync-tonight-flow"
+    timeout: 20000
+- takeScreenshot: "GOV02-sync-meeting-step2-light"
+- openLink: patria://design-sync?view=add&appearance=light
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: "Add to the agenda"
+    timeout: 20000
+- takeScreenshot: "GOV02-add-agenda-light"
+- openLink: patria://design-sync?view=add&appearance=dark
+- tapOn:
+    text: "Open"
+    optional: true
+- extendedWaitUntil:
+    visible: "Add to the agenda"
+    timeout: 20000
+- takeScreenshot: "GOV02-add-agenda-dark"
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 20000
+- takeScreenshot: "GOV02-members-avatars-light"
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "appearance"
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- takeScreenshot: "GOV02-members-avatars-dark"

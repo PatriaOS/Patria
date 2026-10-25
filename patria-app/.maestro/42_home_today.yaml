@@ -1,0 +1,69 @@
+# PHONE_TESTS: 42
+# AREAS: sync, navigation
+# STUB (GOV02 Home Today): written from PHONE_TESTS.md test 42; not yet run on a phone.
+# Needs a family with a Sync schedule (test 36) so the Sync card shows.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- assertVisible:
+    id: "^home$"
+- assertVisible:
+    id: "home-greeting"
+- assertVisible:
+    id: "home-family-name"
+- assertVisible:
+    id: "home-avatars"
+- extendedWaitUntil:
+    visible:
+      id: "home-sync-card"
+    timeout: 20000
+- assertVisible:
+    id: "home-sync-overline"
+- assertVisible: "Household meeting"
+- assertNotVisible: "Recent memories"
+- assertNotVisible:
+    id: "home-vault-card"
+- assertNotVisible:
+    id: "home-keys-status"
+- tapOn:
+    id: "home-sync-review"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 20000
+- tapOn:
+    id: "^home$"
+- extendedWaitUntil:
+    visible:
+      id: "home-sync-card"
+    timeout: 15000
+- tapOn:
+    id: "home-sync-add"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-agenda"
+    timeout: 15000
+- tapOn:
+    id: "^home$"
+- scrollUntilVisible:
+    element:
+      id: "home-this-week-see-all"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "home-this-week-see-all"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-tasks"
+    timeout: 15000
+- tapOn:
+    id: "^home$"
+- tapOn:
+    id: "home-avatars"
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- assertVisible:
+    id: "family-keys-status"

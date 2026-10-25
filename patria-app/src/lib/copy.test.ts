@@ -46,7 +46,12 @@ describe('copy', () => {
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');
     expect(copy.tabs.home).toBe('Home');
+    expect(copy.tabs.sync).toBe('Sync');
     expect(copy.tabs.vault).toBe('Vault');
+    expect(copy.sync.title).toBe('Family Sync');
+    expect(copy.sync.runningOn).toBe('The Sync is running on {name}’s phone');
+    expect(copy.sync.formerMember).toBe('A former family member');
+    expect(copy.sync.kinds.win).toBe('Win');
     expect(copy.tabs.homeNotice).toBe('Home, {count} notice');
     expect(copy.design.galleryTitle).toBe('Design gallery');
     expect(copy.appearance.matchPhone).toBe('Match my phone');

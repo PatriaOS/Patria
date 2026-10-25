@@ -26,6 +26,16 @@ const ICONS: Record<string, IconNode[]> = {
     { tag: 'circle', cx: 13, cy: 7, r: 1, fillCurrent: true },
     { tag: 'rect', x: 8, y: 2, width: 14, height: 14, rx: 2 },
   ],
+  calendarHeart: [
+    { tag: 'path', d: 'M12.127 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5.125' },
+    {
+      tag: 'path',
+      d: 'M14.62 17.8A2.25 2.25 0 1 1 18 14.836a2.25 2.25 0 1 1 3.38 2.966l-2.626 2.856a.998.998 0 0 1-1.507 0z',
+    },
+    { tag: 'path', d: 'M16 2v3' },
+    { tag: 'path', d: 'M3 9h18' },
+    { tag: 'path', d: 'M8 2v3' },
+  ],
   lock: [
     { tag: 'rect', x: 3, y: 11, width: 18, height: 11, rx: 2 },
     { tag: 'path', d: 'M7 11V7a5 5 0 0 1 10 0v4' },
@@ -49,10 +59,25 @@ const ICONS: Record<string, IconNode[]> = {
       d: 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z',
     },
   ],
+  check: [{ tag: 'path', d: 'M20 6 9 17l-5-5' }],
+  plus: [
+    { tag: 'path', d: 'M5 12h14' },
+    { tag: 'path', d: 'M12 5v14' },
+  ],
+  sparkles: [
+    {
+      tag: 'path',
+      d: 'M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z',
+    },
+    { tag: 'path', d: 'M20 2v4' },
+    { tag: 'path', d: 'M22 4h-4' },
+    { tag: 'circle', cx: 4, cy: 20, r: 2 },
+  ],
 };
 
 ICONS.home = ICONS.house;
 ICONS.memories = ICONS.images;
+ICONS.sync = ICONS.calendarHeart;
 ICONS.vault = ICONS.lock;
 ICONS.family = ICONS.users;
 

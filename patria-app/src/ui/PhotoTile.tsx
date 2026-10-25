@@ -11,20 +11,41 @@ import { Caption } from './Text';
 
 type Props = {
   uri?: string;
+  /** Bundled asset from `require(...)` when a remote signed URL is not available. */
+  source?: number;
   accessibilityLabel: string;
   onPress?: () => void;
   durationLabel?: string;
+  /** Tile edge length; On this day uses 88. */
+  size?: number;
   testID?: string;
 };
 
-export function PhotoTile({ uri, accessibilityLabel, onPress, durationLabel, testID }: Props) {
+export function PhotoTile({
+  uri,
+  source,
+  accessibilityLabel,
+  onPress,
+  durationLabel,
+  size = 108,
+  testID,
+}: Props) {
   const { colors } = useTheme();
   const inner = (
     <View
       testID={testID}
-      style={[styles.tile, { backgroundColor: colors.softSurface }]}
+      style={[
+        styles.tile,
+        {
+          width: size,
+          height: size,
+          backgroundColor: colors.softSurface,
+        },
+      ]}
     >
-      {uri ? (
+      {source != null ? (
+        <Image source={source} style={styles.image} contentFit="cover" {...decorativeA11y} />
+      ) : uri ? (
         <Image source={{ uri }} style={styles.image} contentFit="cover" {...decorativeA11y} />
       ) : (
         <View style={styles.image} {...decorativeA11y} />
@@ -55,10 +76,9 @@ export function PhotoTile({ uri, accessibilityLabel, onPress, durationLabel, tes
 
 const styles = StyleSheet.create({
   tile: {
-    width: 108,
-    height: 108,
     borderRadius: radius.tile,
     overflow: 'hidden',
+    flexShrink: 0,
   },
   image: {
     width: '100%',

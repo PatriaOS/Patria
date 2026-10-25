@@ -93,6 +93,14 @@ export default function SignedInLayout() {
         options={{ ...pushed, title: screenTitles.memoriesConnectSettings }}
       />
       <Stack.Screen name="memory/[itemId]" options={{ ...pushed, title: screenTitles.memoryItem }} />
+      <Stack.Screen
+        name="sync-schedule"
+        options={{ ...pushed, title: screenTitles.syncSchedule }}
+      />
+      <Stack.Screen name="sync-agenda" options={{ ...pushed, title: screenTitles.syncAgenda }} />
+      <Stack.Screen name="sync-run" options={{ ...pushed, title: screenTitles.syncRun }} />
+      <Stack.Screen name="sync-past" options={{ ...pushed, title: screenTitles.syncPast }} />
+      <Stack.Screen name="sync-tasks" options={{ ...pushed, title: screenTitles.syncTasks }} />
       <Stack.Screen name="vault-new" options={{ ...pushed, title: screenTitles.vaultNew }} />
       <Stack.Screen name="vault/[entryId]" options={{ ...pushed, title: screenTitles.vaultEntry }} />
     </Stack>

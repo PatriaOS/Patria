@@ -1,0 +1,69 @@
+# GOV02 real Home tab screenshots (signed in). Not a numbered phone test.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+    env:
+      EXPECT_HOME: "1"
+      E2E_STAY: "1"
+- extendedWaitUntil:
+    visible:
+      id: "home"
+    timeout: 60000
+- tapOn:
+    id: "home"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- takeScreenshot: "GOV02-home-real-light"
+- runFlow:
+    when:
+      visible: "Set up recovery"
+    commands:
+      - takeScreenshot: "GOV02-home-real-notice"
+- runFlow:
+    when:
+      visible:
+        id: "home-keys-status"
+    commands:
+      - takeScreenshot: "GOV02-home-real-notice"
+- runFlow:
+    when:
+      visible:
+        id: "home-recovery-status"
+    commands:
+      - takeScreenshot: "GOV02-home-real-notice"
+- tapOn:
+    id: "family"
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "appearance"
+- extendedWaitUntil:
+    visible:
+      id: "appearance-dark"
+    timeout: 15000
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- tapOn:
+    id: "home"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- takeScreenshot: "GOV02-home-real-dark"

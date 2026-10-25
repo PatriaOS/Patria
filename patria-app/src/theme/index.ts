@@ -1,5 +1,13 @@
 export { contrastPairs } from './contrastPairs';
 export { contrastRatio } from './contrast';
+export {
+  AVATAR_TONE_KEYS,
+  avatarToneForId,
+  avatarToneKeyForId,
+  avatarTonesDark,
+  avatarTonesLight,
+} from './avatarTone';
+export type { AvatarTone, AvatarToneKey } from './avatarTone';
 export { FontGate } from './FontGate';
 export { navigationChrome, useThemedStackOptions } from './navigationChrome';
 export { ThemeProvider, useTheme } from './ThemeProvider';

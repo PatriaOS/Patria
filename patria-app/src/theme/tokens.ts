@@ -20,6 +20,17 @@ export type Palette = {
   onDanger: string;
   dangerFill: string;
   dangerSoft: string;
+  /** Agenda kind chips / row washes (GOV02). */
+  kindWinBg: string;
+  kindWinText: string;
+  kindDiscussBg: string;
+  kindDiscussText: string;
+  kindDecideBg: string;
+  kindDecideText: string;
+  kindPlanBg: string;
+  kindPlanText: string;
+  /** Soft sage wash for kind hint cards. */
+  sageSoft: string;
 };
 
 export const light: Palette = {
@@ -45,6 +56,15 @@ export const light: Palette = {
   onDanger: '#F5F0E7',
   dangerFill: '#8C2F24',
   dangerSoft: '#F3DDD4',
+  kindWinBg: '#DCE6DD',
+  kindWinText: '#1F5538',
+  kindDiscussBg: '#F3E4C0',
+  kindDiscussText: '#5C470F',
+  kindDecideBg: '#F2DCCB',
+  kindDecideText: '#7A361C',
+  kindPlanBg: '#EFE8DC',
+  kindPlanText: '#4A5048',
+  sageSoft: '#DCE6DD',
 };
 
 export const dark: Palette = {
@@ -69,6 +89,15 @@ export const dark: Palette = {
   onDanger: '#1A100C',
   dangerFill: '#E07A6A',
   dangerSoft: '#3A221C',
+  kindWinBg: '#1E2E24',
+  kindWinText: '#9CC7AA',
+  kindDiscussBg: '#3A3218',
+  kindDiscussText: '#E3B65A',
+  kindDecideBg: '#3A2A22',
+  kindDecideText: '#E8896A',
+  kindPlanBg: '#1D2A24',
+  kindPlanText: '#A9B3A9',
+  sageSoft: '#24352C',
 };
 
 export const space = {
@@ -107,8 +136,8 @@ export const fontFamilies = {
 } as const;
 
 export const typeScale = {
-  display: { size: 36, line: 1.02, font: 'display' as const },
-  displayItalic: { size: 36, line: 1.02, font: 'displayItalic' as const },
+  display: { size: 36, line: 0.95, font: 'display' as const },
+  displayItalic: { size: 36, line: 0.95, font: 'displayItalic' as const },
   title: { size: 23, line: 1.2, font: 'display' as const },
   section: { size: 21, line: 1.25, font: 'displayItalic' as const },
   body: { size: 15, line: 1.5, font: 'body' as const },

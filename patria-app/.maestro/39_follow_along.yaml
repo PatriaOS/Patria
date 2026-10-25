@@ -1,0 +1,26 @@
+# PHONE_TESTS: 39
+# AREAS: sync
+# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 39. This covers the first phone only
+# (start the Sync and see it running); the second phone steps are (manual).
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "continue"
+    commands:
+      - tapOn:
+          id: "continue"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-run"
+    timeout: 20000
+- assertVisible: "Wins"

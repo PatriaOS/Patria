@@ -3,7 +3,7 @@ import { renderScreen } from '../test/renderScreen';
 import { Body, Title } from './Text';
 
 describe('Heirloom text', () => {
-  it('does not pin line height and caps scaling at 1.3', async () => {
+  it('applies the type scale line height and caps scaling at 1.3', async () => {
     const { getByText } = await renderScreen(
       <>
         <Title>Heading</Title>
@@ -11,7 +11,11 @@ describe('Heirloom text', () => {
       </>,
     );
     expect(getByText('Heading').props.style).toEqual(
-      expect.arrayContaining([expect.not.objectContaining({ lineHeight: expect.anything() })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          lineHeight: typeScale.title.size * typeScale.title.line,
+        }),
+      ]),
     );
     expect(getByText('Body copy').props.maxFontSizeMultiplier).toBe(1.3);
     expect(typeScale.body).toHaveProperty('line');

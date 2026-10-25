@@ -1,0 +1,55 @@
+# PHONE_TESTS: 38
+# AREAS: sync
+# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 38; not yet run on a phone.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "hold-it-now"
+    commands:
+      - tapOn:
+          id: "hold-it-now"
+- runFlow:
+    when:
+      visible:
+        id: "continue"
+    commands:
+      - tapOn:
+          id: "continue"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-run"
+    timeout: 20000
+- assertVisible: "Wins"
+- tapOn:
+    id: "next"
+- assertVisible: "Look ahead"
+- tapOn:
+    id: "next"
+- assertVisible: "Decide"
+- tapOn:
+    id: "next"
+- assertVisible: "Gratitude"
+- tapOn:
+    id: "next"
+- assertVisible: "One priority for the week"
+- scrollUntilVisible:
+    element:
+      id: "finish-the-sync"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "finish-the-sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 30000

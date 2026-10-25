@@ -7,7 +7,7 @@ import { useTheme } from '../../../src/theme';
 import { TabBar, type TabKey } from '../../../src/ui';
 
 function routeToTab(name: string): TabKey {
-  if (name === 'memories' || name === 'vault' || name === 'family') {
+  if (name === 'memories' || name === 'sync' || name === 'vault' || name === 'family') {
     return name;
   }
   return 'home';
@@ -42,6 +42,7 @@ export default function SignedInTabsLayout() {
     >
       <Tabs.Screen name="home" options={{ title: copy.tabs.home }} />
       <Tabs.Screen name="memories" options={{ title: copy.tabs.memories }} />
+      <Tabs.Screen name="sync" options={{ title: copy.tabs.sync }} />
       <Tabs.Screen name="vault" options={{ title: copy.tabs.vault }} />
       <Tabs.Screen name="family" options={{ title: copy.tabs.family }} />
     </Tabs>

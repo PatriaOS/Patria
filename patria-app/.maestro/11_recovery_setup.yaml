@@ -50,6 +50,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - assertVisible: "Recovery: set up"
 - runFlow:
     when:

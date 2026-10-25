@@ -1,4 +1,4 @@
-import { Home, Images, Lock, Users } from 'lucide-react-native';
+import { CalendarHeart, Home, Images, Lock, Users } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,14 +10,23 @@ import { Icon } from './Icon';
 import { Pressable } from './Pressable';
 import { Caption } from './Text';
 
-export const TAB_KEYS = ['home', 'memories', 'vault', 'family'] as const;
+export const TAB_KEYS = ['home', 'memories', 'sync', 'vault', 'family'] as const;
 export type TabKey = (typeof TAB_KEYS)[number];
 
 const ICONS = {
   home: Home,
   memories: Images,
+  sync: CalendarHeart,
   vault: Lock,
   family: Users,
+} as const;
+
+const ICON_NAMES = {
+  home: 'house',
+  memories: 'images',
+  sync: 'calendarHeart',
+  vault: 'lock',
+  family: 'users',
 } as const;
 
 export function homeTabAccessibilityLabel(noticeCount: number, selected: boolean): string {
@@ -70,7 +79,7 @@ export function TabBar({ active, onSelect, homeNoticeCount = 0 }: Props) {
             <View style={styles.iconWrap}>
               <Icon
                 icon={ICONS[key]}
-                name={key === 'home' ? 'house' : key === 'memories' ? 'images' : key === 'vault' ? 'lock' : 'users'}
+                name={ICON_NAMES[key]}
                 color={color}
                 decorative
               />

@@ -65,8 +65,20 @@ Development only: `/design-gallery`. Redirects away in production builds. Use Li
 
 ## Navigation (Layer 2)
 
-Tabs: Home, Memories, Vault, Family. Appearance lives on Family (`Match my phone` / `Light` / `Dark`). Headers, the tab bar and the status bar follow the theme. A screen with a header does not add a second top safe-area inset; a tab screen does not add a second bottom inset.
+Tabs: Home, Memories, **Sync**, Vault, Family (D35). Appearance lives on Family (`Match my phone` / `Light` / `Dark`). Headers, the tab bar and the status bar follow the theme. A screen with a header does not add a second top safe-area inset; a tab screen does not add a second bottom inset.
+
+## Home Today layout (D35)
+
+Top to bottom on Home:
+
+1. Security notices only when action is needed (same wording and prominence as before). Home tab notice dot unchanged.
+2. Overline date in small capitals; Display greeting on two lines (“Good evening,” + italic primary family name); `AvatarStack` top right opens Family.
+3. Family Sync hero card (`heroCard`): mustard overline countdown (TONIGHT / TODAY / TOMORROW / IN N DAYS), title from the meeting circle, body from agenda counts, Review agenda (accent) and Add an item (ghost). No schedule: set-up invitation for admins, ask-admin copy for others.
+4. On this day soft card only when a circle-visible memory exists for this month and day in an earlier year (family time zone); otherwise omitted.
+5. This week section with See all: up to four Sync tasks, checkbox, owner/backup, day chip, Done today/yesterday.
+
+Keys and recovery status pills live on Family, not Home. Vault teaser and Recent memories leave Home.
 
 ## Screens (Layer 3)
 
-Auth, create family, invite and accept, add child, members and roles, Home, Memories (library, add, item, connect), Vault, Family, Appearance, key notices, let in, your phones, recovery setup, printed code, recovery flow and leave family all use `src/ui`. Home greets the family by name. Vault’s tab icon is a lock. Icons are Lucide through `react-native-svg` only.
+Auth, create family, invite and accept, add child, members and roles, Home, Memories (library, add, item, connect), Sync, Vault, Family, Appearance, key notices, let in, your phones, recovery setup, printed code, recovery flow and leave family all use `src/ui`. Home greets the family by name. Vault’s tab icon is a lock. Icons are Lucide through `react-native-svg` only.

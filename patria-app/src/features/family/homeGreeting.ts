@@ -31,3 +31,20 @@ export function homeDateOverline(now = new Date()): string {
     day: 'numeric',
   });
 }
+
+/**
+ * Second greeting line: "the Rivera family". If the stored name already includes
+ * "family", use it as-is (e.g. "The Rivera Family"). A leading "The " is dropped
+ * so we never say "the The Riveras family".
+ */
+export function homeFamilyLine(spaceName: string): string {
+  const trimmed = spaceName.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (/\bfamily\b/i.test(trimmed)) {
+    return trimmed;
+  }
+  const core = trimmed.replace(/^the\s+/i, '');
+  return `the ${core} family`;
+}

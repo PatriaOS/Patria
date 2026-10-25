@@ -1,0 +1,45 @@
+# PHONE_TESTS: 36
+# AREAS: sync, navigation
+# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 36; not yet run on a phone.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 20000
+- assertVisible: "Family Sync"
+- tapOn:
+    id: "set-up-our-sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-schedule"
+    timeout: 15000
+- assertVisible:
+    id: "weekday-sun"
+- assertVisible: "Household"
+- assertVisible: "Extended Family"
+- tapOn:
+    id: "weekday-sun"
+- tapOn:
+    id: "time"
+- eraseText: 20
+- inputText: "19:00"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "save-schedule"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "save-schedule"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 30000
+- assertVisible: "Tonight’s flow"
+- assertVisible: "Wins"
+- assertVisible: "Gratitude"

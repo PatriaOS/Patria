@@ -7,6 +7,24 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-25 — GOV02 Home Figma polish (D35)
+
+Home Today was brought closer to Figma: On this day uses an 88pt thumbnail (signed URL, or a clean soft placeholder); the Sync overline always uses `nextMeetingAt` with the real clock and family zone (Sunday before start → TONIGHT/TODAY, after → IN 7 DAYS); greeting is “Good evening,” plus “the Rivera family”; Sync body is a sentence with side-by-side compact buttons; This week uses first names and round checkboxes; AvatarStack is 32pt with an 8pt overlap, soft pastels in dark mode, and initials that do not clip. Tab screens drop the extra top padding band. Keys and recovery attention pills stay on Home when action is needed; full status lives on Family.
+
+---
+
+## 2026-10-25 — GOV02 Home Today redesign (D35)
+
+Home now reads top to bottom: security notices (only when something needs a tap), date and greeting with the avatars opening Family, the Family Sync hero, On this day, and This week. The Sync card reuses `useSyncSpace` and `syncCountdown`; with no meeting row yet it falls back to the next date computed from the schedule so the countdown still shows. On this day is judged in the family time zone (device zone if there is no schedule) from the same circle-limited memory read the library uses, so nothing outside a person's circles can appear; it picks the oldest matching year. This week shows up to four open tasks, then fills spare room with tasks finished today or yesterday so a ticked task does not vanish. Keys and recovery status pills moved to Family under Your phones. Options: remove the pills from Home entirely, or keep only the ones that ask for something. We kept Home pills only for keys that are not ready (waiting, needs let-in) and Recovery needs attention, because Maestro tests 9, 11, 12 and 13 and the "I lost my phone" path depend on seeing them, and a calm all-good status adds nothing. The "Set up recovery" card, device-approval cards and recovery notices stay on Home unchanged. Deferred: Feb 29 memories on non-leap years, a Home pull-to-refresh test for Sync, and running Maestro test 42 on a phone.
+
+---
+
+## 2026-10-25 — GOV02 slice 1: Weekly Family Sync (D35), Sync first
+
+Families needed a quiet weekly meeting without vault crypto or guilt. Slice 1 stores Sync on the Standard tier (D29-style) so later server-built agendas stay possible. Each meeting freezes its circle at creation so widening the schedule never leaks past Household meetings; carry-over only when the next circle is the same or narrower. `ensure_next_meeting` is idempotent; start is compare-and-swap with one in-progress meeting. Home Today redesign waits until Sync screens are approved. No hosted push in this stop. Fair Share, auto agenda, push and printable/TV wait.
+
+---
+
 ## 2026-10-24 — LEG01 slice 2: voice notes and Only me (D34)
 
 Text decisions could not yet hold a voice or stay with the author only. Slice 2 adds in-app voice notes (AAC mono, 5-minute stop, per-file key, private `vault` bucket) and Only me entries under a personal key minted once by `create_personal_key`. Follow-ups inherit parent visibility; a parent switch re-wraps children in one call. Family-key rotation ignores private rows. A role change keeps Only me; leaving deletes it. Playback uses a cache file wiped on leave and on app start.

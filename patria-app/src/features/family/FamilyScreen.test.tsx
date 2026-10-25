@@ -3,6 +3,8 @@ import { fireEvent, waitFor } from '@testing-library/react-native';
 import { copy } from '../../lib/copy';
 import { memberDisplayName } from '../../lib/displayName';
 import { fetchChildren, fetchMembers, fetchMemberships } from '../../lib/family';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { FamilyScreen } from './FamilyScreen';
@@ -33,6 +35,24 @@ jest.mock('../../lib/family', () => ({
   ]),
   fetchChildren: jest.fn(async () => []),
   fetchPendingInvites: jest.fn(async () => []),
+}));
+
+jest.mock('../../lib/crypto/familyCeremony', () => ({
+  ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
+}));
+
+jest.mock('../../lib/crypto/recoverySetup', () => ({
+  loadRecoverySnapshot: jest.fn(async () => ({
+    contacts: [],
+    ownContacts: [],
+    accepted: 0,
+    pending: [],
+    hasPaper: false,
+    hasRecoveryPublic: false,
+    recoveryKeyEpoch: 1,
+    keyEpoch: 1,
+    status: 'not_setup',
+  })),
 }));
 
 jest.mock('../../lib/currentFamily', () => ({
@@ -78,6 +98,32 @@ describe('Family tab', () => {
       },
     ]);
     (fetchChildren as jest.Mock).mockResolvedValue([]);
+    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('ready');
+    (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
+      contacts: [],
+      ownContacts: [],
+      accepted: 0,
+      pending: [],
+      hasPaper: false,
+      hasRecoveryPublic: false,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+      status: 'not_setup',
+    });
+  });
+
+  it('shows the keys and recovery status that moved off Home', async () => {
+    const { findByTestId, findByText } = await renderScreen(<FamilyScreen />);
+    expect(await findByTestId('family-keys-status', {}, { timeout: 10000 })).toBeTruthy();
+    expect(await findByText(copy.home.keysReady)).toBeTruthy();
+    expect(await findByTestId('family-recovery-status')).toBeTruthy();
+    expect(await findByText(copy.home.recoveryNotSetup)).toBeTruthy();
+  });
+
+  it('says when this phone is still waiting to be let in', async () => {
+    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('waiting');
+    const { findByText } = await renderScreen(<FamilyScreen />);
+    expect(await findByText(copy.home.keysWaiting)).toBeTruthy();
   });
 
   it('offers invite, add a child, Appearance and sign out', async () => {

@@ -248,3 +248,16 @@ Voice notes and Only me entries. No AI, no transcripts.
 * Family-key rotation’s exact set is `visibility = 'family'` only. A role change to a non-key role keeps Only me entries and the personal key. Only membership delete removes them.
 * Storage INSERT: writer, and the entry id in the path is missing or owned by the uploader. Orphan cleanup deletes vault objects older than one hour with no entry.
 * Leave / Remove copy warns that Only me entries will be deleted, with no counts or titles.
+
+## D35. Weekly Family Sync slice 1 and Home Today layout (25 October 2026)
+
+GOV02 slice 1. Sync agenda and notes use the **Standard** tier (same idea as photos, D29): private Postgres, encrypted in transit and at rest, **not** wrapped to the family key. Circle rules are enforced by RLS (`can_view_sync` on the meeting’s circle), so a later slice can build the agenda from calendars and tasks on the server.
+
+* Tabs: Home, Memories, **Sync**, Vault, Family.
+* One schedule per family (weekday, local time, IANA time zone, Household or Extended Family circle). Admins write; circle members read.
+* Each `sync_meetings` row stores its own `circle_id` at creation. RLS for meetings, agenda, notes and tasks uses that meeting’s circle, never the current schedule’s circle. Switching the schedule to a wider circle never exposes past meetings. Undiscussed items carry over only when the next meeting’s circle is the same or narrower; otherwise they stay on the old meeting.
+* `ensure_next_meeting` is an idempotent SECURITY DEFINER call with a unique `(family_space_id, scheduled_for)` so two phones cannot create duplicates. Changing day or time moves the upcoming meeting’s `scheduled_for` (agenda stays). Starting a meeting is compare-and-swap `upcoming` → `in_progress`; at most one in progress per family; others see a read-only “running on …” state.
+* Countdown (family time zone): TONIGHT if today and start ≥ 17:00; TODAY if today and earlier; TOMORROW; else IN N DAYS.
+* Attributed children must belong to the same family. Former members show as **A former family member**. Admins may edit notes after Finish. On this day uses the family time zone.
+* No Fair Share, no auto agenda, no push, no guilt when a meeting is missed.
+* Home Today layout (same slice, after Sync): security notices first; date overline and greeting; Sync hero card; On this day when a memory exists; This week tasks. Keys and recovery status move to Family.

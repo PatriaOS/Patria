@@ -1180,6 +1180,8 @@ flowchart TD
 
 **Success measure:** 30% of active families complete a Sync at least 3 times a month.
 
+**Slice 1 (D35) — in progress.** Manual weekly Sync on Standard-tier storage (not the family key). Admin sets weekday, time, time zone and circle (Household or Extended Family). Anyone in that circle with a login adds Win / Discuss / Decide / Plan items during the week; admins may attribute to a child profile. One phone runs the meeting: Wins → Look ahead → Decide → Gratitude, then one priority and tasks. Undiscussed items carry over when the next circle is the same or narrower. Missed times show no guilt—only Hold it now or the next date. No Fair Share, no auto agenda from calendars, no push. Home Today card and This week tasks ship in the same slice after Sync works. Phone tests 36–41.
+
 ### GOV03 Kids Mode for the Sync
 
 **Priority:** P1 | **Phase:** Phase 2 | **Users:** Children 4 to 12 with a parent | **Depends on:** GOV02

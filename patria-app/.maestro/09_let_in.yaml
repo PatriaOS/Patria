@@ -72,6 +72,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - extendedWaitUntil:
           visible: "Family keys: set up on this phone"
           timeout: 20000
