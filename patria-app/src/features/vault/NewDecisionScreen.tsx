@@ -81,17 +81,28 @@ export function NewDecisionScreen() {
     defaultValues: { title: '', for: '', body: '' },
   });
   const existingRef = useRef(existing);
-  existingRef.current = existing;
   const visibilityRef = useRef(visibility);
-  visibilityRef.current = visibility;
   const audioRef = useRef(audio);
-  audioRef.current = audio;
   const audioCiphertextRef = useRef(audioCiphertext);
-  audioCiphertextRef.current = audioCiphertext;
   const childrenRef = useRef(children);
-  childrenRef.current = children;
   const isRootDraft = !parentId && !entryIdParam;
   const canChangeVisibility = !parentId;
+
+  useEffect(() => {
+    existingRef.current = existing;
+  }, [existing]);
+  useEffect(() => {
+    visibilityRef.current = visibility;
+  }, [visibility]);
+  useEffect(() => {
+    audioRef.current = audio;
+  }, [audio]);
+  useEffect(() => {
+    audioCiphertextRef.current = audioCiphertext;
+  }, [audioCiphertext]);
+  useEffect(() => {
+    childrenRef.current = children;
+  }, [children]);
 
   const epochQuery = useQuery({
     queryKey: ['familyKeyEpoch', spaceId],
