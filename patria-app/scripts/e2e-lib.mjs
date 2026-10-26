@@ -335,6 +335,43 @@ export function passwordFor(secrets, n) {
   return secrets[`E2E_PASSWORD_TEST${n}`] ?? '';
 }
 
+/**
+ * Next Sync meeting instant matching SyncScreen's ensureNextMeeting / nextMeetingAt
+ * (Sunday 19:00 America/Chicago by default). Keeps e2e seeds on the same row the app opens.
+ */
+export function nextSyncMeetingIso(dbUrl, {
+  weekday = 0,
+  localTime = '19:00:00',
+  timeZone = 'America/Chicago',
+} = {}) {
+  const safeZone = timeZone.replace(/'/g, "''");
+  const safeTime = localTime.replace(/'/g, "''");
+  const iso = runLocalSql(
+    dbUrl,
+    `WITH local_now AS (
+       SELECT now() AT TIME ZONE '${safeZone}' AS n
+     ),
+     candidate AS (
+       SELECT
+         date_trunc('day', n)
+           + ((${Number(weekday)} - extract(dow FROM n)::int + 7) % 7) * interval '1 day'
+           + time '${safeTime}' AS local_ts
+       FROM local_now
+     )
+     SELECT CASE
+       WHEN (local_ts AT TIME ZONE '${safeZone}') > now()
+         THEN (local_ts AT TIME ZONE '${safeZone}')
+       ELSE ((local_ts + interval '7 days') AT TIME ZONE '${safeZone}')
+     END::text
+     FROM candidate;`,
+    true,
+  );
+  if (!iso) {
+    throw new Error('Could not compute next Sync meeting time for e2e seed.');
+  }
+  return iso;
+}
+
 export function redact(value) {
   if (!value) {
     return '';

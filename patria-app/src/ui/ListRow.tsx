@@ -30,7 +30,11 @@ export function ListRow({ title, body, onPress, leading, trailing, testID }: Pro
   );
 
   if (!onPress) {
-    return content;
+    return (
+      <View testID={testID ?? testIdFromLabel(title)} accessibilityLabel={title} accessible>
+        {content}
+      </View>
+    );
   }
 
   return (

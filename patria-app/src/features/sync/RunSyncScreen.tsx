@@ -201,7 +201,11 @@ export function RunSyncScreen() {
       if (step) {
         await saveNote(step);
       }
-      setStepIndex((index) => Math.min(index + 1, WRAP_UP));
+      const next = Math.min(stepIndex + 1, WRAP_UP);
+      if (next === WRAP_UP && userId) {
+        setOwner((current) => current ?? `user:${userId}`);
+      }
+      setStepIndex(next);
     });
 
   const onDiscussed = (item: SyncAgendaItemRow) =>
@@ -341,7 +345,12 @@ export function RunSyncScreen() {
       />
       <Section>{copy.sync.tasksLabel}</Section>
       {meetingTasks.map((task) => (
-        <ListRow key={task.id} title={task.title} body={taskBodyLine(task, people)} />
+        <ListRow
+          key={task.id}
+          testID={`meeting-task-${task.id}`}
+          title={task.title}
+          body={taskBodyLine(task, people)}
+        />
       ))}
       <Field
         label={copy.sync.taskTitleLabel}

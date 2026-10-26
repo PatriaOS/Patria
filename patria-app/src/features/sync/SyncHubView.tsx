@@ -186,7 +186,10 @@ function AgendaCard(props: {
                 key={item.id}
                 testID={`agenda-item-${item.id}`}
                 accessibilityRole={item.editable ? 'button' : undefined}
-                accessibilityLabel={`${item.title}, ${item.kindLabel}`}
+                // Title only — "title, kind" made Maestro miss assertVisible: "Soccer carpool"
+                // (full-string match against "Soccer carpool, Discuss").
+                accessibilityLabel={item.title}
+                accessibilityHint={item.kindLabel}
                 onPress={item.editable ? () => props.onOpenItem(item.id) : undefined}
                 style={[
                   styles.agendaRow,
@@ -195,11 +198,17 @@ function AgendaCard(props: {
                 ]}
               >
                 <View style={styles.agendaCopy}>
-                  <Body>{item.title}</Body>
-                  {item.body ? <Caption tone="muted">{item.body}</Caption> : null}
+                  <Body accessible={false}>{item.title}</Body>
+                  {item.body ? (
+                    <Caption tone="muted" accessible={false}>
+                      {item.body}
+                    </Caption>
+                  ) : null}
                 </View>
                 <View style={[styles.kindPill, { backgroundColor: tone.bg }]}>
-                  <Caption color={tone.text}>{item.kindLabel}</Caption>
+                  <Caption color={tone.text} accessible={false}>
+                    {item.kindLabel}
+                  </Caption>
                 </View>
               </Pressable>
             );

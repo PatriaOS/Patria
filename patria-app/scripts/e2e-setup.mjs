@@ -8,6 +8,7 @@ import {
   TEST_EMAILS,
   assertLocalSupabaseUrl,
   loadLocalFiles,
+  nextSyncMeetingIso,
   passwordFor,
   runLocalSql,
   scenarioForTest,
@@ -317,7 +318,22 @@ const syncNeedsSchedule = [37, 38, 39, 40, 42].includes(testNumber);
 const syncNeedsAgenda = [38, 39].includes(testNumber);
 const syncNeedsFinished = testNumber === 40;
 if (syncNeedsSchedule) {
-  const scheduledFor = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+  // Each Sync phone test owns a fresh family, then resets Sync rows and seeds the
+  // same upcoming meeting SyncScreen.ensureNextMeeting would create — so order
+  // (36 before 37, or 39 before 38) cannot leave in_progress/finished/extra meetings.
+  sql(
+    dbUrl,
+    `DELETE FROM public.sync_tasks WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_notes WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_agenda_items WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_schedules WHERE family_space_id = '${spaceId}';`,
+  );
+  const scheduledFor = nextSyncMeetingIso(dbUrl, {
+    weekday: 0,
+    localTime: '19:00:00',
+    timeZone: 'America/Chicago',
+  });
   const meetingId = await asUser(adminSession.accessToken, 'POST', '/rest/v1/rpc/upsert_sync_schedule', {
     p_space_id: spaceId,
     p_weekday: 0,
@@ -329,6 +345,12 @@ if (syncNeedsSchedule) {
   if (!meetingId) {
     throw new Error('upsert_sync_schedule did not return a meeting id.');
   }
+  sql(
+    dbUrl,
+    `DELETE FROM public.sync_meetings
+     WHERE family_space_id = '${spaceId}'
+       AND id IS DISTINCT FROM '${meetingId}';`,
+  );
   if (syncNeedsAgenda) {
     await asUser(adminSession.accessToken, 'POST', '/rest/v1/sync_agenda_items', [
       {

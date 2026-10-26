@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Sync 37/38: agenda a11y label, task wait, seed isolation
+
+Third fail of 37/38: hub showed "Soccer carpool" but Maestro asserted against a11y text "Soccer carpool, Discuss" (full-string match). Agenda rows now label the title only. Test 38 finished with an empty Tasks list — flow now waits for "Pack kit bags" on wrap-up before Finish, clears the task field, and the wrap-up owner defaults to the current member. e2e-setup resets all Sync tables per test and seeds `nextMeetingAt` (Sunday 19:00 Chicago) so ensureNextMeeting does not create a second upcoming meeting when 36–42 run in any order.
+
+---
+
 ## 2026-10-26 — Forbid crypto.randomUUID; Sync write-path pgTAP
 
 `crypto.randomUUID` broke vault then Sync on Hermes. Cleared remaining call sites (including api tests) in favour of `randomUuid()` / `randomKey32()`, and ESLint `no-restricted-syntax` now errors on `crypto.randomUUID` / `globalThis.crypto.randomUUID`. GOV02 DB tests gained `lives_ok` inserts for member agenda, admin notes and tasks (plus note update and outsider write denials) so a shared-trigger regression cannot hide behind outsider-only checks.
