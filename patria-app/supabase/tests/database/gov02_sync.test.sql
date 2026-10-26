@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(31);
+SELECT plan(40);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -445,51 +445,157 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
--- Notes and tasks must insert (shared guard must not read agenda-only columns).
-SELECT tests_jwt('a0111111-1111-1111-1111-111111111111');
+-- Positive writes: lives_ok so a shared-trigger 42703 fails this file loudly
+-- (outsider denials alone used to pass while every notes/tasks insert broke).
+RESET ROLE;
+CREATE TEMP TABLE sync_ids AS
+SELECT
+  (SELECT space FROM fx) AS space_id,
+  (
+    SELECT m.id
+    FROM public.sync_meetings AS m
+    WHERE m.family_space_id = (SELECT space FROM fx)
+      AND m.status = 'upcoming'
+    ORDER BY m.scheduled_for DESC
+    LIMIT 1
+  ) AS meeting_id;
+GRANT SELECT ON TABLE sync_ids TO authenticated, anon;
+
+SELECT tests_jwt('a0222222-2222-2222-2222-222222222222');
 SET LOCAL ROLE authenticated;
-INSERT INTO public.sync_notes (family_space_id, meeting_id, step, body, updated_by)
-SELECT
-  (SELECT space FROM fx),
-  m.id,
-  'wins',
-  'Hike felt great',
-  'a0111111-1111-1111-1111-111111111111'::uuid
-FROM public.sync_meetings AS m
-WHERE m.family_space_id = (SELECT space FROM fx)
-  AND m.status = 'upcoming';
-INSERT INTO public.sync_tasks (
-  family_space_id, meeting_id, title, owner_user_id
-)
-SELECT
-  (SELECT space FROM fx),
-  m.id,
-  'Pack kit bags',
-  'a0111111-1111-1111-1111-111111111111'::uuid
-FROM public.sync_meetings AS m
-WHERE m.family_space_id = (SELECT space FROM fx)
-  AND m.status = 'upcoming';
+SELECT lives_ok(
+  format(
+    $sql$
+      INSERT INTO public.sync_agenda_items (
+        family_space_id, meeting_id, kind, title, author_user_id
+      ) VALUES (
+        %L::uuid, %L::uuid, 'discuss', 'Member carpool',
+        'a0222222-2222-2222-2222-222222222222'::uuid
+      )
+    $sql$,
+    (SELECT space_id FROM sync_ids),
+    (SELECT meeting_id FROM sync_ids)
+  ),
+  'circle member can insert an agenda item for their meeting'
+);
 RESET ROLE;
 
 SELECT ok(
-  EXISTS (SELECT 1 FROM public.sync_notes WHERE body = 'Hike felt great'),
-  'admin can write a sync note during a meeting'
+  EXISTS (SELECT 1 FROM public.sync_agenda_items WHERE title = 'Member carpool'),
+  'member agenda item is stored'
+);
+
+SELECT tests_jwt('a0111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  format(
+    $sql$
+      INSERT INTO public.sync_notes (
+        family_space_id, meeting_id, step, body, updated_by
+      ) VALUES (
+        %L::uuid, %L::uuid, 'wins', 'Hike felt great',
+        'a0111111-1111-1111-1111-111111111111'::uuid
+      )
+    $sql$,
+    (SELECT space_id FROM sync_ids),
+    (SELECT meeting_id FROM sync_ids)
+  ),
+  'admin can insert a sync note (guard must not read agenda-only columns)'
+);
+SELECT lives_ok(
+  format(
+    $sql$
+      INSERT INTO public.sync_tasks (
+        family_space_id, meeting_id, title, owner_user_id
+      ) VALUES (
+        %L::uuid, %L::uuid, 'Pack kit bags',
+        'a0111111-1111-1111-1111-111111111111'::uuid
+      )
+    $sql$,
+    (SELECT space_id FROM sync_ids),
+    (SELECT meeting_id FROM sync_ids)
+  ),
+  'admin can insert a sync task with an owner (guard must not read agenda-only columns)'
+);
+SELECT lives_ok(
+  format(
+    $sql$
+      UPDATE public.sync_notes
+      SET body = 'Hike felt great again', updated_at = now()
+      WHERE meeting_id = %L::uuid AND step = 'wins'
+    $sql$,
+    (SELECT meeting_id FROM sync_ids)
+  ),
+  'admin can update a sync note'
+);
+SELECT is(
+  (SELECT count(*)::int FROM public.sync_schedules WHERE family_space_id = (SELECT space_id FROM sync_ids)),
+  1,
+  'admin can read the sync schedule for their space'
+);
+RESET ROLE;
+
+SELECT ok(
+  EXISTS (SELECT 1 FROM public.sync_notes WHERE body = 'Hike felt great again'),
+  'updated sync note is stored'
 );
 SELECT ok(
   EXISTS (SELECT 1 FROM public.sync_tasks WHERE title = 'Pack kit bags'),
-  'admin can add a sync task with an owner'
+  'sync task is stored'
 );
 
 SELECT tests_jwt('a0222222-2222-2222-2222-222222222222');
 SET LOCAL ROLE authenticated;
 SELECT ok(
-  EXISTS (SELECT 1 FROM public.sync_notes WHERE body = 'Hike felt great'),
+  EXISTS (SELECT 1 FROM public.sync_notes WHERE body = 'Hike felt great again'),
   'circle member can read sync notes via can_view_sync'
 );
 SELECT is(
   (SELECT count(*)::int FROM public.sync_tasks WHERE title = 'Pack kit bags'),
   1,
   'circle member can read sync tasks via can_view_sync'
+);
+SELECT ok(
+  (SELECT count(*)::int FROM public.sync_meetings) >= 1,
+  'circle member can read sync meetings for their circle'
+);
+RESET ROLE;
+
+SELECT tests_jwt('a0444444-4444-4444-4444-444444444444');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  format(
+    $sql$
+      INSERT INTO public.sync_notes (
+        family_space_id, meeting_id, step, body, updated_by
+      ) VALUES (
+        %L::uuid, %L::uuid, 'gratitude', 'Nope',
+        'a0444444-4444-4444-4444-444444444444'::uuid
+      )
+    $sql$,
+    (SELECT space_id FROM sync_ids),
+    (SELECT meeting_id FROM sync_ids)
+  ),
+  '42501',
+  NULL,
+  'outsider cannot insert sync notes'
+);
+SELECT throws_ok(
+  format(
+    $sql$
+      INSERT INTO public.sync_tasks (
+        family_space_id, meeting_id, title, owner_user_id
+      ) VALUES (
+        %L::uuid, %L::uuid, 'Stolen task',
+        'a0444444-4444-4444-4444-444444444444'::uuid
+      )
+    $sql$,
+    (SELECT space_id FROM sync_ids),
+    (SELECT meeting_id FROM sync_ids)
+  ),
+  '42501',
+  NULL,
+  'outsider cannot insert sync tasks'
 );
 RESET ROLE;
 

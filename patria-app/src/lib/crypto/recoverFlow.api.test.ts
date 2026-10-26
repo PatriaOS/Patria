@@ -12,7 +12,7 @@ jest.mock('../supabase', () => ({
 import { secretsEqual, wipe } from './bytes';
 import { fromPgBytea, toPgBytea } from './pgBytea';
 import { generatePrintedCode } from './printedCode';
-import { randomKey32 } from './random';
+import { randomKey32, randomUuid } from './random';
 import { createRecoveryBoxes } from './recovery';
 import {
   approveRecoveryAsContact,
@@ -302,9 +302,9 @@ describe('lost-phone recovery local Supabase API', () => {
       const oldDevice = generateDeviceKeyPair();
       const newDevice = generateDeviceKeyPair();
       const elderDevice = generateDeviceKeyPair();
-      const oldDeviceId = globalThis.crypto.randomUUID();
-      const newDeviceId = globalThis.crypto.randomUUID();
-      const elderDeviceId = globalThis.crypto.randomUUID();
+      const oldDeviceId = randomUuid();
+      const newDeviceId = randomUuid();
+      const elderDeviceId = randomUuid();
       const familyKey = randomKey32();
       const recoveryPair = generateDeviceKeyPair();
       const aadAdmin: MemberWrapAad = {

@@ -4,7 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { secretsEqual, wipe } from './bytes';
 import { toPgBytea } from './pgBytea';
 import { createRecoveryBoxes, openWithHolders } from './recovery';
-import { randomKey32 } from './random';
+import { randomKey32, randomUuid } from './random';
 import { generatePrintedCode } from './printedCode';
 import { wrapKeyToDevice, type MemberWrapAad } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
@@ -114,9 +114,9 @@ describe('recovery setup local Supabase API', () => {
       const adminDevice = generateDeviceKeyPair();
       const elderDevice = generateDeviceKeyPair();
       const coDevice = generateDeviceKeyPair();
-      const adminDeviceId = globalThis.crypto.randomUUID();
-      const elderDeviceId = globalThis.crypto.randomUUID();
-      const coDeviceId = globalThis.crypto.randomUUID();
+      const adminDeviceId = randomUuid();
+      const elderDeviceId = randomUuid();
+      const coDeviceId = randomUuid();
       const familyKey = randomKey32();
       const recoveryKey = randomKey32();
       const aadAdmin: MemberWrapAad = {

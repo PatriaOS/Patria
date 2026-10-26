@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { toPgBytea } from '../../lib/crypto/pgBytea';
+import { randomUuid } from '../../lib/crypto/random';
 
 const LOCAL_URL = 'http://127.0.0.1:54321';
 const LOCAL_ANON =
@@ -84,7 +85,7 @@ describe('vault voice upload local API', () => {
         throw space.error ?? new Error('create_family_space failed');
       }
       const spaceId = String(space.data);
-      const deviceId = globalThis.crypto.randomUUID();
+      const deviceId = randomUuid();
       const ceremony = await admin.rpc('commit_family_key_ceremony', {
         p_space_id: spaceId,
         p_device_id: deviceId,
@@ -133,8 +134,8 @@ describe('vault voice upload local API', () => {
         throw pub.error;
       }
 
-      const entryId = globalThis.crypto.randomUUID();
-      const audioId = globalThis.crypto.randomUUID();
+      const entryId = randomUuid();
+      const audioId = randomUuid();
       const path = `${spaceId}/${entryId}/${audioId}`;
       const body = hex(256 * 1024 + 16, 3).buffer;
       const upserted = await admin.storage.from('vault').upload(path, body, {
