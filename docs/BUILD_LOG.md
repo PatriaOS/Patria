@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Sync 38 step 7 missed a11y exact match
+
+PHASE=missed already showed the no-guilt copy and Hold it now; Maestro failed because assertVisible used a prefix of missedNoGuilt and iOS matches a11y text exactly. Flow now asserts `sync-missed`, the full copy string, and that Hold it now opens Wins. Seed SQL that pushes upcoming `scheduled_for` into the past was already correct.
+
+---
+
 ## 2026-10-26 — Sync 38: task save race; next meeting after finish
 
 Phone test 38 still failed at e2e step 1 (whole PHASE=run). Continue did open Wins; the miss was wrap-up: Maestro waited for "Pack kit bags" while it was still the task field text, then Finish ran with no insert (empty Tasks). Flow now clears the field before asserting the saved row; Add defaults the owner and uses an op lock so Finish cannot race. finish/ensure_next no longer treat a finished meeting’s scheduled_for as the next upcoming (client passes after the finished slot; SQL skips finished conflicts and advances a week).

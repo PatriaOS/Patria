@@ -16,10 +16,20 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 20000
-      - assertVisible: "The time has passed, and that’s fine."
+      - assertVisible:
+          id: "sync-missed"
+      # Full copy.sync.missedNoGuilt — Maestro matches a11y text exactly, not a prefix.
+      - assertVisible: "The time has passed, and that’s fine. You can hold it now, or wait for the next date."
       - assertVisible:
           id: "hold-it-now"
       - assertNotVisible: "You missed"
+      - tapOn:
+          id: "hold-it-now"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - assertVisible: "Wins"
 - runFlow:
     when:
       true: ${PHASE == null || PHASE == '' || PHASE == 'run'}

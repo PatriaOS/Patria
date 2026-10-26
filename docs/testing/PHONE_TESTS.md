@@ -338,7 +338,7 @@ Areas: sync
 4. Tap **Next**. Pass if you can write **One priority for the week** and add a task with an owner.
 5. Tap **Add a task**, then **Finish the Sync**. Pass if you return to Sync and the next meeting is a week away.
 6. Open **Tasks**. Pass if the task you added is listed and you can mark it done.
-7. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding.
+7. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding. Tap **Hold it now**. Pass if the **Wins** step opens.
 
 ### 39. A second phone follows along (read only)
 Areas: sync

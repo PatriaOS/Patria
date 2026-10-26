@@ -281,7 +281,13 @@ export function SyncHubView(props: SyncHubViewProps) {
 
       {!props.runnerName && props.missed ? (
         <>
-          <Body tone="muted">{copy.sync.missedNoGuilt}</Body>
+          <Body
+            tone="muted"
+            testID="sync-missed"
+            accessibilityLabel={copy.sync.missedNoGuilt}
+          >
+            {copy.sync.missedNoGuilt}
+          </Body>
           {props.admin ? (
             <>
               <Button

@@ -131,6 +131,7 @@ describe('Sync tab', () => {
     ]);
     const { findByText, getByTestId, queryByTestId } = await renderScreen(<SyncScreen />);
     expect(await findByText(copy.sync.missedNoGuilt)).toBeTruthy();
+    expect(getByTestId('sync-missed')).toBeTruthy();
     expect(getByTestId('hold-it-now')).toBeTruthy();
     expect(queryByTestId('continue')).toBeNull();
   });
