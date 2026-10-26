@@ -159,7 +159,11 @@ export function RunSyncScreen() {
       <Screen
         {...screenProps}
         refreshing={agendaQuery.isRefetching || notesQuery.isRefetching}
-        onRefresh={sync.refresh}
+        onRefresh={() => {
+          sync.refresh();
+          void agendaQuery.refetch();
+          void notesQuery.refetch();
+        }}
       >
         <Banner message={fillTemplate(copy.sync.runningOn, { name: runner })} />
         <Caption>{fillTemplate(copy.sync.followingAlong, { name: runner })}</Caption>
@@ -214,6 +218,10 @@ export function RunSyncScreen() {
     if (!parsed.success) {
       const titleBad = parsed.error.issues.some((issue) => issue.path[0] === 'title');
       setTaskError(titleBad ? copy.sync.itemTitleError : copy.sync.dueError);
+      return Promise.resolve();
+    }
+    if (!owner) {
+      setTaskError(copy.sync.ownerError);
       return Promise.resolve();
     }
     if (!spaceId) {

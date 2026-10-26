@@ -80,9 +80,12 @@ appId: app.patria.dev
       - tapOn:
           id: "notes"
       - inputText: "Hike felt great"
-      - tapOn: "Wins"
+      - hideKeyboard
       - tapOn:
           id: "next"
+      - extendedWaitUntil:
+          visible: "Look ahead"
+          timeout: 15000
 - runFlow:
     when:
       true: ${PHASE == 'see_note'}
@@ -102,6 +105,9 @@ appId: app.patria.dev
             id: "screen-sync-run"
           timeout: 20000
       - swipe:
-          start: 50%, 25%
-          end: 50%, 80%
-      - assertVisible: "Hike felt great"
+          start: 50%, 15%
+          end: 50%, 75%
+      - extendedWaitUntil:
+          visible: "Hike felt great"
+          timeout: 20000
+

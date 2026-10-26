@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { copy } from '../../lib/copy';
+import { testIdFromLabel } from '../../lib/testId';
 import { ChoiceChip, Small } from '../../ui';
 import { space } from '../../theme/tokens';
 import type { PersonLookup } from './syncLabels';
@@ -47,6 +48,7 @@ export function PersonChips({ label, options, value, onChange }: Props) {
           <ChoiceChip
             key={option.key}
             label={option.label}
+            testID={`${testIdFromLabel(label)}-${testIdFromLabel(option.label)}`}
             accessibilityLabel={`${label}: ${option.label}`}
             selected={value === option.key}
             onPress={() => onChange(option.key)}

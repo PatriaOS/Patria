@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Sync e2e 37/38/39/42: guard trigger, owners, seed role
+
+Rerun of 36–42: agenda save and Sync tasks/notes failed on device. Root cause for notes and tasks was the shared `trg_sync_guard_family_links` reading `NEW.attributed_child_id` on every table — Postgres raises 42703 on `sync_notes` / `sync_tasks` even when the `TG_TABLE_NAME` check is false. Nested IFs only; RLS `can_view_sync` for circle members was already correct. Agenda/task client IDs now use `randomUuid()` (same as vault). Run Sync requires an owner before insert (DB xor + phone test 38); Maestro picks `owner-test-1`. Test 42 On this day seed used `m.role = 'admin'`; space_role is `family_admin`. Follow-along pull-to-refresh refetches notes immediately.
+
+---
+
 ## 2026-10-25 — Sync e2e failures: app a11y, reporter, second phone
 
 Maestro 36–42 failures on device: Tonight's flow step titles were swallowed by a parent `accessible` node (`1. Wins` only), the hub **Add to the agenda** button overrode its label-derived id with `add-to-agenda`, and Past meetings kept **Summary** in one concatenated string so `assertVisible: "Summary"` could not match. Fixed those in the app; 38 dismisses the keyboard by tapping a static label; 42 cancels Add before tapping Home. Runner now fails the step that broke and marks later PHONE_TESTS steps **not reached**. Device B covers Test 2 Sync steps; SQL seeds cover missed meetings, no-schedule Home, and On this day.

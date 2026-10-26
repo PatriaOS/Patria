@@ -156,13 +156,14 @@ export function AddAgendaScreen() {
             attributedChildId: admin ? input.attributedChildId : null,
           });
         }
-        finish();
       } catch (caught) {
         logFailedAction(caught);
         setFormError(copy.sync.saveFailed);
-      } finally {
         setSaving(false);
+        return;
       }
+      setSaving(false);
+      finish();
     },
     () => setFormError(null),
   );

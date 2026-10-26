@@ -33,6 +33,7 @@ appId: app.patria.dev
       - assertVisible: "Looks ahead together"
       - tapOn:
           id: "title"
+      - eraseText: 40
       - inputText: "Soccer carpool"
       - hideKeyboard
       - scrollUntilVisible:
@@ -46,6 +47,7 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
+      - assertNotVisible: "We couldn’t save that"
       - assertVisible: "Soccer carpool"
 - runFlow:
     when:

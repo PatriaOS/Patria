@@ -2038,7 +2038,7 @@ try {
            JOIN public.circles AS c
              ON c.family_space_id = s.id AND c.kind = 'household'
            JOIN public.space_members AS m
-             ON m.family_space_id = s.id AND m.role = 'admin'
+             ON m.family_space_id = s.id AND m.role = 'family_admin'
            WHERE s.id = '${spaceId}'
            LIMIT 1;`,
         );

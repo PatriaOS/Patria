@@ -134,11 +134,15 @@ BEGIN
     END IF;
   END IF;
 
-  IF TG_TABLE_NAME = 'sync_agenda_items' AND NEW.attributed_child_id IS NOT NULL THEN
-    SELECT cp.family_space_id INTO child_space
-    FROM public.child_profiles AS cp WHERE cp.id = NEW.attributed_child_id;
-    IF child_space IS DISTINCT FROM NEW.family_space_id THEN
-      RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+  -- Nested IFs only: NEW fields must match this trigger's table. A shared
+  -- `AND NEW.attributed_child_id` on notes/tasks raises 42703 (no such field).
+  IF TG_TABLE_NAME = 'sync_agenda_items' THEN
+    IF NEW.attributed_child_id IS NOT NULL THEN
+      SELECT cp.family_space_id INTO child_space
+      FROM public.child_profiles AS cp WHERE cp.id = NEW.attributed_child_id;
+      IF child_space IS DISTINCT FROM NEW.family_space_id THEN
+        RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
+      END IF;
     END IF;
   END IF;
 

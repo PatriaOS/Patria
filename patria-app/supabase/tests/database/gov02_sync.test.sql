@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(27);
+SELECT plan(31);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -442,6 +442,54 @@ SELECT throws_ok(
   '42501',
   'Not allowed',
   'attributed child from another family is refused'
+);
+RESET ROLE;
+
+-- Notes and tasks must insert (shared guard must not read agenda-only columns).
+SELECT tests_jwt('a0111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+INSERT INTO public.sync_notes (family_space_id, meeting_id, step, body, updated_by)
+SELECT
+  (SELECT space FROM fx),
+  m.id,
+  'wins',
+  'Hike felt great',
+  'a0111111-1111-1111-1111-111111111111'::uuid
+FROM public.sync_meetings AS m
+WHERE m.family_space_id = (SELECT space FROM fx)
+  AND m.status = 'upcoming';
+INSERT INTO public.sync_tasks (
+  family_space_id, meeting_id, title, owner_user_id
+)
+SELECT
+  (SELECT space FROM fx),
+  m.id,
+  'Pack kit bags',
+  'a0111111-1111-1111-1111-111111111111'::uuid
+FROM public.sync_meetings AS m
+WHERE m.family_space_id = (SELECT space FROM fx)
+  AND m.status = 'upcoming';
+RESET ROLE;
+
+SELECT ok(
+  EXISTS (SELECT 1 FROM public.sync_notes WHERE body = 'Hike felt great'),
+  'admin can write a sync note during a meeting'
+);
+SELECT ok(
+  EXISTS (SELECT 1 FROM public.sync_tasks WHERE title = 'Pack kit bags'),
+  'admin can add a sync task with an owner'
+);
+
+SELECT tests_jwt('a0222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT ok(
+  EXISTS (SELECT 1 FROM public.sync_notes WHERE body = 'Hike felt great'),
+  'circle member can read sync notes via can_view_sync'
+);
+SELECT is(
+  (SELECT count(*)::int FROM public.sync_tasks WHERE title = 'Pack kit bags'),
+  1,
+  'circle member can read sync tasks via can_view_sync'
 );
 RESET ROLE;
 

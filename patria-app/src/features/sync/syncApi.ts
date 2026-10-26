@@ -1,3 +1,4 @@
+import { randomUuid } from '../../lib/crypto/random';
 import { supabase } from '../../lib/supabase';
 import type { SyncAgendaKind, SyncStep } from './syncSchedule';
 
@@ -280,7 +281,7 @@ export async function insertAgendaItem(input: {
   authorUserId: string;
   attributedChildId?: string | null;
 }): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = randomUuid();
   const { error } = await supabase.from('sync_agenda_items').insert({
     id,
     family_space_id: input.spaceId,
@@ -376,7 +377,7 @@ export async function insertSyncTask(input: {
   backupChildId?: string | null;
   dueOn?: string | null;
 }): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = randomUuid();
   const { error } = await supabase.from('sync_tasks').insert({
     id,
     family_space_id: input.spaceId,

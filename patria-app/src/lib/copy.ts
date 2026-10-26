@@ -517,6 +517,7 @@ export const copy = {
     dueLabel: 'Due',
     dueHint: 'Optional. Use year-month-day, like 2026-11-02.',
     dueError: 'Use year-month-day, like 2026-11-02.',
+    ownerError: 'Choose who owns this task.',
     summary: 'Summary',
     summaryLine: '{discussed} of {total} items discussed',
     pastMeetings: 'Past meetings',

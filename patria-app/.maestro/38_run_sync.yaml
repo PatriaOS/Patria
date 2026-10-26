@@ -86,6 +86,8 @@ appId: app.patria.dev
       - inputText: "Pack kit bags"
       - tapOn: "One priority for the week"
       - tapOn:
+          id: "owner-test-1"
+      - tapOn:
           id: "add-a-task"
       - scrollUntilVisible:
           element:
