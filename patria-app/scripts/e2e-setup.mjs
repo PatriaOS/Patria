@@ -313,6 +313,75 @@ if (
   );
 }
 
+const syncNeedsSchedule = [37, 38, 39, 40, 42].includes(testNumber);
+const syncNeedsAgenda = [38, 39].includes(testNumber);
+const syncNeedsFinished = testNumber === 40;
+if (syncNeedsSchedule) {
+  const scheduledFor = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+  const meetingId = await asUser(adminSession.accessToken, 'POST', '/rest/v1/rpc/upsert_sync_schedule', {
+    p_space_id: spaceId,
+    p_weekday: 0,
+    p_local_time: '19:00:00',
+    p_timezone: 'America/Chicago',
+    p_circle_id: householdId,
+    p_next_scheduled_for: scheduledFor,
+  });
+  if (!meetingId) {
+    throw new Error('upsert_sync_schedule did not return a meeting id.');
+  }
+  if (syncNeedsAgenda) {
+    await asUser(adminSession.accessToken, 'POST', '/rest/v1/sync_agenda_items', [
+      {
+        family_space_id: spaceId,
+        meeting_id: meetingId,
+        kind: 'win',
+        title: 'Family hike',
+        details: '',
+        author_user_id: adminSession.userId,
+      },
+      {
+        family_space_id: spaceId,
+        meeting_id: meetingId,
+        kind: 'decide',
+        title: 'Carpool plan',
+        details: '',
+        author_user_id: adminSession.userId,
+      },
+    ]);
+  }
+  if (syncNeedsFinished) {
+    const pastFor = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    sql(
+      dbUrl,
+      `WITH meeting AS (
+         INSERT INTO public.sync_meetings (
+           family_space_id, circle_id, scheduled_for, status,
+           started_by, started_at, finished_at, priority_text, summary
+         ) VALUES (
+           '${spaceId}',
+           '${householdId}',
+           '${pastFor}',
+           'finished',
+           '${adminSession.userId}',
+           now() - interval '40 minutes',
+           now() - interval '10 minutes',
+           'Practice together',
+           '{"discussed":1,"total":2,"decisions":[{"title":"Carpool plan","decision":"Share the drive"}]}'::jsonb
+         )
+         RETURNING id
+       )
+       INSERT INTO public.sync_agenda_items (
+         family_space_id, meeting_id, kind, title, details, author_user_id,
+         discussed_at, decision_text
+       )
+       SELECT
+         '${spaceId}', id, 'decide', 'Carpool plan', '',
+         '${adminSession.userId}', now() - interval '20 minutes', 'Share the drive'
+       FROM meeting;`,
+    );
+  }
+}
+
 // Let-in wraps cannot be seeded here: they are sealed to the phone's device
 // public key after that phone opens Home. e2e.mjs does that through the app.
 

@@ -1,6 +1,6 @@
 # PHONE_TESTS: 38
 # AREAS: sync
-# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 38; not yet run on a phone.
+# Needs a Sync schedule plus Win and Decide agenda items (e2e-setup).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -30,18 +30,43 @@ appId: app.patria.dev
       id: "screen-sync-run"
     timeout: 20000
 - assertVisible: "Wins"
+- runFlow:
+    when:
+      visible: "Mark discussed"
+    commands:
+      - tapOn: "Mark discussed"
 - tapOn:
     id: "next"
 - assertVisible: "Look ahead"
 - tapOn:
     id: "next"
 - assertVisible: "Decide"
+- runFlow:
+    when:
+      visible: "Mark discussed"
+    commands:
+      - tapOn:
+          id: "what-did-we-decide"
+          optional: true
+      - inputText: "We will share the drive"
+      - hideKeyboard
+      - tapOn: "Mark discussed"
 - tapOn:
     id: "next"
 - assertVisible: "Gratitude"
 - tapOn:
     id: "next"
 - assertVisible: "One priority for the week"
+- tapOn:
+    id: "one-priority-for-the-week"
+- inputText: "Get everyone to practice"
+- hideKeyboard
+- tapOn:
+    id: "task"
+- inputText: "Pack kit bags"
+- hideKeyboard
+- tapOn:
+    id: "add-a-task"
 - scrollUntilVisible:
     element:
       id: "finish-the-sync"
@@ -53,3 +78,15 @@ appId: app.patria.dev
     visible:
       id: "screen-sync"
     timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "tasks"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "tasks"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-tasks"
+    timeout: 15000
+- assertVisible: "Pack kit bags"

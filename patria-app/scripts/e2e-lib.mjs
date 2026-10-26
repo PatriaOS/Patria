@@ -9,10 +9,52 @@ export const PHONE_TESTS = join(REPO_ROOT, 'docs', 'testing', 'PHONE_TESTS.md');
 export const MAESTRO_DIR = join(APP_ROOT, '.maestro');
 export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
+export const TEST_11_TIMEOUT_MS = 15 * 60 * 1000;
 export const TEST_12_TIMEOUT_MS = 20 * 60 * 1000;
 
 export function timeoutMsForTest(testNumber) {
-  return testNumber === 12 ? TEST_12_TIMEOUT_MS : TEST_TIMEOUT_MS;
+  if (testNumber === 11) {
+    // Test 11 chains many Maestro sign-ins (admin + two elders as contacts, then
+    // Elder Test 2 sets up recovery). Ten minutes kills the final accept mid-swipe.
+    return TEST_11_TIMEOUT_MS;
+  }
+  if (testNumber === 12) {
+    return TEST_12_TIMEOUT_MS;
+  }
+  return TEST_TIMEOUT_MS;
+}
+
+/** Numbers with `if (test.number === N)` runners in e2e.mjs. */
+export function runnerNumbersFromSource(source) {
+  const numbers = new Set();
+  for (const match of source.matchAll(/if\s*\(\s*test\.number\s*===\s*(\d+)\s*\)/g)) {
+    numbers.add(Number(match[1]));
+  }
+  return numbers;
+}
+
+/**
+ * Every non-manual phone test must have a Maestro flow and an e2e.mjs runner.
+ * Returns human-readable error strings (empty when coverage is complete).
+ */
+export function phoneCoverageErrors({ tests, flowNumbers, runnerNumbers }) {
+  const errors = [];
+  for (const test of tests) {
+    if (test.manual) {
+      continue;
+    }
+    if (!flowNumbers.has(test.number)) {
+      errors.push(
+        `PHONE_TESTS.md test ${test.number} ("${test.title}") has no Maestro flow and is not marked (manual).`,
+      );
+    }
+    if (!runnerNumbers.has(test.number)) {
+      errors.push(
+        `PHONE_TESTS.md test ${test.number} ("${test.title}") has no runner in scripts/e2e.mjs (look for if (test.number === ${test.number})).`,
+      );
+    }
+  }
+  return errors;
 }
 export const APP_BUNDLE_ID = 'app.patria.dev';
 export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
@@ -37,6 +79,17 @@ export function scenarioForTest(testNumber) {
     return 'admin-elder-teen';
   }
   if (testNumber === 29 || testNumber === 35) {
+    return 'admin-elder';
+  }
+  if (
+    testNumber === 36 ||
+    testNumber === 37 ||
+    testNumber === 38 ||
+    testNumber === 39 ||
+    testNumber === 40 ||
+    testNumber === 41 ||
+    testNumber === 42
+  ) {
     return 'admin-elder';
   }
   return 'admin';
@@ -503,7 +556,7 @@ export function mapFileToAreas(file) {
     areas.add('keys');
   }
   if (
-    /patria-app\/src\/features\/sync|patria-app\/app\/\(signed-in\)\/(\(tabs\)\/)?sync|gov02|weekly_family_sync|3[6-9]_sync|4[01]_sync/.test(
+    /patria-app\/src\/features\/sync|patria-app\/src\/features\/family\/(HomeToday|HomeSyncCard|OnThisDay|ThisWeek)|patria-app\/app\/\(signed-in\)\/(\(tabs\)\/)?(sync|index)|gov02|weekly_family_sync|3[6-9]_|4[0-2]_/.test(
       n,
     )
   ) {

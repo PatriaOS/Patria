@@ -1,7 +1,7 @@
 # PHONE_TESTS: 39
 # AREAS: sync
-# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 39. This covers the first phone only
-# (start the Sync and see it running); the second phone steps are (manual).
+# Covers starting the Sync on device A. Second-phone steps stay (manual).
+# Needs a Sync schedule (e2e-setup).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -12,6 +12,13 @@ appId: app.patria.dev
     visible:
       id: "screen-sync"
     timeout: 20000
+- runFlow:
+    when:
+      visible:
+        id: "hold-it-now"
+    commands:
+      - tapOn:
+          id: "hold-it-now"
 - runFlow:
     when:
       visible:

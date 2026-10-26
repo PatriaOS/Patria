@@ -1,6 +1,5 @@
 # PHONE_TESTS: 41
 # AREAS: sync, navigation
-# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 41; not yet run on a phone.
 appId: app.patria.dev
 ---
 - runFlow:
@@ -34,3 +33,4 @@ appId: app.patria.dev
     visible:
       id: "screen-sync"
     timeout: 15000
+- assertVisible: "Family Sync"

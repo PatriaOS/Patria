@@ -22,6 +22,7 @@ import {
   parsePhoneTests,
   passwordFor,
   publicExpoEnv,
+  runnerNumbersFromSource,
   selectAffectedPhoneTests,
   SMOKE_TEST_NUMBERS,
   supabaseUrlFromEnv,
@@ -346,6 +347,7 @@ try {
 }
 
 const tests = parsePhoneTests(readFileSync(PHONE_TESTS, 'utf8'));
+const runnerNumbers = runnerNumbersFromSource(readFileSync(join(APP_ROOT, 'scripts', 'e2e.mjs'), 'utf8'));
 let selected = tests;
 if (args.test) {
   selected = tests.filter((test) => test.number === args.test);
@@ -581,12 +583,13 @@ function seedLetIn(memberN, device) {
 }
 
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 12, 13, 26, 28, 30, 31, 32, 33, 34, 35].includes(testNumber)) {
+  if (![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35].includes(testNumber)) {
     return;
   }
   seedAdminKeys();
   if (
     testNumber === 26 ||
+    testNumber === 27 ||
     testNumber === 28 ||
     testNumber === 31 ||
     testNumber === 32 ||
@@ -766,7 +769,7 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 12, 13, 26, 28, 30, 31, 32, 33, 34, 35].includes(test.number)) {
+    if ([9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35].includes(test.number)) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
@@ -777,6 +780,15 @@ try {
       }
     }
     testDeadline = Date.now() + timeoutMsForTest(test.number);
+
+    if (!test.manual && !runnerNumbers.has(test.number)) {
+      step(test.number, 1, 'Runner wired in e2e.mjs', () => {
+        throw new Error(
+          `phone test ${test.number} ("${test.title}") has no if (test.number === ${test.number}) runner in scripts/e2e.mjs`,
+        );
+      });
+      continue;
+    }
 
     if (test.number === 1) {
       step(1, 1, 'Sign in as Test 1, land on Home', () => {
@@ -1176,7 +1188,7 @@ try {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators so Test 2 can set up recovery');
         }
-        signInOnDevice(2, deviceB);
+        // open_card / pick_contact / accept_contact each sign in; skip extra sign-ins.
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceB,
@@ -1197,7 +1209,6 @@ try {
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'accept_contact', E2E_STAY: '1' },
         });
-        signInOnDevice(2, deviceB);
       });
       continue;
     }
@@ -1776,6 +1787,136 @@ try {
       );
       step(35, 3, 'Test 2 private rows and personal keys are gone', () =>
         result('skip', 'manual: inspect the database after Test 2 leaves'),
+      );
+    }
+
+    if (test.number === 36) {
+      step(36, 1, 'Sync tab shows Set up our Sync', () => {
+        maestro({
+          flow: flow('36_set_up_sync.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'set_up' },
+        });
+      });
+      step(36, 2, 'Schedule fields: day, time, zone, circle', () => result('pass'));
+      step(36, 3, 'Save schedule returns to Sync hub', () => result('pass'));
+      step(36, 4, 'Non-admin sees schedule without Schedule button', () =>
+        result('skip', 'manual: Test 2 on another phone'),
+      );
+      step(36, 5, 'Non-admin with no schedule sees ask-admin copy', () =>
+        result('skip', 'manual: family with no schedule yet'),
+      );
+    }
+
+    if (test.number === 37) {
+      step(37, 1, 'Add to the agenda kinds and placement line', () => {
+        maestro({
+          flow: flow('37_add_agenda.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'add' },
+        });
+      });
+      step(37, 2, 'Discuss item appears on the agenda', () => result('pass'));
+      step(37, 3, 'Edit agenda title and save', () => {
+        maestro({
+          flow: flow('37_add_agenda.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
+        });
+      });
+      step(37, 4, 'Test 2 Win shows for Test 1 after refresh', () =>
+        result('skip', 'manual: second account on another phone'),
+      );
+    }
+
+    if (test.number === 38) {
+      step(38, 1, 'Continue opens Wins', () => {
+        maestro({
+          flow: flow('38_run_sync.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(38, 2, 'Look ahead after Wins', () => result('pass'));
+      step(38, 3, 'Decide then Gratitude', () => result('pass'));
+      step(38, 4, 'Priority and a task', () => result('pass'));
+      step(38, 5, 'Finish returns to Sync', () => result('pass'));
+      step(38, 6, 'Tasks list shows the new task', () => result('pass'));
+      step(38, 7, 'Missed meeting offers Hold it now without guilt', () =>
+        result('skip', 'manual: needs a meeting time already past'),
+      );
+    }
+
+    if (test.number === 39) {
+      step(39, 1, 'Test 1 starts the Sync', () => {
+        maestro({
+          flow: flow('39_follow_along.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(39, 2, 'Test 2 sees Follow along, no Continue', () =>
+        result('skip', 'manual: second phone as Test 2'),
+      );
+      step(39, 3, 'Follow along is read only', () =>
+        result('skip', 'manual: second phone as Test 2'),
+      );
+      step(39, 4, 'Notes appear on the second phone after refresh', () =>
+        result('skip', 'manual: second phone as Test 2'),
+      );
+    }
+
+    if (test.number === 40) {
+      step(40, 1, 'Past meetings lists the finished Sync', () => {
+        maestro({
+          flow: flow('40_past_meetings.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(40, 2, 'Decision under that meeting', () => result('pass'));
+      step(40, 3, 'Empty past list copy', () =>
+        result('skip', 'manual: family with no finished Sync'),
+      );
+    }
+
+    if (test.number === 41) {
+      step(41, 1, 'Bottom bar includes Sync between Memories and Vault', () => {
+        maestro({
+          flow: flow('41_sync_tab.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(41, 2, 'Sync tab opens Family Sync', () => result('pass'));
+      step(41, 3, 'Sync is a root tab with no back arrow', () => result('pass'));
+      step(41, 4, 'Largest text scrolls on Sync', () =>
+        result('skip', 'manual judgement'),
+      );
+    }
+
+    if (test.number === 42) {
+      step(42, 1, 'Home greeting, family name and avatars', () => {
+        maestro({
+          flow: flow('42_home_today.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(42, 2, 'Sync card overline, title and actions', () => result('pass'));
+      step(42, 3, 'Review agenda and Add an item', () => result('pass'));
+      step(42, 4, 'No Recent memories or Home vault or keys pills', () => result('pass'));
+      step(42, 5, 'This week tasks', () => result('pass'));
+      step(42, 6, 'See all opens Sync tasks', () => result('pass'));
+      step(42, 7, 'Avatars open Family with keys status', () => result('pass'));
+      step(42, 8, 'No schedule card for admin vs member', () =>
+        result('skip', 'manual: family with no Sync schedule'),
+      );
+      step(42, 9, 'On this day card', () =>
+        result('skip', 'manual: needs a same-month-day memory from an earlier year'),
+      );
+      step(42, 10, 'Largest text scrolls on Home', () =>
+        result('skip', 'manual judgement'),
       );
     }
     } catch (error) {

@@ -1,45 +1,87 @@
 # PHONE_TESTS: 37
 # AREAS: sync
-# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 37; not yet run on a phone.
+# Needs a Sync schedule (e2e-setup seeds one for this test).
 appId: app.patria.dev
 ---
 - runFlow:
-    file: subflows/sign_in.yaml
-- tapOn:
-    id: "sync"
-- extendedWaitUntil:
-    visible:
-      id: "screen-sync"
-    timeout: 20000
-- scrollUntilVisible:
-    element:
-      id: "add-to-the-agenda"
-    direction: DOWN
-    timeout: 20000
-- tapOn:
-    id: "add-to-the-agenda"
-- extendedWaitUntil:
-    visible:
-      id: "screen-sync-agenda"
-    timeout: 15000
-- assertVisible:
-    id: "discuss"
-- tapOn:
-    id: "discuss"
-- assertVisible: "Shows up under Look ahead."
-- tapOn:
-    id: "title"
-- inputText: "Soccer carpool"
-- hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: "save"
-    direction: DOWN
-    timeout: 20000
-- tapOn:
-    id: "save"
-- extendedWaitUntil:
-    visible:
-      id: "screen-sync"
-    timeout: 30000
-- assertVisible: "Soccer carpool"
+    when:
+      true: ${PHASE == 'add'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "add-to-the-agenda"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "add-to-the-agenda"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-agenda"
+          timeout: 15000
+      - assertVisible:
+          id: "discuss"
+      - tapOn:
+          id: "discuss"
+      - assertVisible: "Looks ahead together"
+      - tapOn:
+          id: "title"
+      - inputText: "Soccer carpool"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "add-to-agenda"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "add-to-agenda"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+      - assertVisible: "Soccer carpool"
+- runFlow:
+    when:
+      true: ${PHASE == 'edit'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - scrollUntilVisible:
+          element: "Soccer carpool"
+          direction: DOWN
+          timeout: 20000
+      - tapOn: "Soccer carpool"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-agenda"
+          timeout: 15000
+      - tapOn:
+          id: "title"
+      - eraseText: 40
+      - inputText: "Updated carpool"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "save"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "save"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+      - assertVisible: "Updated carpool"

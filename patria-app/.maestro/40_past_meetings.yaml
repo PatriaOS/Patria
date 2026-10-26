@@ -1,6 +1,6 @@
 # PHONE_TESTS: 40
 # AREAS: sync
-# STUB (GOV02 slice 1): written from PHONE_TESTS.md test 40; not yet run on a phone.
+# Needs a finished Sync (e2e-setup).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -23,3 +23,4 @@ appId: app.patria.dev
       id: "screen-sync-past"
     timeout: 15000
 - assertVisible: "Summary"
+- assertVisible: "Practice together"

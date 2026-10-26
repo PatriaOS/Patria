@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-25 — e2e runners for Sync + coverage guards
+
+Phone tests 36–42 had Maestro YAML but no `e2e.mjs` runners, so `e2e:affected` reported PASSED after `clear_state` only. Wired runners and e2e-setup seeds (schedule / agenda / finished meeting). `e2e.mjs` now fails any selected non-manual test without a runner; `e2e:check` and a Jest test require every phone test to have both a flow and a runner (or be marked manual). Test 27 was missing from affected summaries because its Areas line was only `vault` while sibling LEG01 tests also list `keys` — when the diff hit keys/recovery/rotation without vault files, 26 and 28–35 matched and 27 did not. Added `keys` to test 27. Test 11 step 8 timed out twice: the failure screenshot showed Test 1’s accept card on screen, and the log stopped mid-swipe — spawnSync hit the 10 minute budget after many sign-ins, not a missed tap. Raised test 11 to 15 minutes and dropped redundant sign-ins in step 8. Docs: PRD/FEATURES version 1.4 notes for BRN02 email notifications + Add to agenda, and GOV02 next-slice frequency and invites.
+
+---
+
 ## 2026-10-25 — GOV02 Home Figma polish (D35)
 
 Home Today was brought closer to Figma: On this day uses an 88pt thumbnail (signed URL, or a clean soft placeholder); the Sync overline always uses `nextMeetingAt` with the real clock and family zone (Sunday before start → TONIGHT/TODAY, after → IN 7 DAYS); greeting is “Good evening,” plus “the Rivera family”; Sync body is a sentence with side-by-side compact buttons; This week uses first names and round checkboxes; AvatarStack is 32pt with an 8pt overlap, soft pastels in dark mode, and initials that do not clip. Tab screens drop the extra top padding band. Keys and recovery attention pills stay on Home when action is needed; full status lives on Family.

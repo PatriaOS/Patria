@@ -1,7 +1,6 @@
 # PHONE_TESTS: 42
 # AREAS: sync, navigation
-# STUB (GOV02 Home Today): written from PHONE_TESTS.md test 42; not yet run on a phone.
-# Needs a family with a Sync schedule (test 36) so the Sync card shows.
+# Needs a Sync schedule (e2e-setup) so the Sync card shows.
 appId: app.patria.dev
 ---
 - runFlow:

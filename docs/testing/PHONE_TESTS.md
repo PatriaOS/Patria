@@ -291,7 +291,7 @@ Areas: vault, keys
 3. Open it. Pass if the body you typed is there.
 
 ### 27. Teen can read, not write
-Areas: vault
+Areas: vault, keys
 1. Sign in as Test 3 (teen). Open **Vault**. Pass if **New decision** is not there.
 2. Pass if the vault still opens (empty, waiting for this phone, or a list).
 
