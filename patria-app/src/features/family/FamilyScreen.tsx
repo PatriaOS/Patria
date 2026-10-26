@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
+  Avatar,
   Body,
   Button,
   Card,
@@ -16,6 +17,8 @@ import {
 } from '../../ui';
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { copy } from '../../lib/copy';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchChildren, fetchMembers, fetchPendingInvites } from '../../lib/family';
 import { routes } from '../../lib/navigation';
@@ -24,13 +27,15 @@ import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
+import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
 
 export function FamilyScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
-  const { userId, spaceId, setSpaceId, membershipsQuery, current, admin } = useCurrentFamily();
+  const { userId, spaceId, setSpaceId, membershipsQuery, current, admin, keyHolder } =
+    useCurrentFamily();
   const [signingOut, setSigningOut] = useState(false);
 
   const membersQuery = useQuery({
@@ -49,6 +54,23 @@ export function FamilyScreen() {
     enabled: Boolean(spaceId),
     queryFn: () => fetchPendingInvites(spaceId as string),
   });
+  // Same keys as Home so the two tabs share one read; keys and recovery status live here (D35).
+  const keyStatusQuery = useQuery({
+    queryKey: ['familyKeyStatus', spaceId, userId, current?.role],
+    enabled: Boolean(spaceId && userId && current),
+    queryFn: () =>
+      ensureKeysForOpenFamily({
+        spaceId: spaceId as string,
+        userId: userId as string,
+        role: current?.role,
+      }),
+  });
+  const recoveryQuery = useQuery({
+    queryKey: ['recoverySnapshot', spaceId, userId],
+    enabled: Boolean(spaceId && userId && current),
+    refetchOnMount: 'always',
+    queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
+  });
 
   const onRefresh = useCallback(() => {
     if (userId) {
@@ -58,6 +80,8 @@ export function FamilyScreen() {
       void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['children', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['invites', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+      void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
     }
   }, [queryClient, spaceId, userId]);
 
@@ -218,29 +242,44 @@ export function FamilyScreen() {
       (childrenQuery.data ?? []).length === 0 ? (
         <EmptyState title={copy.home.emptyMembers} />
       ) : null}
-      {(membersQuery.data ?? []).map((row) => (
-        <Pressable
-          key={row.id}
-          testID={`member-${testIdFromLabel(row.displayName)}`}
-          accessibilityRole="button"
-          accessibilityLabel={`${row.displayName}, ${copy.roles[row.role]}`}
-          disabled={!admin && row.userId !== userId}
-          onPress={() => router.push(routes.member(row.userId))}
-        >
-          <Card>
-            <Body>
-              {row.displayName}
-              {row.userId === userId ? ` · ${copy.invite.youBadge}` : ''}
-            </Body>
-            <Muted>
-              {row.relationshipLabel ? `${row.relationshipLabel} · ` : ''}
-              {copy.roles[row.role]}
-            </Muted>
-          </Card>
-        </Pressable>
-      ))}
+      {(membersQuery.data ?? []).map((row) => {
+        const peerIds = [
+          ...(membersQuery.data ?? []).map((member) => member.userId),
+          ...(childrenQuery.data ?? []).map((child) => child.id),
+        ];
+        return (
+          <Pressable
+            key={row.id}
+            testID={`member-${testIdFromLabel(row.displayName)}`}
+            accessibilityRole="button"
+            accessibilityLabel={`${row.displayName}, ${copy.roles[row.role]}`}
+            disabled={!admin && row.userId !== userId}
+            onPress={() => router.push(routes.member(row.userId))}
+          >
+            <Card>
+              <View style={styles.memberRow}>
+                <Avatar id={row.userId} name={row.displayName} peerIds={peerIds} size={40} decorative />
+                <View style={styles.memberCopy}>
+                  <Body>
+                    {row.displayName}
+                    {row.userId === userId ? ` · ${copy.invite.youBadge}` : ''}
+                  </Body>
+                  <Muted>
+                    {row.relationshipLabel ? `${row.relationshipLabel} · ` : ''}
+                    {copy.roles[row.role]}
+                  </Muted>
+                </View>
+              </View>
+            </Card>
+          </Pressable>
+        );
+      })}
       {(childrenQuery.data ?? []).map((child) => {
         const subtitle = `${copy.roles.child} · ${copy.child.noEmail}`;
+        const peerIds = [
+          ...(membersQuery.data ?? []).map((member) => member.userId),
+          ...(childrenQuery.data ?? []).map((row) => row.id),
+        ];
         return (
           <Pressable
             key={child.id}
@@ -250,20 +289,25 @@ export function FamilyScreen() {
             onPress={() => router.push(`/(signed-in)/child/${child.id}`)}
           >
             <Card>
-              <Body
-                testID={`child-${testIdFromLabel(child.displayName)}`}
-                accessibilityRole="button"
-                accessibilityLabel={`${child.displayName}, ${copy.roles.child}`}
-              >
-                {child.displayName}
-              </Body>
-              <Muted
-                accessible
-                testID={`child-${testIdFromLabel(child.displayName)}-subtitle`}
-                accessibilityLabel={subtitle}
-              >
-                {subtitle}
-              </Muted>
+              <View style={styles.memberRow}>
+                <Avatar id={child.id} name={child.displayName} peerIds={peerIds} size={40} decorative />
+                <View style={styles.memberCopy}>
+                  <Body
+                    testID={`child-${testIdFromLabel(child.displayName)}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${child.displayName}, ${copy.roles.child}`}
+                  >
+                    {child.displayName}
+                  </Body>
+                  <Muted
+                    accessible
+                    testID={`child-${testIdFromLabel(child.displayName)}-subtitle`}
+                    accessibilityLabel={subtitle}
+                  >
+                    {subtitle}
+                  </Muted>
+                </View>
+              </View>
             </Card>
           </Pressable>
         );
@@ -295,6 +339,15 @@ export function FamilyScreen() {
         testID="your-phones"
         onPress={() => router.push(routes.yourPhones)}
       />
+      <SecurityStatusCard
+        keyStatus={keyStatusQuery.data}
+        recoveryStatus={recoveryQuery.data?.status}
+        keyHolder={keyHolder}
+        admin={admin}
+        familyName={current.space.name}
+        keysTestID="family-keys-status"
+        recoveryTestID="family-recovery-status"
+      />
       <Button
         label={copy.appearance.title}
         variant="secondary"
@@ -314,6 +367,15 @@ export function FamilyScreen() {
 }
 
 const styles = StyleSheet.create({
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  memberCopy: {
+    flex: 1,
+    gap: 2,
+  },
   row: {
     borderRadius: 22,
     padding: space.card,

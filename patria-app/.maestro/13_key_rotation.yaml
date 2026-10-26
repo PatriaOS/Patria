@@ -35,6 +35,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%

@@ -7,6 +7,72 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Sync 38 step 7 missed a11y exact match
+
+PHASE=missed already showed the no-guilt copy and Hold it now; Maestro failed because assertVisible used a prefix of missedNoGuilt and iOS matches a11y text exactly. Flow now asserts `sync-missed`, the full copy string, and that Hold it now opens Wins. Seed SQL that pushes upcoming `scheduled_for` into the past was already correct.
+
+---
+
+## 2026-10-26 — Sync 38: task save race; next meeting after finish
+
+Phone test 38 still failed at e2e step 1 (whole PHASE=run). Continue did open Wins; the miss was wrap-up: Maestro waited for "Pack kit bags" while it was still the task field text, then Finish ran with no insert (empty Tasks). Flow now clears the field before asserting the saved row; Add defaults the owner and uses an op lock so Finish cannot race. finish/ensure_next no longer treat a finished meeting’s scheduled_for as the next upcoming (client passes after the finished slot; SQL skips finished conflicts and advances a week).
+
+---
+
+## 2026-10-26 — Sync 37 step 4 a11y body; 38 hideKeyboard
+
+37 see_member_win: Park picnic was on Test 1's meeting after refresh; Maestro failed on "Added by Test 2" because the row's title-only accessibilityLabel hid the body. Agenda rows now expose title (button), body, and kind as separate a11y nodes. Sync hub also refetches on focus and pull. 38 alone: Continue did open Wins and reached wrap-up; Maestro failed on hideKeyboard with the task field focused — dismiss by tapping Owner instead.
+
+---
+
+## 2026-10-26 — Sync 37/38: agenda a11y label, task wait, seed isolation
+
+Third fail of 37/38: hub showed "Soccer carpool" but Maestro asserted against a11y text "Soccer carpool, Discuss" (full-string match). Agenda rows now label the title only. Test 38 finished with an empty Tasks list — flow now waits for "Pack kit bags" on wrap-up before Finish, clears the task field, and the wrap-up owner defaults to the current member. e2e-setup resets all Sync tables per test and seeds `nextMeetingAt` (Sunday 19:00 Chicago) so ensureNextMeeting does not create a second upcoming meeting when 36–42 run in any order.
+
+---
+
+## 2026-10-26 — Forbid crypto.randomUUID; Sync write-path pgTAP
+
+`crypto.randomUUID` broke vault then Sync on Hermes. Cleared remaining call sites (including api tests) in favour of `randomUuid()` / `randomKey32()`, and ESLint `no-restricted-syntax` now errors on `crypto.randomUUID` / `globalThis.crypto.randomUUID`. GOV02 DB tests gained `lives_ok` inserts for member agenda, admin notes and tasks (plus note update and outsider write denials) so a shared-trigger regression cannot hide behind outsider-only checks.
+
+---
+
+## 2026-10-26 — Sync e2e 37/38/39/42: guard trigger, owners, seed role
+
+Rerun of 36–42: agenda save and Sync tasks/notes failed on device. Root cause for notes and tasks was the shared `trg_sync_guard_family_links` reading `NEW.attributed_child_id` on every table — Postgres raises 42703 on `sync_notes` / `sync_tasks` even when the `TG_TABLE_NAME` check is false. Nested IFs only; RLS `can_view_sync` for circle members was already correct. Agenda/task client IDs now use `randomUuid()` (same as vault). Run Sync requires an owner before insert (DB xor + phone test 38); Maestro picks `owner-test-1`. Test 42 On this day seed used `m.role = 'admin'`; space_role is `family_admin`. Follow-along pull-to-refresh refetches notes immediately.
+
+---
+
+## 2026-10-25 — Sync e2e failures: app a11y, reporter, second phone
+
+Maestro 36–42 failures on device: Tonight's flow step titles were swallowed by a parent `accessible` node (`1. Wins` only), the hub **Add to the agenda** button overrode its label-derived id with `add-to-agenda`, and Past meetings kept **Summary** in one concatenated string so `assertVisible: "Summary"` could not match. Fixed those in the app; 38 dismisses the keyboard by tapping a static label; 42 cancels Add before tapping Home. Runner now fails the step that broke and marks later PHONE_TESTS steps **not reached**. Device B covers Test 2 Sync steps; SQL seeds cover missed meetings, no-schedule Home, and On this day.
+
+---
+
+## 2026-10-25 — e2e runners for Sync + coverage guards
+
+Phone tests 36–42 had Maestro YAML but no `e2e.mjs` runners, so `e2e:affected` reported PASSED after `clear_state` only. Wired runners and e2e-setup seeds (schedule / agenda / finished meeting). `e2e.mjs` now fails any selected non-manual test without a runner; `e2e:check` and a Jest test require every phone test to have both a flow and a runner (or be marked manual). Test 27 was missing from affected summaries because its Areas line was only `vault` while sibling LEG01 tests also list `keys` — when the diff hit keys/recovery/rotation without vault files, 26 and 28–35 matched and 27 did not. Added `keys` to test 27. Test 11 step 8 timed out twice: the failure screenshot showed Test 1’s accept card on screen, and the log stopped mid-swipe — spawnSync hit the 10 minute budget after many sign-ins, not a missed tap. Raised test 11 to 15 minutes and dropped redundant sign-ins in step 8. Docs: PRD/FEATURES version 1.4 notes for BRN02 email notifications + Add to agenda, and GOV02 next-slice frequency and invites.
+
+---
+
+## 2026-10-25 — GOV02 Home Figma polish (D35)
+
+Home Today was brought closer to Figma: On this day uses an 88pt thumbnail (signed URL, or a clean soft placeholder); the Sync overline always uses `nextMeetingAt` with the real clock and family zone (Sunday before start → TONIGHT/TODAY, after → IN 7 DAYS); greeting is “Good evening,” plus “the Rivera family”; Sync body is a sentence with side-by-side compact buttons; This week uses first names and round checkboxes; AvatarStack is 32pt with an 8pt overlap, soft pastels in dark mode, and initials that do not clip. Tab screens drop the extra top padding band. Keys and recovery attention pills stay on Home when action is needed; full status lives on Family.
+
+---
+
+## 2026-10-25 — GOV02 Home Today redesign (D35)
+
+Home now reads top to bottom: security notices (only when something needs a tap), date and greeting with the avatars opening Family, the Family Sync hero, On this day, and This week. The Sync card reuses `useSyncSpace` and `syncCountdown`; with no meeting row yet it falls back to the next date computed from the schedule so the countdown still shows. On this day is judged in the family time zone (device zone if there is no schedule) from the same circle-limited memory read the library uses, so nothing outside a person's circles can appear; it picks the oldest matching year. This week shows up to four open tasks, then fills spare room with tasks finished today or yesterday so a ticked task does not vanish. Keys and recovery status pills moved to Family under Your phones. Options: remove the pills from Home entirely, or keep only the ones that ask for something. We kept Home pills only for keys that are not ready (waiting, needs let-in) and Recovery needs attention, because Maestro tests 9, 11, 12 and 13 and the "I lost my phone" path depend on seeing them, and a calm all-good status adds nothing. The "Set up recovery" card, device-approval cards and recovery notices stay on Home unchanged. Deferred: Feb 29 memories on non-leap years, a Home pull-to-refresh test for Sync, and running Maestro test 42 on a phone.
+
+---
+
+## 2026-10-25 — GOV02 slice 1: Weekly Family Sync (D35), Sync first
+
+Families needed a quiet weekly meeting without vault crypto or guilt. Slice 1 stores Sync on the Standard tier (D29-style) so later server-built agendas stay possible. Each meeting freezes its circle at creation so widening the schedule never leaks past Household meetings; carry-over only when the next circle is the same or narrower. `ensure_next_meeting` is idempotent; start is compare-and-swap with one in-progress meeting. Home Today redesign waits until Sync screens are approved. No hosted push in this stop. Fair Share, auto agenda, push and printable/TV wait.
+
+---
+
 ## 2026-10-24 — LEG01 slice 2: voice notes and Only me (D34)
 
 Text decisions could not yet hold a voice or stay with the author only. Slice 2 adds in-app voice notes (AAC mono, 5-minute stop, per-file key, private `vault` bucket) and Only me entries under a personal key minted once by `create_personal_key`. Follow-ups inherit parent visibility; a parent switch re-wraps children in one call. Family-key rotation ignores private rows. A role change keeps Only me; leaving deletes it. Playback uses a cache file wiped on leave and on app start.

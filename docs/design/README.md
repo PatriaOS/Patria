@@ -17,6 +17,12 @@ Name each file with the feature ID and screen name, so Cursor can find the right
 * `CIR05-03-family-space-ready.png`
 * `HOME-01-today.png`
 * `GOV02-01-family-sync.png`
+* `GOV02-sync-hub-light.png` / `GOV02-sync-hub-dark.png` (D35 Sync hub fixtures)
+* `GOV02-sync-meeting-step2-light.png` / `GOV02-sync-meeting-step2-dark.png` (D35 in-meeting flow)
+* `GOV02-add-agenda-light.png` / `GOV02-add-agenda-dark.png` (D35 Add to agenda fixtures)
+* `GOV02-members-avatars-light.png` / `GOV02-members-avatars-dark.png` (D35 avatar tones)
+* `GOV02-home-today-light.png` / `GOV02-home-today-dark.png` (D35 Home Today)
+* `GOV02-home-real-light.png` / `GOV02-home-real-dark.png` / `GOV02-home-real-notice.png` / `GOV02-home-real-large.png` (D35 Home tab chrome)
 * `LEG01-01-new-decision.png`
 
 ## Design tokens

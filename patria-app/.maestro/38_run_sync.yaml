@@ -1,0 +1,138 @@
+# PHONE_TESTS: 38
+# AREAS: sync
+# Needs a Sync schedule plus Win and Decide agenda items (e2e-setup).
+# PHASE=missed: upcoming meeting time already passed (e2e.mjs seeds that).
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'missed'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - assertVisible:
+          id: "sync-missed"
+      # Full copy.sync.missedNoGuilt — Maestro matches a11y text exactly, not a prefix.
+      - assertVisible: "The time has passed, and that’s fine. You can hold it now, or wait for the next date."
+      - assertVisible:
+          id: "hold-it-now"
+      - assertNotVisible: "You missed"
+      - tapOn:
+          id: "hold-it-now"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - assertVisible: "Wins"
+- runFlow:
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'run'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - runFlow:
+          when:
+            visible:
+              id: "hold-it-now"
+          commands:
+            - tapOn:
+                id: "hold-it-now"
+      - runFlow:
+          when:
+            visible:
+              id: "continue"
+          commands:
+            - tapOn:
+                id: "continue"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - assertVisible: "Wins"
+      - runFlow:
+          when:
+            visible: "Mark discussed"
+          commands:
+            - tapOn: "Mark discussed"
+      - tapOn:
+          id: "next"
+      - assertVisible: "Look ahead"
+      - tapOn:
+          id: "next"
+      - assertVisible: "Decide"
+      - runFlow:
+          when:
+            visible: "Mark discussed"
+          commands:
+            - tapOn:
+                id: "what-did-we-decide"
+            - inputText: "We will share the drive"
+            - tapOn: "Decide"
+            - tapOn: "Mark discussed"
+      - tapOn:
+          id: "next"
+      - assertVisible: "Gratitude"
+      - tapOn:
+          id: "next"
+      - assertVisible: "One priority for the week"
+      - tapOn:
+          id: "one-priority-for-the-week"
+      - inputText: "Get everyone to practice"
+      - tapOn: "One priority for the week"
+      - tapOn:
+          id: "task"
+      - eraseText: 40
+      - inputText: "Pack kit bags"
+      - tapOn: "Owner"
+      - tapOn:
+          id: "owner-test-1"
+      - scrollUntilVisible:
+          element:
+            id: "add-a-task"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "add-a-task"
+      # Clear the field so "Pack kit bags" can only match the saved task row.
+      - tapOn:
+          id: "task"
+      - eraseText: 40
+      - tapOn: "Owner"
+      - extendedWaitUntil:
+          visible: "Pack kit bags"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "finish-the-sync"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "finish-the-sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+      - scrollUntilVisible:
+          element:
+            id: "tasks"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "tasks"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-tasks"
+          timeout: 15000
+      - assertVisible: "Pack kit bags"

@@ -1180,6 +1180,19 @@ flowchart TD
 
 **Success measure:** 30% of active families complete a Sync at least 3 times a month.
 
+**Slice 1 (D35) — in progress.** Manual weekly Sync on Standard-tier storage (not the family key). Admin sets weekday, time, time zone and circle (Household or Extended Family). Anyone in that circle with a login adds Win / Discuss / Decide / Plan items during the week; admins may attribute to a child profile. One phone runs the meeting: Wins → Look ahead → Decide → Gratitude, then one priority and tasks. Undiscussed items carry over when the next circle is the same or narrower. Missed times show no guilt—only Hold it now or the next date. No Fair Share, no auto agenda from calendars, no push. Home Today card and This week tasks ship in the same slice after Sync works. Phone tests 36–42.
+
+**Next Sync slice (P0).** Meeting frequency becomes **Weekly**, **Every two weeks** or **Monthly** (for example the first Sunday or the 15th) in the family time zone. Circle members get invites in the app, by push and as an email calendar invite; replies are **Going**, **Maybe** or **Can't make it**. Schedule changes and cancellations update everyone. Invites contain only the title, circle, time and a link — never agenda items or notes. Email addresses stay visible to admins only (D17). No guilt still applies when someone declines or a meeting is missed.
+
+**Acceptance criteria (next Sync slice)**
+
+* [ ] An admin can set frequency to Weekly, Every two weeks or Monthly (with a clear day or date rule) in the family’s time zone, and the next meeting date follows that rule.
+* [ ] Circle members receive an in-app notice, a push and an email calendar invite for the next meeting; replies Going / Maybe / Can't make it are visible to the family.
+* [ ] Changing the time or cancelling updates everyone who was invited; a cancelled meeting does not leave a stale invite.
+* [ ] Invite content is limited to title, circle, time and a link — no agenda items, notes or decisions.
+* [ ] Non-admin members never see another member’s email address (D17).
+* [ ] Declining or missing a meeting never shows a guilt message.
+
 ### GOV03 Kids Mode for the Sync
 
 **Priority:** P1 | **Phase:** Phase 2 | **Users:** Children 4 to 12 with a parent | **Depends on:** GOV02
@@ -1378,7 +1391,7 @@ flowchart LR
 
 **Priority:** P1 | **Phase:** Phase 2 | **Users:** Parents | **Depends on:** Email and calendar connectors, BRN03
 
-**What it is.** With explicit consent, Patria reads school emails, sports schedules, appointment texts, bills and photographed flyers, and turns them into proposed events, reminders and tasks. A parent approves, edits or dismisses each proposal.
+**What it is.** With explicit consent, Patria reads school emails, sports schedules, appointment texts, bills and photographed flyers, and turns them into proposed events, reminders and tasks. A parent approves, edits or dismisses each proposal. Version 1.4 also adds quiet **email notifications** (one-line summaries of family-relevant mail such as school notices, appointments, bills and deadlines) and **Add to agenda** from any email item.
 
 **Why it matters.** This removes the biggest source of mental load: reading everything and copying it into calendars.
 
@@ -1386,35 +1399,45 @@ flowchart LR
 
 * As a mum, I want the school newsletter turned into calendar entries for the days that matter to our kids, so that I stop reading every email line by line.
 * As a parent, I want to snap a photo of a party invitation and have it scheduled with an RSVP reminder.
+* As a parent, I want a one-line summary when a school email matters to the family, so that I do not open every message.
+* As a parent, I want to add a summarised email to the Sync agenda, so that the family can talk about it without seeing my full inbox.
 
 **How it works**
 
-1. Parent connects a mailbox with narrow read scopes, or forwards emails to a family Patria address.
-2. Each item is classified (event, deadline, bill, form, information) and fields are extracted.
-3. Proposals appear in an Inbox; low confidence ones are marked "Check this".
-4. Approve creates the event, reminder or task; Dismiss teaches the model.
-5. A conflict check runs on every new event (BRN04).
+1. Parent connects a mailbox with narrow read scopes, or forwards emails to a private family Patria address. A forwarding address is the simpler start: full Gmail access needs Google restricted-scope approval with a yearly security assessment.
+2. Each item is classified (event, deadline, bill, form, information) and fields are extracted. Unrelated email is ignored and never stored.
+3. Family-relevant items can surface as a one-line notification summary to the mailbox owner.
+4. Proposals appear in an Inbox; low confidence ones are marked "Check this".
+5. Approve creates the event, reminder or task; Dismiss teaches the model.
+6. From any email item, the owner can **Add to agenda**. The family sees only the summary and a line like **From Maya's email** — never the full email — unless the owner chooses to attach it.
+7. A conflict check runs on every new event (BRN04).
 
 ```mermaid
 flowchart TD
   A[Email, text, PDF or photo of a flyer arrives] --> B{Source connected<br/>with consent?}
   B -- No --> Z[Ignored]
   B -- Yes --> C[Classify: event, deadline, bill, form, info]
-  C --> D[Extract fields: date, time, place, person, amount]
-  D --> E{Confidence high?}
-  E -- Yes --> F[Proposal card in Inbox]
-  E -- No --> G[Proposal card marked Check this]
-  F & G --> H{Parent action}
-  H -- Approve --> I[Create event, reminder or task]
-  H -- Edit --> I
-  H -- Dismiss --> J[Learn from dismissal]
-  I --> K[Conflict check runs]
+  C --> D{Family relevant?}
+  D -- No --> Z2[Ignored and not stored]
+  D -- Yes --> E[Extract fields: date, time, place, person, amount]
+  E --> F[One-line summary for mailbox owner]
+  E --> G{Confidence high?}
+  G -- Yes --> H[Proposal card in Inbox]
+  G -- No --> I[Proposal card marked Check this]
+  H & I --> J{Parent action}
+  J -- Approve --> K[Create event, reminder or task]
+  J -- Edit --> K
+  J -- Dismiss --> L[Learn from dismissal]
+  J -- Add to agenda --> M[Agenda item: summary + From name's email]
+  K --> N[Conflict check runs]
 ```
 
 **Business rules**
 
 * Proposals always need approval in Phase 2. Auto approve can be enabled per trusted sender later.
 * Only matching emails are processed; Patria never stores unrelated email content.
+* Only the mailbox owner can connect or disconnect that mailbox.
+* Add to agenda shares the summary and attribution only; the full email body stays with the owner unless they attach it.
 * Parents can see and revoke every connected source at any time.
 
 **Edge cases**
@@ -1423,13 +1446,18 @@ flowchart TD
 |---|---|
 | Email covers several children | Assign to the right child using class or team names learned over time. |
 | Event cancelled in a later email | Propose cancellation linked to the original event. |
+| Owner disconnects their mailbox | New mail stops arriving; existing summaries and agenda items they already shared stay. |
 
 **Acceptance criteria (definition of done)**
 
 * [ ] Proposals require approval; 85% field extraction accuracy on the test set.
 * [ ] Unrelated email content is not stored.
+* [ ] Family-relevant mail can show a one-line summary notification; unrelated mail produces no notification and is not stored.
+* [ ] Only the mailbox owner can connect or disconnect that mailbox.
+* [ ] Add to agenda creates an agenda item the family can see with the summary and "From [name]'s email", without the full email body unless the owner attaches it.
+* [ ] A private family Patria forwarding address works as the first intake path without requiring full Gmail restricted-scope access.
 
-**Data captured:** Source references, extracted fields, proposals, decisions.
+**Data captured:** Source references, extracted fields, proposals, decisions, one-line summaries shared to agenda (not full unrelated bodies).
 
 **Success measure:** Self reported mental load score improves 25% after 90 days for families using intake.
 

@@ -49,6 +49,22 @@ function ThemedRootStack() {
           }}
         />
         <Stack.Screen
+          name="design-sync"
+          options={{
+            ...pushedScreenHeader,
+            ...chrome,
+            title: screenTitles.designSync,
+          }}
+        />
+        <Stack.Screen
+          name="design-home"
+          options={{
+            ...hiddenRootHeader,
+            headerShown: false,
+            title: screenTitles.designHome,
+          }}
+        />
+        <Stack.Screen
           name="design-gallery"
           options={{
             ...pushedScreenHeader,

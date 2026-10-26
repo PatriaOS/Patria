@@ -71,12 +71,12 @@ Automation may capture screenshots at large text for a person to review, but a p
 ### 8. Family key created on this phone (Step 3)
 Areas: keys
 1. Sign in as Test 1 and create a new family, for example **Test Keys Family**. If you already have a space, open the **Family** tab and tap **Create another family**.
-2. Pass if Home shows that family keys are set up on this phone.
+2. Open the **Family** tab. Pass if it shows that family keys are set up on this phone (Home no longer shows this once keys are ready).
 3. Database: one row in `family_key_meta` for the new family with key epoch 1.
 4. Database: exactly one row in `family_key_wraps` for that family, and the wrapped key column is unreadable bytes.
 5. Open an older family Test 1 is an admin of. Pass if keys are set up automatically, with no extra screens.
-6. Sign in as Test 2 (not an admin) in a family Test 2 belongs to. Pass if no new key is created and Home calmly says this phone is waiting for a family admin.
-7. Fully close and reopen the app as Test 1. Pass if keys still show as set up, with no new rows in `family_key_meta`.
+6. Sign in as Test 2 (not an admin) in a family Test 2 belongs to. Pass if no new key is created and Home calmly says this phone is waiting for a family admin (Home keeps this notice until the phone is let in).
+7. Fully close and reopen the app as Test 1. Open **Family**. Pass if keys still show as set up, with no new rows in `family_key_meta`.
 
 ### 9. Let a new member's phone in (Step 4)
 Areas: keys, devices, membership, invites
@@ -85,7 +85,7 @@ One device is enough: each account on the same device counts as its own device. 
 2. As Test 2, accept the invite if needed. Pass if Home says this phone is waiting for a family admin.
 3. As Test 1. Pass if a notice shows that Test 2 wants this phone let in, with name, role and when the phone was set up.
 4. Tap **Let in**. Pass if the notice disappears and a new row for Test 2 appears in `family_key_wraps`.
-5. As Test 2. Pass if Home now says family keys are set up on this phone.
+5. As Test 2. Open **Family**. Pass if it now says family keys are set up on this phone.
 6. Repeat with Test 3 invited as **Extended relative**. Pass if no notice ever appears for Test 3.
 7. Invite Test 3 to a different test family as **Elder**, have them accept, then as Test 1 tap **Decline**. Pass if Test 3 keeps waiting and no wrap row is created.
 
@@ -231,12 +231,13 @@ Layer 2: tabs and Appearance. Layer 3: restyled screens, Home mockup, lining num
 
 ### 24. Tab bar
 Areas: navigation
-1. Sign in as Test 1. Pass if Home, Memories, Vault and Family tabs show at the bottom.
+1. Sign in as Test 1. Pass if Home, Memories, Sync, Vault and Family tabs show at the bottom, in that order.
 2. Tap **Memories**. Pass if the Memories library opens.
-3. Tap **Vault**. Pass if you see **Kept with your family key.** and **No decisions yet**.
-4. Tap **Family**. Pass if Invite someone and Sign out are there.
-5. On Family with nothing waiting, pass if the Home tab is labeled **Home** (no terracotta dot).
-6. Return to Home. If a let-in, new phone, recovery alert or This wasn’t me is waiting, pass if the Home tab is labeled **Home, 1 notice** and shows a terracotta dot while you are on another tab. (Jest covers the let-in case; this run asserts the quiet case.)
+3. Tap **Sync**. Pass if the Family Sync tab opens.
+4. Tap **Vault**. Pass if you see **Kept with your family key.** and **No decisions yet**.
+5. Tap **Family**. Pass if Invite someone and Sign out are there.
+6. On Family with nothing waiting, pass if the Home tab is labeled **Home** (no terracotta dot).
+7. Return to Home. If a let-in, new phone, recovery alert or This wasn’t me is waiting, pass if the Home tab is labeled **Home, 1 notice** and shows a terracotta dot while you are on another tab. (Jest covers the let-in case; this run asserts the quiet case.)
 
 ### 25. Appearance
 Areas: navigation
@@ -290,7 +291,7 @@ Areas: vault, keys
 3. Open it. Pass if the body you typed is there.
 
 ### 27. Teen can read, not write
-Areas: vault
+Areas: vault, keys
 1. Sign in as Test 3 (teen). Open **Vault**. Pass if **New decision** is not there.
 2. Pass if the vault still opens (empty, waiting for this phone, or a list).
 
@@ -309,3 +310,69 @@ Areas: vault, rotation, keys
 1. Sign in as Test 1 with recovery set up. Write a decision.
 2. Remove Test 3. Pass if Home updates the family key.
 3. Open **Vault**. Pass if the decision is still there and opens.
+
+## Weekly Family Sync (GOV02, D35)
+
+Slice 1 of the weekly Sync: a Sync tab, a schedule, an agenda anyone in the circle can add to, and one phone that runs the meeting. Tests 36 to 41. Sync is Standard tier (not the family key), so there is nothing to unlock. Run these in order with Test 1 (Family admin) and Test 2 (Elder or Co admin) on a family that has no Sync schedule yet.
+
+### 36. Set up our Sync
+Areas: sync, navigation
+1. Sign in as Test 1. Tap **Sync**. Pass if you see **Family Sync** and a **Set up our Sync** button.
+2. Tap **Set up our Sync**. Pass if you see the days of the week, **Time**, **Time zone** and a choice of **Household** or **Extended Family**.
+3. Pick a day, type a time like 19:00, leave the time zone as it is, keep **Household**, and tap **Save schedule**. Pass if you return to Sync and see the day and time, **Household**, and the four steps of tonight's flow.
+4. Sign in as Test 2 (not an admin). Open **Sync**. Pass if Test 2 sees the same meeting but no **Schedule** button.
+5. On a family with no schedule yet, pass if a member who is not an admin sees **Ask a Family admin to set up the weekly Sync.** instead of the button. (manual)
+
+### 37. Add to the agenda
+Areas: sync
+1. Sign in as Test 1. Open **Sync** and tap **Add to the agenda**. Pass if you can choose **Win**, **Discuss**, **Decide** or **Plan**, and a short line says where the item will show up.
+2. Choose **Discuss**, type a title, and tap **Save**. Pass if you return to Sync and the title is on the agenda with **Discuss** beside it.
+3. Tap the item, change the title, and tap **Save**. Pass if the new title shows on the agenda.
+4. Sign in as Test 2. Add a **Win**. Pass if the Win shows on Test 1's agenda as **Added by** Test 2's name after a pull to refresh.
+
+### 38. Run the Sync
+Areas: sync
+1. Sign in as Test 1 with at least one Win and one Decide item on the agenda. Open **Sync** and tap **Continue**. Pass if the **Wins** step opens with a note box.
+2. Tap **Mark discussed** on a Win, type a note, and tap **Next**. Pass if the **Look ahead** step opens.
+3. Tap **Next** to reach **Decide**. Type what the family decided, tap **Mark discussed**, then tap **Next**. Pass if **Gratitude** opens.
+4. Tap **Next**. Pass if you can write **One priority for the week** and add a task with an owner.
+5. Tap **Add a task**, then **Finish the Sync**. Pass if you return to Sync and the next meeting is a week away.
+6. Open **Tasks**. Pass if the task you added is listed and you can mark it done.
+7. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding. Tap **Hold it now**. Pass if the **Wins** step opens.
+
+### 39. A second phone follows along (read only)
+Areas: sync
+1. Sign in as Test 1 on one phone. Open **Sync** and tap **Continue** so the Sync is running.
+2. Sign in as Test 2 on a second phone. Open **Sync**. Pass if Test 2 sees **The Sync is running on** Test 1's name **phone** and a **Follow along** button, and no **Continue**.
+3. Tap **Follow along**. Pass if Test 2 sees the steps and Test 1's notes, with no way to edit them.
+4. On Test 1's phone, add a note and tap **Next**. Pass if the note shows up on Test 2's phone after a pull to refresh.
+
+### 40. Past meetings
+Areas: sync
+1. Sign in as Test 1 after finishing a Sync (Test 38). Open **Sync** and tap **Past meetings**. Pass if the finished Sync is listed with its date, the priority you wrote, and a line like **1 of 2 items discussed**.
+2. Pass if any decision you wrote shows under that meeting.
+3. Pass if a family with no finished Sync sees **No finished Syncs yet.** (manual)
+
+### 41. The Sync tab
+Areas: sync, navigation
+1. Sign in as Test 1. Pass if the bottom bar shows **Home**, **Memories**, **Sync**, **Vault** and **Family**, with Sync between Memories and Vault.
+2. Tap **Sync**. Pass if the tab is marked selected and the Family Sync screen opens.
+3. Tap **Family**, then **Sync** again. Pass if Sync shows the same screen without a back arrow.
+4. Use the largest text size. Pass if Sync scrolls and nothing is cut off. (manual)
+
+## Home Today (GOV02, D35)
+
+Home becomes a quiet daily view: security notices only when something needs a tap, then the greeting, the Family Sync card, On this day and This week. Keys and recovery status moved to Family. Test 42. Run after Test 36 so the family has a Sync schedule.
+
+### 42. Home Today
+Areas: sync, navigation
+1. Sign in as Test 1 in a family that has a Sync schedule (Test 36). Pass if Home shows the date, **Good morning, / afternoon, / evening,** and the family name on a second line in italics, with the member avatars at the top right.
+2. Pass if the Sync card shows a line like **SUNDAY FAMILY SYNC · IN 4 DAYS** (or **TONIGHT**, **TODAY**, **TOMORROW**), the title **Household meeting**, a line about the agenda, and **Review agenda** and **Add an item**.
+3. Tap **Review agenda**. Pass if the Sync tab opens. Go back to Home and tap **Add an item**. Pass if the add-to-agenda screen opens.
+4. Pass if **Recent memories** and the Vault card are no longer on Home, and no keys or recovery status pills show while keys are set up.
+5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or one quiet line when there are none. Tap a task's checkbox. Pass if it stays visible with **Done today**.
+6. Tap **See all** beside **This week**. Pass if the Sync tasks screen opens.
+7. Tap the avatars at the top right. Pass if the Family tab opens and shows the keys status and the recovery status below **Your phones**.
+8. On a family with no Sync schedule, pass if the Sync card invites a Family admin to **Set up our Sync**, and tells anyone else to ask a Family admin.
+9. On a day when a photo or video from an earlier year was taken on this month and day, pass if an **On this day** card shows it and tapping opens the memory; on other days pass if there is no card.
+10. Use the largest text size. Pass if Home scrolls and nothing is cut off. (manual)

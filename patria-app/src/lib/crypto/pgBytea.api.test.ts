@@ -5,6 +5,7 @@ import { secretsEqual, wipe } from './bytes';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { unwrapKeyFromDevice, wrapKeyToDevice, type MemberWrapAad } from './wrap';
 import { generateDeviceKeyPair } from './x25519';
+import { randomKey32, randomUuid } from './random';
 
 const LOCAL_URL = 'http://127.0.0.1:54321';
 const LOCAL_ANON =
@@ -90,10 +91,9 @@ describe('pgBytea local Supabase API', () => {
 
       const adminDevice = generateDeviceKeyPair();
       const elderDevice = generateDeviceKeyPair();
-      const adminDeviceId = globalThis.crypto.randomUUID();
-      const elderDeviceId = globalThis.crypto.randomUUID();
-      const familyKey = new Uint8Array(32);
-      globalThis.crypto.getRandomValues(familyKey);
+      const adminDeviceId = randomUuid();
+      const elderDeviceId = randomUuid();
+      const familyKey = randomKey32();
       const aadAdmin: MemberWrapAad = {
         familySpaceId: spaceId,
         keyEpoch: 1,

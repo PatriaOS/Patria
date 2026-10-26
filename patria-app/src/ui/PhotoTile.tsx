@@ -11,20 +11,38 @@ import { Caption } from './Text';
 
 type Props = {
   uri?: string;
+  /** Bundled asset from `require(...)` when a remote signed URL is not available. */
+  source?: number;
   accessibilityLabel: string;
   onPress?: () => void;
   durationLabel?: string;
+  /** Override the default 108pt tile edge (On this day uses 88). */
+  size?: number;
   testID?: string;
 };
 
-export function PhotoTile({ uri, accessibilityLabel, onPress, durationLabel, testID }: Props) {
+export function PhotoTile({
+  uri,
+  source,
+  accessibilityLabel,
+  onPress,
+  durationLabel,
+  size,
+  testID,
+}: Props) {
   const { colors } = useTheme();
   const inner = (
     <View
       testID={testID}
-      style={[styles.tile, { backgroundColor: colors.softSurface }]}
+      style={[
+        styles.tile,
+        { backgroundColor: colors.softSurface },
+        size != null ? { width: size, height: size } : null,
+      ]}
     >
-      {uri ? (
+      {source != null ? (
+        <Image source={source} style={styles.image} contentFit="cover" {...decorativeA11y} />
+      ) : uri ? (
         <Image source={{ uri }} style={styles.image} contentFit="cover" {...decorativeA11y} />
       ) : (
         <View style={styles.image} {...decorativeA11y} />

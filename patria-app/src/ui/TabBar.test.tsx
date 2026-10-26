@@ -3,7 +3,7 @@ import { fireEvent } from '@testing-library/react-native';
 import { countHomeNotices } from '../features/family/homeNotices';
 import { copy } from '../lib/copy';
 import { renderScreen } from '../test/renderScreen';
-import { TabBar, homeTabAccessibilityLabel } from './TabBar';
+import { TAB_KEYS, TabBar, homeTabAccessibilityLabel } from './TabBar';
 
 const letInNotice = {
   id: 'n1',
@@ -28,6 +28,18 @@ describe('TabBar', () => {
     );
     await fireEvent.press(getByLabelText(copy.tabs.vault));
     expect(onSelect).toHaveBeenCalledWith('vault');
+  });
+
+  it('puts Sync between Memories and Vault', async () => {
+    expect(TAB_KEYS).toEqual(['home', 'memories', 'sync', 'vault', 'family']);
+    const onSelect = jest.fn();
+    const { getByLabelText, getByTestId } = await renderScreen(
+      <TabBar active="home" onSelect={onSelect} />,
+    );
+    expect(getByLabelText(copy.tabs.sync).props.accessibilityRole).toBe('tab');
+    expect(getByTestId('sync')).toBeTruthy();
+    await fireEvent.press(getByLabelText(copy.tabs.sync));
+    expect(onSelect).toHaveBeenCalledWith('sync');
   });
 
   it('shows a Home notice when another tab is active', async () => {

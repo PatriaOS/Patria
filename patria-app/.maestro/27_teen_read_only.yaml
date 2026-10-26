@@ -1,5 +1,5 @@
 # PHONE_TESTS: 27
-# AREAS: vault
+# AREAS: vault, keys
 appId: app.patria.dev
 ---
 - runFlow:

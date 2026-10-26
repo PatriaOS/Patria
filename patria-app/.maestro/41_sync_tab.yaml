@@ -1,0 +1,36 @@
+# PHONE_TESTS: 41
+# AREAS: sync, navigation
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- assertVisible:
+    id: "^home$"
+- assertVisible:
+    id: "^memories$"
+- assertVisible:
+    id: "^sync$"
+- assertVisible:
+    id: "^vault$"
+- assertVisible:
+    id: "^family$"
+- tapOn:
+    id: "^sync$"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 20000
+- assertVisible: "Family Sync"
+- tapOn:
+    id: "^family$"
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- tapOn:
+    id: "^sync$"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 15000
+- assertVisible: "Family Sync"

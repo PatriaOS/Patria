@@ -6,6 +6,7 @@ import {
   isRootWithoutBack,
   pushedScreenHeader,
   routes,
+  screenTitles,
 } from './navigation';
 
 describe('navigation headers', () => {
@@ -51,6 +52,15 @@ describe('navigation headers', () => {
     expect(routes.memoryItem('abc')).toBe('/(signed-in)/memory/abc');
     expect(routes.appearance).toBe('/(signed-in)/appearance');
     expect(routes.family).toBe('/(signed-in)/family');
+    expect(routes.sync).toBe('/(signed-in)/sync');
+    expect(routes.syncSchedule).toBe('/(signed-in)/sync-schedule');
+    expect(routes.syncAgenda()).toBe('/(signed-in)/sync-agenda');
+    expect(routes.syncAgenda('a b')).toBe('/(signed-in)/sync-agenda?itemId=a%20b');
+    expect(routes.syncRun).toBe('/(signed-in)/sync-run');
+    expect(routes.syncPast).toBe('/(signed-in)/sync-past');
+    expect(routes.syncTasks).toBe('/(signed-in)/sync-tasks');
+    expect(screenTitles.sync).toBe('Sync');
+    expect(screenTitles.syncAgenda).toBe('Add to the agenda');
     expect(routes.vault).toBe('/(signed-in)/vault');
     expect(routes.vaultNew).toBe('/(signed-in)/vault-new');
     expect(routes.vaultEntry('abc')).toBe('/(signed-in)/vault/abc');

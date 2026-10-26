@@ -181,6 +181,19 @@ export async function fetchInviteCircles(spaceId: string): Promise<CircleOption[
   return (data ?? []) as CircleOption[];
 }
 
+export async function fetchCircles(spaceId: string): Promise<CircleOption[]> {
+  const { data, error } = await supabase
+    .from('circles')
+    .select('id, name, kind')
+    .eq('family_space_id', spaceId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as CircleOption[];
+}
+
 export async function householdCircleId(spaceId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('circles')

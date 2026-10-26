@@ -8,6 +8,8 @@ import {
   PHONE_TESTS,
   parseAreaList,
   parsePhoneTests,
+  phoneCoverageErrors,
+  runnerNumbersFromSource,
 } from './e2e-lib.mjs';
 
 function flowNumber(filename) {
@@ -45,6 +47,12 @@ const flowFiles = existsSync(MAESTRO_DIR)
 const errors = [];
 const testsByNumber = new Map(tests.map((test) => [test.number, test]));
 const known = new Set(PHONE_AREA_LIST);
+const flowNumbers = new Set(
+  flowFiles.map((name) => flowNumber(name)).filter((number) => number != null),
+);
+const runnerNumbers = runnerNumbersFromSource(
+  readFileSync(join(APP_ROOT, 'scripts', 'e2e.mjs'), 'utf8'),
+);
 
 for (const test of tests) {
   if (test.areas.length === 0) {
@@ -55,16 +63,9 @@ for (const test of tests) {
       errors.push(`PHONE_TESTS.md test ${test.number} has unknown area "${area}".`);
     }
   }
-  if (test.manual) {
-    continue;
-  }
-  const match = flowFiles.find((name) => flowNumber(name) === test.number);
-  if (!match) {
-    errors.push(
-      `PHONE_TESTS.md test ${test.number} ("${test.title}") has no Maestro flow and is not marked (manual).`,
-    );
-  }
 }
+
+errors.push(...phoneCoverageErrors({ tests, flowNumbers, runnerNumbers }));
 
 for (const filename of flowFiles) {
   const path = join(MAESTRO_DIR, filename);
@@ -114,5 +115,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `e2e:check passed: ${tests.length} tests in PHONE_TESTS.md, ${flowFiles.length} Maestro flows.`,
+  `e2e:check passed: ${tests.length} tests in PHONE_TESTS.md, ${flowFiles.length} Maestro flows, ${runnerNumbers.size} e2e.mjs runners.`,
 );

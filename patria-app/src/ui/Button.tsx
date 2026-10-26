@@ -14,6 +14,10 @@ type Props = {
   variant?: ButtonVariant;
   disabled?: boolean;
   busy?: boolean;
+  /** Outline buttons on a hero card use the hero text color so they stay readable. */
+  onHero?: boolean;
+  /** Shorter padding for side-by-side hero actions (Home Sync card). */
+  compact?: boolean;
   accessibilityHint?: string;
   testID?: string;
 };
@@ -24,6 +28,8 @@ export function Button({
   variant = 'primary',
   disabled = false,
   busy = false,
+  onHero = false,
+  compact = false,
   accessibilityHint,
   testID,
 }: Props) {
@@ -44,8 +50,11 @@ export function Button({
       : variant === 'danger'
         ? colors.onDanger
         : outline
-          ? colors.primary
+          ? onHero
+            ? colors.heroCardText
+            : colors.primary
           : colors.onPrimary;
+  const outlineColor = onHero ? colors.heroCardText : colors.primary;
 
   return (
     <Pressable
@@ -58,9 +67,10 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        compact ? styles.compact : null,
         {
           backgroundColor: fill,
-          borderColor: outline ? colors.primary : fill,
+          borderColor: outline ? outlineColor : fill,
           borderWidth: outline ? 1 : 0,
           opacity: inactive ? 0.5 : pressed ? 0.85 : 1,
         },
@@ -85,6 +95,11 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  compact: {
+    paddingVertical: space.xs,
+    paddingHorizontal: space.md,
+    minHeight: 44,
   },
   label: {
     textAlign: 'center',

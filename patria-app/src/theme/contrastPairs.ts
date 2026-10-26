@@ -1,4 +1,5 @@
 import { type ContrastPair } from './contrast';
+import { AVATAR_TONE_KEYS, avatarTonesDark, avatarTonesLight } from './avatarTone';
 import { dark, light } from './tokens';
 
 const AA = 4.5;
@@ -41,4 +42,50 @@ export const contrastPairs: ContrastPair[] = [
   { name: 'dark danger on surface', foreground: dark.danger, background: dark.surface, min: AA },
   { name: 'dark onDanger on dangerFill', foreground: dark.onDanger, background: dark.dangerFill, min: AA },
   { name: 'dark danger on dangerSoft', foreground: dark.danger, background: dark.dangerSoft, min: AA },
+
+  { name: 'light kind win text on win bg', foreground: light.kindWinText, background: light.kindWinBg, min: AA },
+  {
+    name: 'light kind discuss text on discuss bg',
+    foreground: light.kindDiscussText,
+    background: light.kindDiscussBg,
+    min: AA,
+  },
+  {
+    name: 'light kind decide text on decide bg',
+    foreground: light.kindDecideText,
+    background: light.kindDecideBg,
+    min: AA,
+  },
+  { name: 'light kind plan text on plan bg', foreground: light.kindPlanText, background: light.kindPlanBg, min: AA },
+  { name: 'dark kind win text on win bg', foreground: dark.kindWinText, background: dark.kindWinBg, min: AA },
+  {
+    name: 'dark kind discuss text on discuss bg',
+    foreground: dark.kindDiscussText,
+    background: dark.kindDiscussBg,
+    min: AA,
+  },
+  {
+    name: 'dark kind decide text on decide bg',
+    foreground: dark.kindDecideText,
+    background: dark.kindDecideBg,
+    min: AA,
+  },
+  { name: 'dark kind plan text on plan bg', foreground: dark.kindPlanText, background: dark.kindPlanBg, min: AA },
+
+  ...AVATAR_TONE_KEYS.map(
+    (key): ContrastPair => ({
+      name: `light avatar ${key}`,
+      foreground: avatarTonesLight[key].text,
+      background: avatarTonesLight[key].background,
+      min: AA,
+    }),
+  ),
+  ...AVATAR_TONE_KEYS.map(
+    (key): ContrastPair => ({
+      name: `dark avatar ${key}`,
+      foreground: avatarTonesDark[key].text,
+      background: avatarTonesDark[key].background,
+      min: AA,
+    }),
+  ),
 ];

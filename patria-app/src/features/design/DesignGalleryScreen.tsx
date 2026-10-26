@@ -41,12 +41,12 @@ export function DesignGalleryScreen() {
   return <GalleryBody />;
 }
 
-function parsePreviewScheme(value: string | string[] | undefined): ResolvedScheme | null {
+export function parsePreviewScheme(value: string | string[] | undefined): ResolvedScheme | null {
   const raw = Array.isArray(value) ? value[0] : value;
   return raw === 'light' || raw === 'dark' ? raw : null;
 }
 
-function parsePreviewScale(value: string | string[] | undefined): number | null {
+export function parsePreviewScale(value: string | string[] | undefined): number | null {
   const raw = Array.isArray(value) ? value[0] : value;
   if (raw === 'max' || raw === '1.3') {
     return 1.3;
@@ -152,8 +152,14 @@ function GalleryBody() {
       </Card>
       <Card variant="soft">
         <View style={styles.row}>
-          <Avatar name="Elena Rivera" />
-          <AvatarStack names={['Elena Rivera', 'Marco Rivera', 'Sofia Rivera']} />
+          <Avatar id="gallery-elena" name="Elena Rivera" />
+          <AvatarStack
+            people={[
+              { id: 'gallery-elena', name: 'Elena Rivera' },
+              { id: 'gallery-marco', name: 'Marco Rivera' },
+              { id: 'gallery-sofia', name: 'Sofia Rivera' },
+            ]}
+          />
           <IconCircle icon={Settings} />
           <IconButton icon={Settings} accessibilityLabel={copy.design.iconOnly} onPress={() => undefined} />
         </View>

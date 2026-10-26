@@ -24,7 +24,13 @@ appId: app.patria.dev
           optional: true
       - extendedWaitUntil:
           visible:
-            id: "home-keys-status"
+            id: "^home$"
+          timeout: 30000
+      - runFlow:
+          file: subflows/open_family.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "family-keys-status"
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"
 - runFlow:
@@ -33,6 +39,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - tapOn:
           id: ${OLDER_FAMILY_ID}
       - assertVisible: "Family keys: set up on this phone"
@@ -49,9 +57,11 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - extendedWaitUntil:
           visible:
-            id: "home-keys-status"
+            id: "family-keys-status"
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"
 - runFlow:
@@ -62,6 +72,12 @@ appId: app.patria.dev
       - launchApp
       - extendedWaitUntil:
           visible:
-            id: "home-keys-status"
+            id: "^home$"
+          timeout: 30000
+      - runFlow:
+          file: subflows/open_family.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "family-keys-status"
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"

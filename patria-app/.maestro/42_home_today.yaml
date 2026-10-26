@@ -1,0 +1,120 @@
+# PHONE_TESTS: 42
+# AREAS: sync, navigation
+# Needs a Sync schedule (e2e-setup). Optional phases: no_schedule_*, on_this_day.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'main' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
+          id: "^home$"
+      - assertVisible:
+          id: "home-greeting"
+      - assertVisible:
+          id: "home-family-name"
+      - assertVisible:
+          id: "home-avatars"
+      - extendedWaitUntil:
+          visible:
+            id: "home-sync-card"
+          timeout: 20000
+      - assertVisible:
+          id: "home-sync-overline"
+      - assertVisible: "Household meeting"
+      - assertNotVisible: "Recent memories"
+      - assertNotVisible:
+          id: "home-vault-card"
+      - assertNotVisible:
+          id: "home-keys-status"
+      - tapOn:
+          id: "home-sync-review"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - tapOn:
+          id: "^home$"
+      - extendedWaitUntil:
+          visible:
+            id: "home-sync-card"
+          timeout: 15000
+      - tapOn:
+          id: "home-sync-add"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-agenda"
+          timeout: 15000
+      - tapOn:
+          id: "cancel"
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - scrollUntilVisible:
+          element:
+            id: "home-this-week-see-all"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "home-this-week-see-all"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-tasks"
+          timeout: 15000
+      - tapOn:
+          point: 8%, 12%
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - tapOn:
+          id: "home-avatars"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-family"
+          timeout: 15000
+      - assertVisible:
+          id: "family-keys-status"
+- runFlow:
+    when:
+      true: ${PHASE == 'no_schedule_admin'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "home-sync-card"
+          timeout: 20000
+      - assertVisible:
+          id: "home-sync-set-up"
+- runFlow:
+    when:
+      true: ${PHASE == 'no_schedule_member'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "home-sync-card"
+          timeout: 20000
+      - assertVisible: "Ask a Family admin to set up the weekly Sync."
+      - assertNotVisible:
+          id: "home-sync-set-up"
+- runFlow:
+    when:
+      true: ${PHASE == 'on_this_day'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - scrollUntilVisible:
+          element:
+            id: "home-on-this-day"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "home-on-this-day"
+      - tapOn:
+          id: "home-on-this-day"

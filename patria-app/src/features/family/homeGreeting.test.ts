@@ -1,5 +1,5 @@
 import { copy } from '../../lib/copy';
-import { greetingPart, homeDateOverline, homeGreeting } from './homeGreeting';
+import { greetingPart, homeDateOverline, homeFamilyLine, homeGreeting } from './homeGreeting';
 
 describe('homeGreeting', () => {
   it('is time of day aware', () => {
@@ -13,5 +13,12 @@ describe('homeGreeting', () => {
 
   it('formats an overline date', () => {
     expect(homeDateOverline(new Date('2026-10-18T19:00:00'))).toMatch(/october 18/i);
+  });
+
+  it('builds the family greeting line', () => {
+    expect(homeFamilyLine('Rivera')).toBe('the Rivera family');
+    expect(homeFamilyLine('The Riveras')).toBe('the Riveras family');
+    expect(homeFamilyLine('The Rivera Family')).toBe('The Rivera Family');
+    expect(homeFamilyLine('Rivera family')).toBe('Rivera family');
   });
 });

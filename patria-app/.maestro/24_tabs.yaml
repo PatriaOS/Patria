@@ -13,6 +13,13 @@ appId: app.patria.dev
       id: "screen-memories"
     timeout: 20000
 - tapOn:
+    id: "sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 15000
+- assertVisible: "Family Sync"
+- tapOn:
     id: "vault"
 - extendedWaitUntil:
     visible:

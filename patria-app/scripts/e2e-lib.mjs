@@ -9,10 +9,74 @@ export const PHONE_TESTS = join(REPO_ROOT, 'docs', 'testing', 'PHONE_TESTS.md');
 export const MAESTRO_DIR = join(APP_ROOT, '.maestro');
 export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
+export const TEST_11_TIMEOUT_MS = 15 * 60 * 1000;
 export const TEST_12_TIMEOUT_MS = 20 * 60 * 1000;
 
 export function timeoutMsForTest(testNumber) {
-  return testNumber === 12 ? TEST_12_TIMEOUT_MS : TEST_TIMEOUT_MS;
+  if (testNumber === 11) {
+    // Test 11 chains many Maestro sign-ins (admin + two elders as contacts, then
+    // Elder Test 2 sets up recovery). Ten minutes kills the final accept mid-swipe.
+    return TEST_11_TIMEOUT_MS;
+  }
+  if (testNumber === 12) {
+    return TEST_12_TIMEOUT_MS;
+  }
+  return TEST_TIMEOUT_MS;
+}
+
+/** Numbers with `if (test.number === N)` runners in e2e.mjs. */
+export function runnerNumbersFromSource(source) {
+  const numbers = new Set();
+  for (const match of source.matchAll(/if\s*\(\s*test\.number\s*===\s*(\d+)\s*\)/g)) {
+    numbers.add(Number(match[1]));
+  }
+  return numbers;
+}
+
+/**
+ * Every non-manual phone test must have a Maestro flow and an e2e.mjs runner.
+ * Returns human-readable error strings (empty when coverage is complete).
+ */
+export function phoneCoverageErrors({ tests, flowNumbers, runnerNumbers }) {
+  const errors = [];
+  for (const test of tests) {
+    if (test.manual) {
+      continue;
+    }
+    if (!flowNumbers.has(test.number)) {
+      errors.push(
+        `PHONE_TESTS.md test ${test.number} ("${test.title}") has no Maestro flow and is not marked (manual).`,
+      );
+    }
+    if (!runnerNumbers.has(test.number)) {
+      errors.push(
+        `PHONE_TESTS.md test ${test.number} ("${test.title}") has no runner in scripts/e2e.mjs (look for if (test.number === ${test.number})).`,
+      );
+    }
+  }
+  return errors;
+}
+
+/**
+ * After a phone-test step fails, later steps from PHONE_TESTS.md must show as
+ * "not reached" (not pass). Returns the rows to append to the report.
+ */
+export function notReachedRows({ testNumber, phoneSteps, reportsForTest, failedStepNumber }) {
+  const reported = new Set(reportsForTest.map((row) => row.stepNumber));
+  const rows = [];
+  for (const item of phoneSteps) {
+    if (item.number <= failedStepNumber || reported.has(item.number)) {
+      continue;
+    }
+    rows.push({
+      testNumber,
+      stepNumber: item.number,
+      label: item.text,
+      status: 'skip',
+      detail: 'not reached',
+    });
+  }
+  return rows;
 }
 export const APP_BUNDLE_ID = 'app.patria.dev';
 export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
@@ -37,6 +101,17 @@ export function scenarioForTest(testNumber) {
     return 'admin-elder-teen';
   }
   if (testNumber === 29 || testNumber === 35) {
+    return 'admin-elder';
+  }
+  if (
+    testNumber === 36 ||
+    testNumber === 37 ||
+    testNumber === 38 ||
+    testNumber === 39 ||
+    testNumber === 40 ||
+    testNumber === 41 ||
+    testNumber === 42
+  ) {
     return 'admin-elder';
   }
   return 'admin';
@@ -260,6 +335,43 @@ export function passwordFor(secrets, n) {
   return secrets[`E2E_PASSWORD_TEST${n}`] ?? '';
 }
 
+/**
+ * Next Sync meeting instant matching SyncScreen's ensureNextMeeting / nextMeetingAt
+ * (Sunday 19:00 America/Chicago by default). Keeps e2e seeds on the same row the app opens.
+ */
+export function nextSyncMeetingIso(dbUrl, {
+  weekday = 0,
+  localTime = '19:00:00',
+  timeZone = 'America/Chicago',
+} = {}) {
+  const safeZone = timeZone.replace(/'/g, "''");
+  const safeTime = localTime.replace(/'/g, "''");
+  const iso = runLocalSql(
+    dbUrl,
+    `WITH local_now AS (
+       SELECT now() AT TIME ZONE '${safeZone}' AS n
+     ),
+     candidate AS (
+       SELECT
+         date_trunc('day', n)
+           + ((${Number(weekday)} - extract(dow FROM n)::int + 7) % 7) * interval '1 day'
+           + time '${safeTime}' AS local_ts
+       FROM local_now
+     )
+     SELECT CASE
+       WHEN (local_ts AT TIME ZONE '${safeZone}') > now()
+         THEN (local_ts AT TIME ZONE '${safeZone}')
+       ELSE ((local_ts + interval '7 days') AT TIME ZONE '${safeZone}')
+     END::text
+     FROM candidate;`,
+    true,
+  );
+  if (!iso) {
+    throw new Error('Could not compute next Sync meeting time for e2e seed.');
+  }
+  return iso;
+}
+
 export function redact(value) {
   if (!value) {
     return '';
@@ -352,6 +464,7 @@ export const PHONE_AREA_LIST = [
   'membership',
   'memories',
   'vault',
+  'sync',
 ];
 
 export const SMOKE_TEST_NUMBERS = [1, 3, 8];
@@ -501,8 +614,18 @@ export function mapFileToAreas(file) {
     areas.add('vault');
     areas.add('keys');
   }
+  if (
+    /patria-app\/src\/features\/sync|patria-app\/src\/features\/family\/(HomeToday|HomeSyncCard|OnThisDay|ThisWeek)|patria-app\/app\/\(signed-in\)\/(\(tabs\)\/)?(sync|index)|gov02|weekly_family_sync|3[6-9]_|4[0-2]_/.test(
+      n,
+    )
+  ) {
+    areas.add('sync');
+    areas.add('navigation');
+  }
   if (n.includes('patria-app/supabase')) {
-    if (/memory_items|mem_rls|memories/.test(n)) {
+    if (/weekly_family_sync|gov02/.test(n)) {
+      areas.add('sync');
+    } else if (/memory_items|mem_rls|memories/.test(n)) {
       areas.add('memories');
     } else if (/vault_entries|leg01|d34_vault|vault_voice/.test(n)) {
       areas.add('vault');

@@ -1,0 +1,26 @@
+# PHONE_TESTS: 40
+# AREAS: sync
+# Needs a finished Sync (e2e-setup).
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "sync"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "past-meetings"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "past-meetings"
+- extendedWaitUntil:
+    visible:
+      id: "screen-sync-past"
+    timeout: 15000
+- assertVisible: "Summary"
+- assertVisible: "Practice together"

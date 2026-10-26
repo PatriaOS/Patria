@@ -10,14 +10,11 @@ import {
   Card,
   Display,
   DisplayItalic,
-  EmptyState,
   ErrorState,
   LoadingState,
   Muted,
   Overline,
-  PhotoTile,
   Screen,
-  StatusPill,
   Title,
 } from '../../ui';
 import { copy } from '../../lib/copy';
@@ -32,7 +29,7 @@ import {
   type FirstDeviceNotice,
 } from '../../lib/crypto/deviceAccess';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
-import { ensureKeysForOpenFamily, type FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import {
   homeRotationQueryKey,
   homeRotationUiFromOutcome,
@@ -59,14 +56,11 @@ import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devL
 import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
-import { isMemoryRole } from '../../lib/roles';
 import { space } from '../../theme/tokens';
-import { fetchReadyMemories } from '../memories/memoryApi';
-import { formatDuration } from '../memories/shareMessages';
-import { homeDateOverline, homeGreeting } from './homeGreeting';
+import { homeDateOverline, homeFamilyLine, homeGreeting } from './homeGreeting';
+import { HomeToday } from './HomeToday';
+import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
-
-const RECENT_MEMORY_LIMIT = 6;
 
 export function HomeScreen() {
   const router = useRouter();
@@ -121,11 +115,6 @@ export function HomeScreen() {
     refetchOnMount: 'always',
     queryFn: () => supabaseRecoverFlowGateway.listRemovedNotices(spaceId as string),
   });
-  const memoriesQuery = useQuery({
-    queryKey: ['memories', spaceId],
-    enabled: Boolean(spaceId) && isMemoryRole(current?.role),
-    queryFn: () => fetchReadyMemories(spaceId as string),
-  });
   const onRefresh = useCallback(() => {
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
@@ -141,6 +130,10 @@ export function HomeScreen() {
       void queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['deviceRemovedNotices', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['memories', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['syncSchedule', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['syncMeetings', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['syncAgenda'] });
+      void queryClient.invalidateQueries({ queryKey: ['syncTasks', spaceId] });
     }
   }, [queryClient, userId, spaceId]);
 
@@ -397,19 +390,6 @@ export function HomeScreen() {
     }
   };
 
-  const keyStatusCopy = (status: FamilyKeyStatus): string => {
-    if (status === 'ready') {
-      return copy.home.keysReady;
-    }
-    if (status === 'needsRelink') {
-      return copy.home.keysNeedRelink;
-    }
-    if (status === 'waitingOwnPhone') {
-      return copy.home.keysWaitingOwnPhone;
-    }
-    return copy.home.keysWaiting;
-  };
-
   const joinFamilyLink = (
     <Pressable
       testID={testIdFromLabel(copy.home.joinFamily)}
@@ -492,21 +472,10 @@ export function HomeScreen() {
     );
   }
 
-  const memberNames = (membersQuery.data ?? []).map((row) => memberDisplayName(row.displayName));
-  const recentMemories = (memoriesQuery.data ?? []).slice(0, RECENT_MEMORY_LIMIT);
-  const recoveryStatusLabel =
-    keyHolder && recoveryQuery.data?.status === 'not_setup'
-      ? copy.home.recoveryNotSetup
-      : keyHolder && recoveryQuery.data?.status === 'one_of_two'
-        ? copy.home.recoveryOneOfTwo
-        : keyHolder && recoveryQuery.data?.status === 'needs_attention'
-          ? copy.home.recoveryNeedsAttention
-          : keyHolder && recoveryQuery.data?.status === 'setup'
-            ? copy.home.recoverySetup
-            : !admin && recoveryQuery.data?.status === 'contact'
-              ? copy.home.recoveryYouAreContact.replace('{family}', current.space.name)
-              : null;
-
+  const memberPeople = (membersQuery.data ?? []).map((row) => ({
+    id: row.userId,
+    name: memberDisplayName(row.displayName),
+  }));
   return (
     <Screen
       withTabBar
@@ -515,47 +484,19 @@ export function HomeScreen() {
       refreshing={refreshing}
       onRefresh={onRefresh}
     >
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Overline tone="terracotta">{homeDateOverline()}</Overline>
-          <Display testID="home-greeting">{homeGreeting()}</Display>
-          <DisplayItalic testID="home-family-name" tone="primary">
-            {current.space.name}
-          </DisplayItalic>
-        </View>
-        <AvatarStack names={memberNames} />
-      </View>
-      {keyStatusQuery.data || recoveryStatusLabel ? (
-        <Card variant="soft">
-          <View
-            testID={
-              keyStatusQuery.data === 'waitingOwnPhone' ? 'screen-waiting-own-phone' : undefined
-            }
-            style={styles.statusRow}
-          >
-            {keyStatusQuery.data ? (
-              <StatusPill
-                testID="home-keys-status"
-                label={keyStatusCopy(keyStatusQuery.data)}
-                tone={keyStatusQuery.data === 'ready' ? 'success' : 'wait'}
-              />
-            ) : null}
-            {recoveryStatusLabel ? (
-              <StatusPill
-                testID="home-recovery-status"
-                label={recoveryStatusLabel}
-                tone={
-                  recoveryQuery.data?.status === 'needs_attention'
-                    ? 'danger'
-                    : recoveryQuery.data?.status === 'setup'
-                      ? 'success'
-                      : 'wait'
-                }
-              />
-            ) : null}
-          </View>
-        </Card>
-      ) : null}
+      <SecurityStatusCard
+        attentionOnly
+        keyStatus={keyStatusQuery.data}
+        recoveryStatus={recoveryQuery.data?.status}
+        keyHolder={keyHolder}
+        admin={admin}
+        familyName={current.space.name}
+        keysTestID="home-keys-status"
+        recoveryTestID="home-recovery-status"
+        rowTestID={
+          keyStatusQuery.data === 'waitingOwnPhone' ? 'screen-waiting-own-phone' : undefined
+        }
+      />
       {shownRotation === 'updating' ? (
         <Muted testID="home-rotation-status">{copy.home.rotationUpdating}</Muted>
       ) : null}
@@ -785,62 +726,25 @@ export function HomeScreen() {
           </Card>
         );
       })}
-      <Card
-        testID="home-vault-card"
-        accessibilityLabel={copy.tabs.vault}
-        onPress={() => router.push(routes.vault)}
-      >
-        <Title>{copy.tabs.vault}</Title>
-        <Muted>{copy.home.vaultComing}</Muted>
-      </Card>
-      {isMemoryRole(current.role) ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Title>{copy.home.recentMemories}</Title>
-            <View style={styles.sectionActions}>
-              {!memoriesQuery.isLoading && recentMemories.length === 0 ? (
-                <Pressable
-                  testID={testIdFromLabel(copy.memories.addPhotos)}
-                  accessibilityRole="button"
-                  accessibilityLabel={copy.memories.addPhotos}
-                  onPress={() => router.push(routes.memoriesAdd)}
-                >
-                  <Muted tone="primary">{copy.memories.addPhotos}</Muted>
-                </Pressable>
-              ) : null}
-              <Pressable
-                testID={testIdFromLabel(copy.home.seeAll)}
-                accessibilityRole="link"
-                accessibilityLabel={copy.home.seeAll}
-                onPress={() => router.push(routes.memories)}
-              >
-                <Muted tone="primary">{copy.home.seeAll}</Muted>
-              </Pressable>
-            </View>
-          </View>
-          {memoriesQuery.isError ? <ErrorState message={copy.common.error} /> : null}
-          {!memoriesQuery.isLoading && recentMemories.length === 0 ? (
-            <EmptyState compact title={copy.memories.empty} />
-          ) : (
-            <View style={styles.tiles}>
-              {recentMemories.map((item) => (
-                <PhotoTile
-                  key={item.id}
-                  testID={`home-memory-${item.id}`}
-                  uri={item.thumbUrl ?? undefined}
-                  accessibilityLabel={
-                    item.kind === 'video'
-                      ? `${copy.memories.play} ${formatDuration(item.durationSeconds)}, ${item.circleName}`
-                      : `${item.circleName}, ${item.uploaderName}`
-                  }
-                  durationLabel={item.kind === 'video' ? formatDuration(item.durationSeconds) : undefined}
-                  onPress={() => router.push(routes.memoryItem(item.id))}
-                />
-              ))}
-            </View>
-          )}
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Overline tone="terracotta">{homeDateOverline()}</Overline>
+          <Display testID="home-greeting">{homeGreeting()}</Display>
+          <DisplayItalic testID="home-family-name" tone="primary">
+            {homeFamilyLine(current.space.name)}
+          </DisplayItalic>
         </View>
-      ) : null}
+        <Pressable
+          testID="home-avatars"
+          accessibilityRole="button"
+          accessibilityLabel={copy.home.avatarsLabel}
+          onPress={() => router.push(routes.family)}
+          style={styles.avatars}
+        >
+          <AvatarStack people={memberPeople} />
+        </Pressable>
+      </View>
+      <HomeToday />
     </Screen>
   );
 }
@@ -856,29 +760,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: space.xxs,
   },
-  statusRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.xs,
-  },
-  section: {
-    gap: space.sm,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-  },
-  sectionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  tiles: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
+  avatars: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   joinLink: {
     alignSelf: 'center',
