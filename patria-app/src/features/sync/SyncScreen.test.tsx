@@ -121,7 +121,7 @@ describe('Sync tab', () => {
     expect(getByText(copy.sync.tonightFlow)).toBeTruthy();
     expect(getByText(/HOUSEHOLD/)).toBeTruthy();
     expect(getByTestId('continue')).toBeTruthy();
-    expect(getByTestId('add-to-agenda')).toBeTruthy();
+    expect(getByTestId('add-to-the-agenda')).toBeTruthy();
   });
 
   it('offers Hold it now, without guilt, when the time has passed', async () => {

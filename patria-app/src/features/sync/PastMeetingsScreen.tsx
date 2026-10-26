@@ -1,3 +1,5 @@
+import { View } from 'react-native';
+
 import { copy } from '../../lib/copy';
 import {
   Body,
@@ -61,9 +63,13 @@ export function PastMeetingsScreen() {
               <Section>{formatMeetingDay(meeting.scheduledFor, zone)}</Section>
               <Caption tone="muted">{circleDisplayName(circle)}</Caption>
               <Body>{meeting.priorityText.trim() || copy.sync.noPriority}</Body>
-              <Caption tone="muted">
-                {copy.sync.summary}: {summaryLine(summary)}
-              </Caption>
+              <View
+                style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}
+                testID={`past-meeting-summary-${meeting.id}`}
+              >
+                <Caption tone="muted">{copy.sync.summary}</Caption>
+                <Caption tone="muted">{summaryLine(summary)}</Caption>
+              </View>
               {summary.decisions.map((entry) => (
                 <ListRow key={`${entry.title}:${entry.decision}`} title={entry.title} body={entry.decision} />
               ))}

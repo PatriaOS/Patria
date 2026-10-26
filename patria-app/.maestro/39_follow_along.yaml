@@ -1,33 +1,107 @@
 # PHONE_TESTS: 39
 # AREAS: sync
-# Covers starting the Sync on device A. Second-phone steps stay (manual).
-# Needs a Sync schedule (e2e-setup).
+# PHASE=start on device A; follow / refresh on device B.
 appId: app.patria.dev
 ---
 - runFlow:
-    file: subflows/sign_in.yaml
-- tapOn:
-    id: "sync"
-- extendedWaitUntil:
-    visible:
-      id: "screen-sync"
-    timeout: 20000
-- runFlow:
     when:
-      visible:
-        id: "hold-it-now"
+      true: ${PHASE == 'start' || PHASE == null || PHASE == ''}
     commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
       - tapOn:
-          id: "hold-it-now"
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - runFlow:
+          when:
+            visible:
+              id: "hold-it-now"
+          commands:
+            - tapOn:
+                id: "hold-it-now"
+      - runFlow:
+          when:
+            visible:
+              id: "continue"
+          commands:
+            - tapOn:
+                id: "continue"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - assertVisible: "Wins"
 - runFlow:
     when:
-      visible:
-        id: "continue"
+      true: ${PHASE == 'follow'}
     commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - assertVisible: "The Sync is running on.*"
+      - assertVisible:
+          id: "follow-along"
+      - assertNotVisible:
+          id: "continue"
+      - tapOn:
+          id: "follow-along"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - assertVisible: "Wins"
+      - assertNotVisible: "Mark discussed"
+- runFlow:
+    when:
+      true: ${PHASE == 'add_note'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
       - tapOn:
           id: "continue"
-- extendedWaitUntil:
-    visible:
-      id: "screen-sync-run"
-    timeout: 20000
-- assertVisible: "Wins"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - tapOn:
+          id: "notes"
+      - inputText: "Hike felt great"
+      - tapOn: "Wins"
+      - tapOn:
+          id: "next"
+- runFlow:
+    when:
+      true: ${PHASE == 'see_note'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - tapOn:
+          id: "follow-along"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-run"
+          timeout: 20000
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - assertVisible: "Hike felt great"

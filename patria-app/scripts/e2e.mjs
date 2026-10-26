@@ -19,12 +19,15 @@ import {
   e2eDeviceCount,
   ensureJavaHome,
   loadLocalFiles,
+  notReachedRows,
   parsePhoneTests,
   passwordFor,
   publicExpoEnv,
+  runLocalSql,
   runnerNumbersFromSource,
   selectAffectedPhoneTests,
   SMOKE_TEST_NUMBERS,
+  supabaseStatusEnv,
   supabaseUrlFromEnv,
 } from './e2e-lib.mjs';
 
@@ -583,7 +586,7 @@ function seedLetIn(memberN, device) {
 }
 
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35].includes(testNumber)) {
+  if (![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42].includes(testNumber)) {
     return;
   }
   seedAdminKeys();
@@ -594,7 +597,8 @@ function seedBeforeYouStart(testNumber) {
     testNumber === 31 ||
     testNumber === 32 ||
     testNumber === 33 ||
-    testNumber === 35
+    testNumber === 35 ||
+    testNumber === 42
   ) {
     return;
   }
@@ -642,16 +646,54 @@ function step(testNumber, stepNumber, label, fn) {
     status = 'fail';
     detail = error instanceof Error ? error.message : 'failed';
     captureScreen(deviceA, `fail-test-${testNumber}-step-${stepNumber}`);
-    if (detail === 'timed out') {
-      reports.push({ testNumber, stepNumber, label, status, detail });
-      console.log(`  ${stepNumber}. ${label}: FAIL (timed out)`);
-      throw error;
-    }
+    reports.push({ testNumber, stepNumber, label, status, detail });
+    console.log(`  ${stepNumber}. ${label}: FAIL${detail ? ` (${detail})` : ''}`);
+    throw error instanceof Error ? error : new Error(detail || 'failed');
   }
   reports.push({ testNumber, stepNumber, label, status, detail });
   const extra = detail ? ` (${detail})` : '';
   console.log(`  ${stepNumber}. ${label}: ${status.toUpperCase()}${extra}`);
+  if (status === 'fail') {
+    throw new Error(detail || 'failed');
+  }
   return status;
+}
+
+function markNotReached(test, failedStepNumber) {
+  const rows = notReachedRows({
+    testNumber: test.number,
+    phoneSteps: test.steps,
+    reportsForTest: reports.filter((row) => row.testNumber === test.number),
+    failedStepNumber,
+  });
+  for (const row of rows) {
+    reports.push(row);
+    console.log(`  ${row.stepNumber}. ${row.label}: not reached`);
+  }
+}
+
+function e2eFamilySpaceId() {
+  const dbUrl = supabaseStatusEnv().DB_URL;
+  if (!dbUrl) {
+    throw new Error('local Supabase DB URL missing');
+  }
+  const id = runLocalSql(
+    dbUrl,
+    `SELECT id::text FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' ORDER BY created_at DESC LIMIT 1;`,
+    true,
+  );
+  if (!id) {
+    throw new Error('E2E Family space not found');
+  }
+  return id;
+}
+
+function sqlOnE2eFamily(statement) {
+  const dbUrl = supabaseStatusEnv().DB_URL;
+  if (!dbUrl) {
+    throw new Error('local Supabase DB URL missing');
+  }
+  runLocalSql(dbUrl, statement);
 }
 
 function skipRest(testNumber, from, reason, count) {
@@ -769,7 +811,7 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35].includes(test.number)) {
+    if ([9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42].includes(test.number)) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
@@ -1800,11 +1842,18 @@ try {
       });
       step(36, 2, 'Schedule fields: day, time, zone, circle', () => result('pass'));
       step(36, 3, 'Save schedule returns to Sync hub', () => result('pass'));
-      step(36, 4, 'Non-admin sees schedule without Schedule button', () =>
-        result('skip', 'manual: Test 2 on another phone'),
-      );
+      step(36, 4, 'Non-admin sees schedule without Schedule button', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('36_set_up_sync.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'member_sees_schedule' },
+        });
+      });
       step(36, 5, 'Non-admin with no schedule sees ask-admin copy', () =>
-        result('skip', 'manual: family with no schedule yet'),
+        result('skip', 'manual: separate family with no schedule yet'),
       );
     }
 
@@ -1824,9 +1873,21 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
         });
       });
-      step(37, 4, 'Test 2 Win shows for Test 1 after refresh', () =>
-        result('skip', 'manual: second account on another phone'),
-      );
+      step(37, 4, 'Test 2 Win shows for Test 1 after refresh', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('37_add_agenda.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'member_win' },
+        });
+        maestro({
+          flow: flow('37_add_agenda.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'see_member_win', E2E_STAY: '1' },
+        });
+      });
     }
 
     if (test.number === 38) {
@@ -1834,7 +1895,7 @@ try {
         maestro({
           flow: flow('38_run_sync.yaml'),
           device: deviceA,
-          env: signInEnv(secrets, 1),
+          env: { ...signInEnv(secrets, 1), PHASE: 'run' },
         });
       });
       step(38, 2, 'Look ahead after Wins', () => result('pass'));
@@ -1842,9 +1903,20 @@ try {
       step(38, 4, 'Priority and a task', () => result('pass'));
       step(38, 5, 'Finish returns to Sync', () => result('pass'));
       step(38, 6, 'Tasks list shows the new task', () => result('pass'));
-      step(38, 7, 'Missed meeting offers Hold it now without guilt', () =>
-        result('skip', 'manual: needs a meeting time already past'),
-      );
+      step(38, 7, 'Missed meeting offers Hold it now without guilt', () => {
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `UPDATE public.sync_meetings
+             SET scheduled_for = now() - interval '2 hours'
+           WHERE family_space_id = '${spaceId}'
+             AND status = 'upcoming';`,
+        );
+        maestro({
+          flow: flow('38_run_sync.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'missed', E2E_STAY: '1' },
+        });
+      });
     }
 
     if (test.number === 39) {
@@ -1852,18 +1924,35 @@ try {
         maestro({
           flow: flow('39_follow_along.yaml'),
           device: deviceA,
-          env: signInEnv(secrets, 1),
+          env: { ...signInEnv(secrets, 1), PHASE: 'start' },
         });
       });
-      step(39, 2, 'Test 2 sees Follow along, no Continue', () =>
-        result('skip', 'manual: second phone as Test 2'),
-      );
-      step(39, 3, 'Follow along is read only', () =>
-        result('skip', 'manual: second phone as Test 2'),
-      );
-      step(39, 4, 'Notes appear on the second phone after refresh', () =>
-        result('skip', 'manual: second phone as Test 2'),
-      );
+      step(39, 2, 'Test 2 sees Follow along, no Continue', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('39_follow_along.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'follow' },
+        });
+      });
+      step(39, 3, 'Follow along is read only', () => result('pass'));
+      step(39, 4, 'Notes appear on the second phone after refresh', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('39_follow_along.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'add_note', E2E_STAY: '1' },
+        });
+        maestro({
+          flow: flow('39_follow_along.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'see_note', E2E_STAY: '1' },
+        });
+      });
     }
 
     if (test.number === 40) {
@@ -1900,7 +1989,7 @@ try {
         maestro({
           flow: flow('42_home_today.yaml'),
           device: deviceA,
-          env: signInEnv(secrets, 1),
+          env: { ...signInEnv(secrets, 1), PHASE: 'main' },
         });
       });
       step(42, 2, 'Sync card overline, title and actions', () => result('pass'));
@@ -1909,24 +1998,67 @@ try {
       step(42, 5, 'This week tasks', () => result('pass'));
       step(42, 6, 'See all opens Sync tasks', () => result('pass'));
       step(42, 7, 'Avatars open Family with keys status', () => result('pass'));
-      step(42, 8, 'No schedule card for admin vs member', () =>
-        result('skip', 'manual: family with no Sync schedule'),
-      );
-      step(42, 9, 'On this day card', () =>
-        result('skip', 'manual: needs a same-month-day memory from an earlier year'),
-      );
+      step(42, 8, 'No schedule card for admin vs member', () => {
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.sync_schedules WHERE family_space_id = '${spaceId}';`,
+        );
+        maestro({
+          flow: flow('42_home_today.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'no_schedule_admin', E2E_STAY: '1' },
+        });
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'member ask-admin needs 2 simulators');
+        }
+        maestro({
+          flow: flow('42_home_today.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'no_schedule_member' },
+        });
+      });
+      step(42, 9, 'On this day card', () => {
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `INSERT INTO public.memory_items (
+             family_space_id, circle_id, uploader_id, caption, taken_at, width, height, status
+           )
+           SELECT
+             s.id,
+             c.id,
+             m.user_id,
+             'On this day e2e',
+             ((date_trunc('day', now() AT TIME ZONE 'America/Chicago') - interval '1 year')
+               AT TIME ZONE 'America/Chicago'),
+             10,
+             10,
+             'ready'
+           FROM public.family_spaces AS s
+           JOIN public.circles AS c
+             ON c.family_space_id = s.id AND c.kind = 'household'
+           JOIN public.space_members AS m
+             ON m.family_space_id = s.id AND m.role = 'admin'
+           WHERE s.id = '${spaceId}'
+           LIMIT 1;`,
+        );
+        maestro({
+          flow: flow('42_home_today.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'on_this_day', E2E_STAY: '1' },
+        });
+      });
       step(42, 10, 'Largest text scrolls on Home', () =>
         result('skip', 'manual judgement'),
       );
     }
     } catch (error) {
-      if (!(error instanceof Error) || error.message !== 'timed out') {
-        throw error;
-      }
-      const hasTimeout = reports.some(
-        (row) => row.testNumber === test.number && row.detail === 'timed out',
-      );
-      if (!hasTimeout) {
+      const failed = reports
+        .filter((row) => row.testNumber === test.number && row.status === 'fail')
+        .at(-1);
+      if (failed) {
+        markNotReached(test, failed.stepNumber);
+      } else if (error instanceof Error && error.message === 'timed out') {
         reports.push({
           testNumber: test.number,
           stepNumber: 1,
@@ -1935,6 +2067,9 @@ try {
           detail: 'timed out',
         });
         captureScreen(deviceA, `timeout-test-${test.number}`);
+        markNotReached(test, 1);
+      } else {
+        throw error;
       }
     } finally {
       if (driverUnreachable && !retriedTests.has(test.number)) {

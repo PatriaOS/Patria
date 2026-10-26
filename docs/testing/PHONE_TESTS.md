@@ -320,7 +320,7 @@ Areas: sync, navigation
 1. Sign in as Test 1. Tap **Sync**. Pass if you see **Family Sync** and a **Set up our Sync** button.
 2. Tap **Set up our Sync**. Pass if you see the days of the week, **Time**, **Time zone** and a choice of **Household** or **Extended Family**.
 3. Pick a day, type a time like 19:00, leave the time zone as it is, keep **Household**, and tap **Save schedule**. Pass if you return to Sync and see the day and time, **Household**, and the four steps of tonight's flow.
-4. Sign in as Test 2 (not an admin). Open **Sync**. Pass if Test 2 sees the same meeting but no **Schedule** button. (manual)
+4. Sign in as Test 2 (not an admin). Open **Sync**. Pass if Test 2 sees the same meeting but no **Schedule** button.
 5. On a family with no schedule yet, pass if a member who is not an admin sees **Ask a Family admin to set up the weekly Sync.** instead of the button. (manual)
 
 ### 37. Add to the agenda
@@ -328,7 +328,7 @@ Areas: sync
 1. Sign in as Test 1. Open **Sync** and tap **Add to the agenda**. Pass if you can choose **Win**, **Discuss**, **Decide** or **Plan**, and a short line says where the item will show up.
 2. Choose **Discuss**, type a title, and tap **Save**. Pass if you return to Sync and the title is on the agenda with **Discuss** beside it.
 3. Tap the item, change the title, and tap **Save**. Pass if the new title shows on the agenda.
-4. Sign in as Test 2. Add a **Win**. Pass if the Win shows on Test 1's agenda as **Added by** Test 2's name after a pull to refresh. (manual)
+4. Sign in as Test 2. Add a **Win**. Pass if the Win shows on Test 1's agenda as **Added by** Test 2's name after a pull to refresh.
 
 ### 38. Run the Sync
 Areas: sync
@@ -338,14 +338,14 @@ Areas: sync
 4. Tap **Next**. Pass if you can write **One priority for the week** and add a task with an owner.
 5. Tap **Add a task**, then **Finish the Sync**. Pass if you return to Sync and the next meeting is a week away.
 6. Open **Tasks**. Pass if the task you added is listed and you can mark it done.
-7. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding. (manual)
+7. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding.
 
 ### 39. A second phone follows along (read only)
 Areas: sync
 1. Sign in as Test 1 on one phone. Open **Sync** and tap **Continue** so the Sync is running.
-2. Sign in as Test 2 on a second phone. Open **Sync**. Pass if Test 2 sees **The Sync is running on** Test 1's name **phone** and a **Follow along** button, and no **Continue**. (manual)
-3. Tap **Follow along**. Pass if Test 2 sees the steps and Test 1's notes, with no way to edit them. (manual)
-4. On Test 1's phone, add a note and tap **Next**. Pass if the note shows up on Test 2's phone after a pull to refresh. (manual)
+2. Sign in as Test 2 on a second phone. Open **Sync**. Pass if Test 2 sees **The Sync is running on** Test 1's name **phone** and a **Follow along** button, and no **Continue**.
+3. Tap **Follow along**. Pass if Test 2 sees the steps and Test 1's notes, with no way to edit them.
+4. On Test 1's phone, add a note and tap **Next**. Pass if the note shows up on Test 2's phone after a pull to refresh.
 
 ### 40. Past meetings
 Areas: sync
@@ -373,6 +373,6 @@ Areas: sync, navigation
 5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or one quiet line when there are none. Tap a task's checkbox. Pass if it stays visible with **Done today**.
 6. Tap **See all** beside **This week**. Pass if the Sync tasks screen opens.
 7. Tap the avatars at the top right. Pass if the Family tab opens and shows the keys status and the recovery status below **Your phones**.
-8. On a family with no Sync schedule, pass if the Sync card invites a Family admin to **Set up our Sync**, and tells anyone else to ask a Family admin. (manual)
-9. On a day when a photo or video from an earlier year was taken on this month and day, pass if an **On this day** card shows it and tapping opens the memory; on other days pass if there is no card. (manual)
+8. On a family with no Sync schedule, pass if the Sync card invites a Family admin to **Set up our Sync**, and tells anyone else to ask a Family admin.
+9. On a day when a photo or video from an earlier year was taken on this month and day, pass if an **On this day** card shows it and tapping opens the memory; on other days pass if there is no card.
 10. Use the largest text size. Pass if Home scrolls and nothing is cut off. (manual)

@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-25 — Sync e2e failures: app a11y, reporter, second phone
+
+Maestro 36–42 failures on device: Tonight's flow step titles were swallowed by a parent `accessible` node (`1. Wins` only), the hub **Add to the agenda** button overrode its label-derived id with `add-to-agenda`, and Past meetings kept **Summary** in one concatenated string so `assertVisible: "Summary"` could not match. Fixed those in the app; 38 dismisses the keyboard by tapping a static label; 42 cancels Add before tapping Home. Runner now fails the step that broke and marks later PHONE_TESTS steps **not reached**. Device B covers Test 2 Sync steps; SQL seeds cover missed meetings, no-schedule Home, and On this day.
+
+---
+
 ## 2026-10-25 — e2e runners for Sync + coverage guards
 
 Phone tests 36–42 had Maestro YAML but no `e2e.mjs` runners, so `e2e:affected` reported PASSED after `clear_state` only. Wired runners and e2e-setup seeds (schedule / agenda / finished meeting). `e2e.mjs` now fails any selected non-manual test without a runner; `e2e:check` and a Jest test require every phone test to have both a flow and a runner (or be marked manual). Test 27 was missing from affected summaries because its Areas line was only `vault` while sibling LEG01 tests also list `keys` — when the diff hit keys/recovery/rotation without vault files, 26 and 28–35 matched and 27 did not. Added `keys` to test 27. Test 11 step 8 timed out twice: the failure screenshot showed Test 1’s accept card on screen, and the log stopped mid-swipe — spawnSync hit the 10 minute budget after many sign-ins, not a missed tap. Raised test 11 to 15 minutes and dropped redundant sign-ins in step 8. Docs: PRD/FEATURES version 1.4 notes for BRN02 email notifications + Add to agenda, and GOV02 next-slice frequency and invites.

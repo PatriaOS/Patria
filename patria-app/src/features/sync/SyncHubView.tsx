@@ -98,22 +98,25 @@ function FlowProgress({ flowStepIndex }: { flowStepIndex: number | null }) {
                 ? colors.onMustard
                 : colors.textMuted;
           return (
-            <View
-              key={step}
-              accessible
-              accessibilityLabel={`${index + 1}. ${info.title}${state === 'done' ? ', done' : state === 'current' ? ', current' : ''}`}
-              style={styles.flowStep}
-            >
-              <View style={[styles.flowCircle, { backgroundColor: fill }]}>
+            <View key={step} style={styles.flowStep} testID={`sync-flow-step-${step}`}>
+              <View
+                style={[styles.flowCircle, { backgroundColor: fill }]}
+                accessible
+                accessibilityLabel={`${index + 1}${state === 'done' ? ', done' : state === 'current' ? ', current' : ''}`}
+              >
                 {state === 'done' ? (
                   <Icon icon={Check} name="check" color={labelColor} size={16} decorative />
                 ) : (
-                  <Caption color={labelColor}>{String(index + 1)}</Caption>
+                  <Caption color={labelColor} accessible={false}>
+                    {String(index + 1)}
+                  </Caption>
                 )}
               </View>
               <Caption
                 color={state === 'upcoming' ? colors.textMuted : colors.text}
                 style={styles.flowLabel}
+                numberOfLines={2}
+                accessibilityLabel={info.title}
               >
                 {info.title}
               </Caption>
@@ -208,7 +211,6 @@ function AgendaCard(props: {
         variant="secondary"
         onPress={props.onAddAgenda}
         disabled={!props.canAdd}
-        testID="add-to-agenda"
       />
     </>
   );

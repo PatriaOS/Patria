@@ -4,7 +4,7 @@ appId: app.patria.dev
 ---
 - runFlow:
     when:
-      true: ${PHASE == 'set_up' || PHASE == null || PHASE == ''}
+      true: ${PHASE == 'set_up'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
@@ -45,4 +45,22 @@ appId: app.patria.dev
           timeout: 30000
       - assertVisible: "Tonight’s flow"
       - assertVisible: "Wins"
+      - assertVisible: "Look ahead"
+      - assertVisible: "Decide"
       - assertVisible: "Gratitude"
+- runFlow:
+    when:
+      true: ${PHASE == 'member_sees_schedule'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - assertVisible: "Family Sync"
+      - assertVisible: "Wins"
+      - assertNotVisible:
+          id: "schedule"

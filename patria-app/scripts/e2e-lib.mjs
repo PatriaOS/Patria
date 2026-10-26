@@ -56,6 +56,28 @@ export function phoneCoverageErrors({ tests, flowNumbers, runnerNumbers }) {
   }
   return errors;
 }
+
+/**
+ * After a phone-test step fails, later steps from PHONE_TESTS.md must show as
+ * "not reached" (not pass). Returns the rows to append to the report.
+ */
+export function notReachedRows({ testNumber, phoneSteps, reportsForTest, failedStepNumber }) {
+  const reported = new Set(reportsForTest.map((row) => row.stepNumber));
+  const rows = [];
+  for (const item of phoneSteps) {
+    if (item.number <= failedStepNumber || reported.has(item.number)) {
+      continue;
+    }
+    rows.push({
+      testNumber,
+      stepNumber: item.number,
+      label: item.text,
+      status: 'skip',
+      detail: 'not reached',
+    });
+  }
+  return rows;
+}
 export const APP_BUNDLE_ID = 'app.patria.dev';
 export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
 
