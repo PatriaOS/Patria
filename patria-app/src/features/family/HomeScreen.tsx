@@ -1,19 +1,23 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { Menu } from 'lucide-react-native';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { AppState, StyleSheet, View } from 'react-native';
 
 import {
   AvatarStack,
   Body,
   Button,
+  ButtonStack,
   Card,
   Display,
   DisplayItalic,
   ErrorState,
+  IconButton,
   LoadingState,
   Muted,
   Overline,
+  Pressable,
   Screen,
   Title,
 } from '../../ui';
@@ -57,17 +61,35 @@ import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
+import { useTheme } from '../../theme';
+import {
+  calendarDayInZone,
+  overdueTasksForUser,
+  rankHomeAttention,
+  syncNeedsAttentionToday,
+  visibleHomeAttention,
+  type HomeAttentionKind,
+} from './homeAttention';
 import { homeDateOverline, homeFamilyLine, homeGreeting } from './homeGreeting';
+import { HomeMenuDrawer } from './HomeMenuDrawer';
 import { HomeToday } from './HomeToday';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
+import { defaultTimezone } from '../sync/syncLabels';
+import { fetchSyncTasks } from '../sync/syncApi';
+import { useSyncSpace } from '../sync/useSyncSpace';
+
+type AttentionNode = { id: string; kind: HomeAttentionKind; node: ReactNode };
 
 export function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
   const { userId, spaceId, membershipsQuery, current, admin, keyHolder } = useCurrentFamily();
+  const sync = useSyncSpace();
   const [signingOut, setSigningOut] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [busyNoticeId, setBusyNoticeId] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState<string | null>(null);
   const [rotationUi, setRotationUi] = useState<HomeRotationUi>('hidden');
@@ -114,6 +136,11 @@ export function HomeScreen() {
     enabled: Boolean(spaceId && admin),
     refetchOnMount: 'always',
     queryFn: () => supabaseRecoverFlowGateway.listRemovedNotices(spaceId as string),
+  });
+  const tasksQuery = useQuery({
+    queryKey: ['syncTasks', spaceId],
+    enabled: Boolean(spaceId),
+    queryFn: () => fetchSyncTasks(spaceId as string),
   });
   const onRefresh = useCallback(() => {
     if (userId) {
@@ -476,6 +503,362 @@ export function HomeScreen() {
     id: row.userId,
     name: memberDisplayName(row.displayName),
   }));
+  const selfName =
+    (membersQuery.data ?? []).find((row) => row.userId === userId)?.displayName ?? '';
+
+  const attentionItems = ((): AttentionNode[] => {
+    const items: AttentionNode[] = [];
+    const timeZone = sync.schedule?.timezone ?? defaultTimezone();
+    const today = calendarDayInZone(new Date(), timeZone);
+
+    if (keyHolder && keyStatusQuery.data === 'ready' && (recoveryQuery.data?.accepted ?? 0) < 2) {
+      items.push({
+        id: 'recovery-setup',
+        kind: 'recovery_setup',
+        node: (
+          <Card key="recovery-setup" testID="home-attention-recovery">
+            <Title>{copy.home.recoveryCardTitle}</Title>
+            <Muted>{copy.home.recoveryCardBody}</Muted>
+            <Button
+              label={copy.home.recoveryCardAction}
+              onPress={() => router.push(routes.recoverySetup)}
+            />
+          </Card>
+        ),
+      });
+    }
+
+    if (
+      keyHolder &&
+      recoveryQuery.data &&
+      recoveryQuery.data.accepted >= 2 &&
+      !recoveryQuery.data.hasPaper
+    ) {
+      items.push({
+        id: 'recovery-paper',
+        kind: 'recovery_setup',
+        node: (
+          <Button
+            key="recovery-paper"
+            label={copy.home.recoveryPrintedAction}
+            variant="secondary"
+            testID="create-printed-code"
+            onPress={() => router.push(routes.printedCode)}
+          />
+        ),
+      });
+    }
+
+    for (const row of (recoveryQuery.data?.pending ?? []).filter((r) => r.userId === userId)) {
+      items.push({
+        id: `recovery-invite-${row.id}`,
+        kind: 'device_or_join',
+        node: (
+          <Card key={`recovery-invite-${row.id}`} testID={`home-attention-invite-${row.id}`}>
+            <Title>{copy.home.recoveryInviteTitle}</Title>
+            <Muted>{copy.home.recoveryInviteBody}</Muted>
+            <ButtonStack>
+              <Button
+                label={copy.home.recoveryAccept}
+                onPress={() => void onRecoveryRespond(true)}
+              />
+              <Button
+                label={copy.home.recoveryDecline}
+                variant="secondary"
+                onPress={() => void onRecoveryRespond(false)}
+              />
+            </ButtonStack>
+          </Card>
+        ),
+      });
+    }
+
+    const keysNeedTap = Boolean(keyStatusQuery.data && keyStatusQuery.data !== 'ready');
+    const recoveryNeedsTap = recoveryQuery.data?.status === 'needs_attention';
+    if (keysNeedTap || recoveryNeedsTap) {
+      items.push({
+        id: 'keys-status',
+        kind: keysNeedTap ? 'device_or_join' : 'recovery_setup',
+        node: (
+          <View key="keys-status">
+            <SecurityStatusCard
+              attentionOnly
+              keyStatus={keyStatusQuery.data}
+              recoveryStatus={recoveryQuery.data?.status}
+              keyHolder={keyHolder}
+              admin={admin}
+              familyName={current.space.name}
+              keysTestID="home-keys-status"
+              recoveryTestID="home-recovery-status"
+              rowTestID={
+                keyStatusQuery.data === 'waitingOwnPhone' ? 'screen-waiting-own-phone' : undefined
+              }
+            />
+            {keysNeedTap ? (
+              <Button
+                label={copy.home.lostPhone}
+                testID="i-lost-my-phone"
+                variant="secondary"
+                onPress={() => router.push(routes.recoverLostPhone)}
+              />
+            ) : null}
+          </View>
+        ),
+      });
+    }
+
+    for (const request of recoveryRequestsQuery.data ?? []) {
+      const member = (membersQuery.data ?? []).find((row) => row.userId === request.userId);
+      const name = memberDisplayName(member?.displayName);
+      const when = formatDeviceWhen(request.newDeviceCreatedAt ?? request.startedAt);
+      const open = request.cancelledAt == null && request.completedAt == null;
+      const own = request.userId === userId;
+      if (own && request.cancelledAt) {
+        items.push({
+          id: `recovery-cancelled-${request.id}`,
+          kind: 'device_or_join',
+          node: (
+            <Card key={`recovery-cancelled-${request.id}`}>
+              <Title>
+                {cancelledCopyKind(request.cancelledBy, userId) === 'you'
+                  ? copy.home.recoveryCancelledByYou
+                  : copy.home.recoveryCancelledByAdmin}
+              </Title>
+            </Card>
+          ),
+        });
+        continue;
+      }
+      if (own && open) {
+        items.push({
+          id: `recovery-waiting-${request.id}`,
+          kind: 'device_or_join',
+          node: (
+            <Card key={`recovery-waiting-${request.id}`}>
+              <Title>{copy.home.recoveryWaiting}</Title>
+              <Muted>{when}</Muted>
+              <ButtonStack>
+                <Button
+                  label={copy.home.notMyPhone}
+                  variant="secondary"
+                  busy={busyNoticeId === request.id}
+                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                  onPress={() => void onCancelRecovery(request.id)}
+                />
+                <Button
+                  label={copy.recovery.lostTitle}
+                  variant="secondary"
+                  onPress={() => router.push(routes.recoverLostPhone)}
+                />
+              </ButtonStack>
+            </Card>
+          ),
+        });
+        continue;
+      }
+      if (open && !own) {
+        const myContact = recoveryQuery.data?.contacts.find(
+          (row) => row.userId === userId && row.status === 'accepted',
+        );
+        if (!admin && !myContact) {
+          continue;
+        }
+        items.push({
+          id: `recovery-help-${request.id}`,
+          kind: 'device_or_join',
+          node: (
+            <Card key={`recovery-help-${request.id}`}>
+              <Title>
+                {admin
+                  ? copy.home.recoveryAdminNotice.replace('{name}', name)
+                  : copy.home.recoveryContactNotice.replace('{name}', name)}
+              </Title>
+              {myContact ? (
+                <Muted>{copy.home.recoveryContactNotice.replace('{name}', name)}</Muted>
+              ) : null}
+              <Muted>{when}</Muted>
+              <ButtonStack>
+                {myContact && requestCanFinish(request) ? (
+                  <Button
+                    label={copy.home.recoveryApproveHelp}
+                    busy={busyNoticeId === request.id}
+                    disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                    onPress={() => void onApproveRecoveryHelp(request)}
+                  />
+                ) : null}
+                {admin ? (
+                  <Button
+                    label={copy.home.stopThisRecovery}
+                    variant="secondary"
+                    busy={busyNoticeId === request.id}
+                    disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                    onPress={() => void onCancelRecovery(request.id)}
+                  />
+                ) : null}
+              </ButtonStack>
+            </Card>
+          ),
+        });
+      }
+    }
+
+    for (const notice of removedNoticesQuery.data ?? []) {
+      const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
+      const name = memberDisplayName(member?.displayName);
+      items.push({
+        id: `removed-${notice.id}`,
+        kind: 'device_or_join',
+        node: (
+          <Card key={`removed-${notice.id}`}>
+            <Title>{copy.home.deviceRemovedNotice.replace('{name}', name)}</Title>
+          </Card>
+        ),
+      });
+    }
+
+    for (const notice of noticesQuery.data ?? []) {
+      const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
+      const name = memberDisplayName(member?.displayName);
+      const own = notice.userId === userId;
+      const whenLabel = formatDeviceWhen(notice.deviceCreatedAt);
+      const setUp = copy.home.deviceSetUp.replace('{when}', whenLabel);
+
+      if (notice.kind === 'extra_device') {
+        if (own && keyStatusQuery.data === 'ready') {
+          items.push({
+            id: `extra-${notice.id}`,
+            kind: 'device_or_join',
+            node: (
+              <ApproveMyDeviceCard
+                key={notice.id}
+                notice={notice}
+                name={name}
+                canApprove
+                busy={busyNoticeId === notice.id}
+                disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+                onApprove={() => void onApproveMyPhone(notice)}
+                onReject={() => void onRejectMyPhone(notice)}
+              />
+            ),
+          });
+        } else if (admin && !own) {
+          items.push({
+            id: `extra-admin-${notice.id}`,
+            kind: 'device_or_join',
+            node: (
+              <ApproveMyDeviceCard
+                key={notice.id}
+                notice={notice}
+                name={name}
+                canApprove={false}
+                busy={false}
+                disabled
+                onApprove={() => undefined}
+                onReject={() => undefined}
+              />
+            ),
+          });
+        }
+        continue;
+      }
+
+      if (notice.kind === 'rejected_device') {
+        if (admin) {
+          items.push({
+            id: `rejected-${notice.id}`,
+            kind: 'device_or_join',
+            node: (
+              <Card key={notice.id}>
+                <Title>{copy.home.extraDeviceRejectedNotice.replace('{name}', name)}</Title>
+                <Muted>{setUp}</Muted>
+              </Card>
+            ),
+          });
+        }
+        continue;
+      }
+
+      if (!admin || own) {
+        continue;
+      }
+      const title = copy.home.letInNotice.replace('{name}', name);
+      items.push({
+        id: `letin-${notice.id}`,
+        kind: 'device_or_join',
+        node: (
+          <Card key={notice.id} testID="home-attention-let-in">
+            <Title testID="let-in-notice">{title}</Title>
+            <Muted>
+              {member ? copy.roles[member.role] : ''}
+              {member ? ' · ' : ''}
+              {setUp}
+            </Muted>
+            <ButtonStack>
+              <Button
+                label={copy.home.letIn}
+                busy={busyNoticeId === notice.id}
+                disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+                onPress={() => void onLetIn(notice)}
+                accessibilityHint={title}
+              />
+              <Button
+                label={copy.home.declineDevice}
+                variant="secondary"
+                busy={busyNoticeId === notice.id}
+                disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
+                onPress={() => void onDecline(notice.id)}
+              />
+            </ButtonStack>
+          </Card>
+        ),
+      });
+    }
+
+    if (syncNeedsAttentionToday(sync.active, timeZone)) {
+      items.push({
+        id: 'sync-due',
+        kind: 'sync_due',
+        node: (
+          <Card key="sync-due" testID="home-attention-sync">
+            <Title>{copy.home.syncAttentionTitle}</Title>
+            <Muted>{copy.home.syncAttentionBody}</Muted>
+            <Button
+              label={copy.home.syncAttentionAction}
+              onPress={() => router.push(routes.sync)}
+            />
+          </Card>
+        ),
+      });
+    }
+
+    if (userId && overdueTasksForUser(tasksQuery.data ?? [], userId, today).length > 0) {
+      items.push({
+        id: 'overdue-tasks',
+        kind: 'overdue_tasks',
+        node: (
+          <Card key="overdue-tasks" testID="home-attention-overdue">
+            <Title>{copy.home.overdueAttentionTitle}</Title>
+            <Muted>{copy.home.overdueAttentionBody}</Muted>
+            <Button
+              label={copy.home.overdueAttentionAction}
+              onPress={() => router.push(routes.syncTasks)}
+            />
+          </Card>
+        ),
+      });
+    }
+
+    return items;
+  })();
+
+  const ranked = rankHomeAttention(
+    attentionItems.map(({ id, kind }) => ({ id, kind })),
+  );
+  const orderedNodes = ranked
+    .map((row) => attentionItems.find((item) => item.id === row.id))
+    .filter((item): item is AttentionNode => Boolean(item));
+  const { shown, hiddenCount } = visibleHomeAttention(orderedNodes);
+
   return (
     <Screen
       withTabBar
@@ -484,19 +867,6 @@ export function HomeScreen() {
       refreshing={refreshing}
       onRefresh={onRefresh}
     >
-      <SecurityStatusCard
-        attentionOnly
-        keyStatus={keyStatusQuery.data}
-        recoveryStatus={recoveryQuery.data?.status}
-        keyHolder={keyHolder}
-        admin={admin}
-        familyName={current.space.name}
-        keysTestID="home-keys-status"
-        recoveryTestID="home-recovery-status"
-        rowTestID={
-          keyStatusQuery.data === 'waitingOwnPhone' ? 'screen-waiting-own-phone' : undefined
-        }
-      />
       {shownRotation === 'updating' ? (
         <Muted testID="home-rotation-status">{copy.home.rotationUpdating}</Muted>
       ) : null}
@@ -513,219 +883,23 @@ export function HomeScreen() {
           />
         </View>
       ) : null}
-      {keyHolder && keyStatusQuery.data === 'ready' && (recoveryQuery.data?.accepted ?? 0) < 2 ? (
-        <Card>
-          <Title>{copy.home.recoveryCardTitle}</Title>
-          <Muted>{copy.home.recoveryCardBody}</Muted>
-          <Button
-            label={copy.home.recoveryCardAction}
-            onPress={() => router.push(routes.recoverySetup)}
-          />
-        </Card>
+      {shown.length > 0 ? (
+        <View style={styles.attention} testID="home-needs-attention">
+          {shown.map((item) => item.node)}
+          {hiddenCount > 0 ? (
+            <Pressable
+              testID="home-attention-see-all"
+              accessibilityRole="link"
+              accessibilityLabel={copy.home.needsAttentionSeeAll}
+              onPress={() => router.push(routes.family)}
+              style={styles.seeAll}
+            >
+              <Body color={colors.accentTerracotta}>{copy.home.needsAttentionSeeAll}</Body>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
-      {keyHolder &&
-      recoveryQuery.data &&
-      recoveryQuery.data.accepted >= 2 &&
-      !recoveryQuery.data.hasPaper ? (
-        <Button
-          label={copy.home.recoveryPrintedAction}
-          variant="secondary"
-          testID="create-printed-code"
-          onPress={() => router.push(routes.printedCode)}
-        />
-      ) : null}
-      {(recoveryQuery.data?.pending ?? [])
-        .filter((row) => row.userId === userId)
-        .map((row) => (
-          <Card key={row.id}>
-            <Title>{copy.home.recoveryInviteTitle}</Title>
-            <Muted>{copy.home.recoveryInviteBody}</Muted>
-            <Button
-              label={copy.home.recoveryAccept}
-              onPress={() => void onRecoveryRespond(true)}
-            />
-            <Button
-              label={copy.home.recoveryDecline}
-              variant="secondary"
-              onPress={() => void onRecoveryRespond(false)}
-            />
-          </Card>
-        ))}
-      {keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
-        <Button
-          label={copy.home.lostPhone}
-          testID="i-lost-my-phone"
-          variant="secondary"
-          onPress={() => router.push(routes.recoverLostPhone)}
-        />
-      ) : null}
-      {(recoveryRequestsQuery.data ?? []).map((request) => {
-        const member = (membersQuery.data ?? []).find((row) => row.userId === request.userId);
-        const name = memberDisplayName(member?.displayName);
-        const when = formatDeviceWhen(request.newDeviceCreatedAt ?? request.startedAt);
-        const open = request.cancelledAt == null && request.completedAt == null;
-        const own = request.userId === userId;
-        if (own && request.cancelledAt) {
-          return (
-            <Card key={request.id}>
-              <Title>
-                {cancelledCopyKind(request.cancelledBy, userId) === 'you'
-                  ? copy.home.recoveryCancelledByYou
-                  : copy.home.recoveryCancelledByAdmin}
-              </Title>
-            </Card>
-          );
-        }
-        if (own && open) {
-          return (
-            <Card key={request.id}>
-              <Title>{copy.home.recoveryWaiting}</Title>
-              <Muted>{when}</Muted>
-              <Button
-                label={copy.home.notMyPhone}
-                variant="secondary"
-                busy={busyNoticeId === request.id}
-                disabled={busyNoticeId !== null && busyNoticeId !== request.id}
-                onPress={() => void onCancelRecovery(request.id)}
-              />
-              <Button
-                label={copy.recovery.lostTitle}
-                variant="secondary"
-                onPress={() => router.push(routes.recoverLostPhone)}
-              />
-            </Card>
-          );
-        }
-        if (open && !own) {
-          const myContact = recoveryQuery.data?.contacts.find(
-            (row) => row.userId === userId && row.status === 'accepted',
-          );
-          if (!admin && !myContact) {
-            return null;
-          }
-          return (
-            <Card key={request.id}>
-              <Title>
-                {admin
-                  ? copy.home.recoveryAdminNotice.replace('{name}', name)
-                  : copy.home.recoveryContactNotice.replace('{name}', name)}
-              </Title>
-              {myContact ? (
-                <Muted>{copy.home.recoveryContactNotice.replace('{name}', name)}</Muted>
-              ) : null}
-              <Muted>{when}</Muted>
-              {myContact && requestCanFinish(request) ? (
-                <Button
-                  label={copy.home.recoveryApproveHelp}
-                  busy={busyNoticeId === request.id}
-                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
-                  onPress={() => void onApproveRecoveryHelp(request)}
-                />
-              ) : null}
-              {admin ? (
-                <Button
-                  label={copy.home.stopThisRecovery}
-                  variant="secondary"
-                  busy={busyNoticeId === request.id}
-                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
-                  onPress={() => void onCancelRecovery(request.id)}
-                />
-              ) : null}
-            </Card>
-          );
-        }
-        return null;
-      })}
-      {(removedNoticesQuery.data ?? []).map((notice) => {
-        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
-        const name = memberDisplayName(member?.displayName);
-        return (
-          <Card key={notice.id}>
-            <Title>{copy.home.deviceRemovedNotice.replace('{name}', name)}</Title>
-          </Card>
-        );
-      })}
       {noticeError ? <ErrorState message={noticeError} /> : null}
-      {(noticesQuery.data ?? []).map((notice) => {
-        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
-        const name = memberDisplayName(member?.displayName);
-        const own = notice.userId === userId;
-        const whenLabel = formatDeviceWhen(notice.deviceCreatedAt);
-        const setUp = copy.home.deviceSetUp.replace('{when}', whenLabel);
-
-        if (notice.kind === 'extra_device') {
-          if (own && keyStatusQuery.data === 'ready') {
-            return (
-              <ApproveMyDeviceCard
-                key={notice.id}
-                notice={notice}
-                name={name}
-                canApprove
-                busy={busyNoticeId === notice.id}
-                disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-                onApprove={() => void onApproveMyPhone(notice)}
-                onReject={() => void onRejectMyPhone(notice)}
-              />
-            );
-          }
-          if (admin && !own) {
-            return (
-              <ApproveMyDeviceCard
-                key={notice.id}
-                notice={notice}
-                name={name}
-                canApprove={false}
-                busy={false}
-                disabled
-                onApprove={() => undefined}
-                onReject={() => undefined}
-              />
-            );
-          }
-          return null;
-        }
-
-        if (notice.kind === 'rejected_device') {
-          if (!admin) {
-            return null;
-          }
-          return (
-            <Card key={notice.id}>
-              <Title>{copy.home.extraDeviceRejectedNotice.replace('{name}', name)}</Title>
-              <Muted>{setUp}</Muted>
-            </Card>
-          );
-        }
-
-        if (!admin || own) {
-          return null;
-        }
-        const title = copy.home.letInNotice.replace('{name}', name);
-        return (
-          <Card key={notice.id}>
-            <Title testID="let-in-notice">{title}</Title>
-            <Muted>
-              {member ? copy.roles[member.role] : ''}
-              {member ? ' · ' : ''}
-              {setUp}
-            </Muted>
-            <Button
-              label={copy.home.letIn}
-              busy={busyNoticeId === notice.id}
-              disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-              onPress={() => void onLetIn(notice)}
-              accessibilityHint={title}
-            />
-            <Button
-              label={copy.home.declineDevice}
-              variant="secondary"
-              busy={busyNoticeId === notice.id}
-              disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-              onPress={() => void onDecline(notice.id)}
-            />
-          </Card>
-        );
-      })}
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Overline tone="terracotta">{homeDateOverline()}</Overline>
@@ -734,17 +908,31 @@ export function HomeScreen() {
             {homeFamilyLine(current.space.name)}
           </DisplayItalic>
         </View>
-        <Pressable
-          testID="home-avatars"
-          accessibilityRole="button"
-          accessibilityLabel={copy.home.avatarsLabel}
-          onPress={() => router.push(routes.family)}
-          style={styles.avatars}
-        >
-          <AvatarStack people={memberPeople} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            testID="home-avatars"
+            accessibilityRole="button"
+            accessibilityLabel={copy.home.avatarsLabel}
+            onPress={() => router.push(routes.family)}
+            style={styles.avatars}
+          >
+            <AvatarStack people={memberPeople} />
+          </Pressable>
+          <IconButton
+            icon={Menu}
+            accessibilityLabel={copy.home.openMenu}
+            testID="home-menu"
+            onPress={() => setMenuOpen(true)}
+          />
+        </View>
       </View>
       <HomeToday />
+      <HomeMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        displayName={selfName}
+        familyName={current.space.name}
+      />
     </Screen>
   );
 }
@@ -760,9 +948,21 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: space.xxs,
   },
+  headerActions: {
+    alignItems: 'flex-end',
+    gap: space.xxs,
+  },
   avatars: {
     minHeight: 44,
     justifyContent: 'center',
+  },
+  attention: {
+    gap: space.sm,
+  },
+  seeAll: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   joinLink: {
     alignSelf: 'center',

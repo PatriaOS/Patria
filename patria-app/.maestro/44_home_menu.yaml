@@ -1,0 +1,73 @@
+# PHONE_TESTS: 44
+# AREAS: navigation
+# Drawer uses shared Pressable — double tap must open Settings only once.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- assertVisible:
+    id: "^home$"
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "home-menu-drawer"
+    timeout: 10000
+- assertVisible:
+    id: "menu-settings"
+- tapOn:
+    id: "menu-settings"
+- tapOn:
+    id: "menu-settings"
+- extendedWaitUntil:
+    visible:
+      id: "screen-appearance"
+    timeout: 15000
+- assertVisible:
+    id: "appearance-system"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- assertNotVisible:
+    id: "home-menu-drawer"
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-sign-out"
+    timeout: 10000
+- tapOn:
+    id: "menu-sign-out"
+- extendedWaitUntil:
+    visible: "Sign out?"
+    timeout: 10000
+- tapOn: "Cancel"
+- extendedWaitUntil:
+    visible:
+      id: "home-menu-drawer"
+    timeout: 10000
+- tapOn:
+    id: "home-menu-close"
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 10000
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-sign-out"
+    timeout: 10000
+- tapOn:
+    id: "menu-sign-out"
+- extendedWaitUntil:
+    visible: "Sign out?"
+    timeout: 10000
+- tapOn: "Sign out"
+- extendedWaitUntil:
+    visible:
+      id: "screen-welcome"
+    timeout: 20000

@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import {
   Body,
   Button,
+  ButtonStack,
   Caption,
   ErrorState,
   ListRow,
@@ -164,7 +165,7 @@ export function VaultEntryScreen() {
         <VoicePlayer spaceId={spaceId} entryId={root.row.id} audio={root.content.audio} />
       ) : null}
       {isAuthor ? (
-        <>
+        <ButtonStack>
           <Button
             label={copy.vault.edit}
             variant="secondary"
@@ -179,7 +180,7 @@ export function VaultEntryScreen() {
             }
           />
           <Button label={copy.vault.delete} variant="danger" onPress={onDelete} />
-        </>
+        </ButtonStack>
       ) : null}
       {followUps.length > 0 ? <Title>{copy.vault.followUps}</Title> : null}
       {followUps.map((item) => (

@@ -1,0 +1,43 @@
+# PHONE_TESTS: 43
+# AREAS: navigation
+# Brand-new family: no Sync, no tasks, no vault, no memories (e2e empty family).
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- assertVisible:
+    id: "^home$"
+- extendedWaitUntil:
+    visible:
+      id: "home-sync-card"
+    timeout: 20000
+- assertVisible:
+    id: "home-sync-set-up"
+- scrollUntilVisible:
+    element:
+      id: "home-this-week-empty"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "home-this-week-add"
+- scrollUntilVisible:
+    element:
+      id: "home-voice-empty"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "home-voice-record"
+- scrollUntilVisible:
+    element:
+      id: "home-memories-empty"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "home-memories-add"
+- scrollUntilVisible:
+    element:
+      id: "home-vault-empty"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "home-vault-add"

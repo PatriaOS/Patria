@@ -2,6 +2,7 @@ export { decorativeA11y } from './a11y';
 export { Avatar, AvatarStack } from './Avatar';
 export { Banner } from './Banner';
 export { Button } from './Button';
+export { ButtonStack } from './ButtonStack';
 export { Card } from './Card';
 export { ChoiceChip } from './ChoiceChip';
 export { Divider } from './Divider';

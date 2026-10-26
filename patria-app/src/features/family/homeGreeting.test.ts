@@ -15,10 +15,12 @@ describe('homeGreeting', () => {
     expect(homeDateOverline(new Date('2026-10-18T19:00:00'))).toMatch(/october 18/i);
   });
 
-  it('builds the family greeting line', () => {
-    expect(homeFamilyLine('Rivera')).toBe('the Rivera family');
-    expect(homeFamilyLine('The Riveras')).toBe('the Riveras family');
+  it('adds The only when missing, without changing casing', () => {
+    expect(homeFamilyLine('E2E Family')).toBe('The E2E Family');
+    expect(homeFamilyLine('Rivera Family')).toBe('The Rivera Family');
     expect(homeFamilyLine('The Rivera Family')).toBe('The Rivera Family');
-    expect(homeFamilyLine('Rivera family')).toBe('Rivera family');
+    expect(homeFamilyLine('the rivera family')).toBe('the rivera family');
+    expect(homeFamilyLine('THE Olaleyes')).toBe('THE Olaleyes');
+    expect(homeFamilyLine('')).toBe('');
   });
 });

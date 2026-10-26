@@ -145,6 +145,21 @@ jest.mock('../memories/memoryApi', () => ({
   fetchReadyMemories: jest.fn(async () => []),
 }));
 
+jest.mock('../vault/vaultApi', () => ({
+  fetchVaultEntries: jest.fn(async () => []),
+  fetchFamilyKeyEpoch: jest.fn(async () => 1),
+}));
+
+jest.mock('../vault/useFamilyKey', () => ({
+  loadFamilyKeyForVault: jest.fn(async () => null),
+}));
+
+jest.mock('../vault/vaultPlayback', () => ({
+  wipeVaultAudioCache: jest.fn(async () => undefined),
+  decryptVaultAudioToCache: jest.fn(async () => ''),
+  deleteVaultAudioCacheFile: jest.fn(async () => undefined),
+}));
+
 function mockedRouter(): { push: jest.Mock; replace: jest.Mock } {
   const expoRouter = jest.requireMock('expo-router') as {
     useRouter: () => { push: jest.Mock; replace: jest.Mock };
@@ -371,15 +386,13 @@ describe('HomeScreen invite entry', () => {
     expect(await findByText(copy.home.recoveryNeedsAttention)).toBeTruthy();
   });
 
-  it('greets the family by name, not the person, and drops the vault teaser and recent memories', async () => {
-    const { findByText, findByTestId, queryByText, queryByTestId } = await renderScreen(
-      <HomeScreen />,
-    );
+  it('greets the family by name with The when needed, and shows Home body cards', async () => {
+    const { findByText, findByTestId, queryByText } = await renderScreen(<HomeScreen />);
     expect(await findByTestId('home-family-name')).toBeTruthy();
-    expect(await findByText('the Riveras family')).toBeTruthy();
-    expect(queryByText(copy.home.recentMemories)).toBeNull();
+    expect(await findByText('The Riveras')).toBeTruthy();
+    expect(await findByTestId('home-menu')).toBeTruthy();
+    expect(await findByTestId('home-sync-card')).toBeTruthy();
     expect(queryByText(copy.home.vaultComing)).toBeNull();
-    expect(queryByTestId('home-vault-card')).toBeNull();
     expect(queryByText(/Hello,/)).toBeNull();
   });
 
@@ -431,18 +444,17 @@ describe('HomeScreen invite entry', () => {
   });
 
   describe('On this day', () => {
-    it('shows a circle-visible memory from an earlier year in the family time zone', async () => {
+    it('shows a line inside Memories for a circle-visible earlier-year match', async () => {
       (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
       (fetchReadyMemories as jest.Mock).mockResolvedValue([
         memory('m-old', 4, 'Beach day'),
         memory('m-other-day', 4, 'Not today', 2),
       ]);
       const view = await renderScreen(<HomeScreen />);
-      const card = await view.findByTestId('home-on-this-day');
-      expect(card).toBeTruthy();
-      expect(await view.findByText('Beach day')).toBeTruthy();
-      expect(view.queryByText('Not today')).toBeNull();
-      await fireEvent.press(card);
+      const line = await view.findByTestId('home-on-this-day');
+      expect(line).toBeTruthy();
+      expect(await view.findByTestId('home-memories-card')).toBeTruthy();
+      await fireEvent.press(line);
       expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/memory/m-old');
     });
 
@@ -450,7 +462,7 @@ describe('HomeScreen invite entry', () => {
       (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
       (fetchReadyMemories as jest.Mock).mockResolvedValue([memory('m-other', 4, 'Another day', 3)]);
       const view = await renderScreen(<HomeScreen />);
-      await view.findByTestId('home-this-week');
+      await view.findByTestId('home-memories-card');
       expect(view.queryByTestId('home-on-this-day')).toBeNull();
     });
   });

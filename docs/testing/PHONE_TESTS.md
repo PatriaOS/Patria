@@ -360,19 +360,31 @@ Areas: sync, navigation
 3. Tap **Family**, then **Sync** again. Pass if Sync shows the same screen without a back arrow.
 4. Use the largest text size. Pass if Sync scrolls and nothing is cut off. (manual)
 
-## Home Today (GOV02, D35)
+## Home v2 (design)
 
-Home becomes a quiet daily view: security notices only when something needs a tap, then the greeting, the Family Sync card, On this day and This week. Keys and recovery status moved to Family. Test 42. Run after Test 36 so the family has a Sync schedule.
+Home shows Needs attention (at most two cards), the greeting with a menu, then five body cards: Family Sync, This week, Latest voice note, Memories (On this day as a line inside Memories when a match exists), and From the Vault. Test 42 after Test 36. Tests 43–44 cover empty cards and the menu drawer.
 
 ### 42. Home Today
 Areas: sync, navigation
-1. Sign in as Test 1 in a family that has a Sync schedule (Test 36). Pass if Home shows the date, **Good morning, / afternoon, / evening,** and the family name on a second line in italics, with the member avatars at the top right.
+1. Sign in as Test 1 in a family that has a Sync schedule (Test 36). Pass if Home shows the date, **Good morning, / afternoon, / evening,** and the family name on a second line in italics (with **The** only when the stored name does not already start with it), with the member avatars and an **Open menu** control at the top right.
 2. Pass if the Sync card shows a line like **SUNDAY FAMILY SYNC · IN 4 DAYS** (or **TONIGHT**, **TODAY**, **TOMORROW**), the title **Household meeting**, a line about the agenda, and **Review agenda** and **Add an item**.
 3. Tap **Review agenda**. Pass if the Sync tab opens. Go back to Home and tap **Add an item**. Pass if the add-to-agenda screen opens.
-4. Pass if **Recent memories** and the Vault card are no longer on Home, and no keys or recovery status pills show while keys are set up.
-5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or one quiet line when there are none. Tap a task's checkbox. Pass if it stays visible with **Done today**.
+4. Pass if no keys or recovery status pills show while keys are set up. Pass if the five body cards are present (Sync, This week, voice, Memories, Vault), each with a filled or empty state.
+5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or the empty card with **Add to agenda** when there are none. Tap a task's checkbox when a task is shown. Pass if it stays visible with **Done today**.
 6. Tap **See all** beside **This week**. Pass if the Sync tasks screen opens.
 7. Tap the avatars at the top right. Pass if the Family tab opens and shows the keys status and the recovery status below **Your phones**.
 8. On a family with no Sync schedule, pass if the Sync card invites a Family admin to **Set up our Sync**, and tells anyone else to ask a Family admin.
-9. On a day when a photo or video from an earlier year was taken on this month and day, pass if an **On this day** card shows it and tapping opens the memory; on other days pass if there is no card.
+9. On a day when a photo or video from an earlier year was taken on this month and day, pass if **On this day** appears as a line inside the Memories card and tapping it opens the memory; on other days pass if that line is absent.
 10. Use the largest text size. Pass if Home scrolls and nothing is cut off. (manual)
+
+### 43. Home empty body cards
+Areas: navigation
+1. Sign in as Test 1 in a brand-new family with no Sync schedule, no tasks, no Vault entries and no Memories. Pass if Home shows five empty body cards: Sync (**Set up our Sync** for an admin), This week (**Add to agenda** or the ask-admin line), voice (**Record a voice note** or ask-admin), Memories (**Add photos and videos**), and Vault (**Add a decision** or ask-admin).
+2. Pass if each empty card has a short overline, a serif headline and one explanation line. Pass if no card shows a dead button for an action this role cannot take.
+
+### 44. Home menu drawer
+Areas: navigation
+1. Sign in as Test 1. Tap **Open menu**. Pass if the drawer slides in from the right over a dimmed backdrop, showing the person's name, family name and a close control.
+2. Double-tap **Settings** quickly. Pass if Appearance opens once and the drawer closes (only one screen).
+3. Open the menu again. Tap **Sign out**. Pass if a confirmation appears. Cancel it. Pass if you stay signed in and the drawer can close.
+4. Open the menu, tap **Sign out**, confirm. Pass if you land on Welcome.

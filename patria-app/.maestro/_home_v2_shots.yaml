@@ -1,0 +1,67 @@
+# Home v2 screenshots: filled, empty, drawer × light/dark. Not a numbered phone test.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+    env:
+      EXPECT_HOME: "1"
+      E2E_STAY: "1"
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- takeScreenshot: "HOME-v2-filled-light"
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "home-menu-drawer"
+    timeout: 10000
+- takeScreenshot: "HOME-v2-drawer-light"
+- tapOn:
+    id: "home-menu-close"
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 10000
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "appearance"
+- extendedWaitUntil:
+    visible:
+      id: "appearance-dark"
+    timeout: 15000
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-family"
+    timeout: 15000
+- tapOn:
+    id: "^home$"
+- extendedWaitUntil:
+    visible:
+      id: "home-greeting"
+    timeout: 20000
+- takeScreenshot: "HOME-v2-filled-dark"
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "home-menu-drawer"
+    timeout: 10000
+- takeScreenshot: "HOME-v2-drawer-dark"
+- tapOn:
+    id: "home-menu-close"

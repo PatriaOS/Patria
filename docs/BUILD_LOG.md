@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Home v2 + ButtonStack
+
+Home is rebuilt to the Figma Today order: Needs attention (≤2 + See all), greeting with Open menu, then Sync / This week / voice / Memories / Vault. On this day stays as a line inside Memories. Family name gets “The ” only when missing, casing preserved. Voice and Vault peeks decrypt at most ten recent sealed rows in memory only (no has_audio column, no AsyncStorage/SecureStore for titles); locked phones show a calm state. Drawer uses the shared Pressable (300 ms re-entry) so a double tap opens one screen. Shared `ButtonStack` spaces stacked Vault / Sync / Memories / voice actions with `space.sm`. Phone tests 42–44.
+
+---
+
 ## 2026-10-26 — Sync 38 step 7 missed a11y exact match
 
 PHASE=missed already showed the no-guilt copy and Hold it now; Maestro failed because assertVisible used a prefix of missedNoGuilt and iOS matches a11y text exactly. Flow now asserts `sync-missed`, the full copy string, and that Hold it now opens Wins. Seed SQL that pushes upcoming `scheduled_for` into the past was already correct.

@@ -1,0 +1,33 @@
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "appearance"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "appearance"
+- extendedWaitUntil:
+    visible:
+      id: "appearance-light"
+    timeout: 15000
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- tapOn:
+    id: "^home$"
+- swipe:
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "home-sync-set-up"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "home-vault-empty"
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: "HOME-v2-empty-light"

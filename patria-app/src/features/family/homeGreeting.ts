@@ -33,18 +33,16 @@ export function homeDateOverline(now = new Date()): string {
 }
 
 /**
- * Second greeting line: "the Rivera family". If the stored name already includes
- * "family", use it as-is (e.g. "The Rivera Family"). A leading "The " is dropped
- * so we never say "the The Riveras family".
+ * Family name for the Home greeting. Prepends "The " only when the stored name
+ * does not already start with "The" (case insensitive). Never changes casing.
  */
 export function homeFamilyLine(spaceName: string): string {
   const trimmed = spaceName.trim();
   if (!trimmed) {
     return trimmed;
   }
-  if (/\bfamily\b/i.test(trimmed)) {
+  if (/^the\s+/i.test(trimmed)) {
     return trimmed;
   }
-  const core = trimmed.replace(/^the\s+/i, '');
-  return `the ${core} family`;
+  return `The ${trimmed}`;
 }

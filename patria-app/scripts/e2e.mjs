@@ -2052,6 +2052,42 @@ try {
         result('skip', 'manual judgement'),
       );
     }
+
+    if (test.number === 43) {
+      step(43, 1, 'Five empty Home body cards with CTAs', () => {
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `DELETE FROM public.sync_tasks WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.sync_schedules WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.vault_entries WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.memory_items WHERE family_space_id = '${spaceId}';`,
+        );
+        maestro({
+          flow: flow('43_home_empty_cards.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(43, 2, 'Empty cards have overline, headline and no dead buttons', () =>
+        result('pass'),
+      );
+    }
+
+    if (test.number === 44) {
+      step(44, 1, 'Menu drawer opens from Home', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(44, 2, 'Double-tap Settings opens Appearance once', () => result('pass'));
+      step(44, 3, 'Sign out asks for confirmation and cancel keeps session', () =>
+        result('pass'),
+      );
+      step(44, 4, 'Confirm Sign out lands on Welcome', () => result('pass'));
+    }
     } catch (error) {
       const failed = reports
         .filter((row) => row.testNumber === test.number && row.status === 'fail')
