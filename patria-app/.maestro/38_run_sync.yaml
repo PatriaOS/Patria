@@ -88,8 +88,18 @@ appId: app.patria.dev
       - tapOn: "Owner"
       - tapOn:
           id: "owner-test-1"
+      - scrollUntilVisible:
+          element:
+            id: "add-a-task"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
           id: "add-a-task"
+      # Clear the field so "Pack kit bags" can only match the saved task row.
+      - tapOn:
+          id: "task"
+      - eraseText: 40
+      - tapOn: "Owner"
       - extendedWaitUntil:
           visible: "Pack kit bags"
           timeout: 20000

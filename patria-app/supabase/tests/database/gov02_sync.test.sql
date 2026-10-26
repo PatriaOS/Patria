@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(40);
+SELECT plan(42);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -596,6 +596,59 @@ SELECT throws_ok(
   '42501',
   NULL,
   'outsider cannot insert sync tasks'
+);
+RESET ROLE;
+
+-- Finished row at scheduled_for must not be returned as the next meeting.
+SELECT tests_jwt('a0111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT public.ensure_next_meeting(
+  (SELECT space FROM fx),
+  '2030-03-02 01:00:00+00'::timestamptz
+);
+SELECT public.start_sync_meeting(
+  (
+    SELECT id
+    FROM public.sync_meetings
+    WHERE family_space_id = (SELECT space FROM fx)
+      AND scheduled_for = '2030-03-02 01:00:00+00'::timestamptz
+      AND status = 'upcoming'
+  )
+);
+-- Ask for the same slot as the meeting being finished — must advance a week.
+SELECT public.finish_sync_meeting(
+  (
+    SELECT id
+    FROM public.sync_meetings
+    WHERE family_space_id = (SELECT space FROM fx)
+      AND status = 'in_progress'
+  ),
+  'After finish',
+  '{}'::jsonb,
+  '2030-03-02 01:00:00+00'::timestamptz
+);
+SELECT is(
+  (
+    SELECT status
+    FROM public.sync_meetings
+    WHERE family_space_id = (SELECT space FROM fx)
+      AND scheduled_for = '2030-03-09 01:00:00+00'::timestamptz
+  ),
+  'upcoming',
+  'ensure_next_meeting creates a later slot when the asked time is finished'
+);
+SELECT is(
+  public.ensure_next_meeting(
+    (SELECT space FROM fx),
+    '2030-03-02 01:00:00+00'::timestamptz
+  ),
+  (
+    SELECT id
+    FROM public.sync_meetings
+    WHERE family_space_id = (SELECT space FROM fx)
+      AND scheduled_for = '2030-03-09 01:00:00+00'::timestamptz
+  ),
+  'ensure_next_meeting advances one week past a finished slot'
 );
 RESET ROLE;
 

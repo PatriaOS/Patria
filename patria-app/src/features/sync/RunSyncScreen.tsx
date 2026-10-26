@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 
 import { copy } from '../../lib/copy';
@@ -85,6 +85,8 @@ export function RunSyncScreen() {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Sync with Pressable: busy state alone can lag one frame behind a Maestro tap. */
+  const opLock = useRef(false);
 
   const screenProps = {
     withHeader: true,
@@ -141,6 +143,10 @@ export function RunSyncScreen() {
   };
 
   const guarded = async (run: () => Promise<void>) => {
+    if (opLock.current) {
+      return;
+    }
+    opLock.current = true;
     setError(null);
     setBusy(true);
     try {
@@ -149,6 +155,7 @@ export function RunSyncScreen() {
       logFailedAction(caught);
       setError(copy.sync.saveFailed);
     } finally {
+      opLock.current = false;
       setBusy(false);
     }
   };
@@ -224,15 +231,19 @@ export function RunSyncScreen() {
       setTaskError(titleBad ? copy.sync.itemTitleError : copy.sync.dueError);
       return Promise.resolve();
     }
-    if (!owner) {
+    const ownerKey = owner ?? (userId ? `user:${userId}` : null);
+    if (!ownerKey) {
       setTaskError(copy.sync.ownerError);
       return Promise.resolve();
     }
     if (!spaceId) {
       return Promise.resolve();
     }
+    if (ownerKey !== owner) {
+      setOwner(ownerKey);
+    }
     setTaskError(null);
-    const ownerParts = splitPersonKey(owner);
+    const ownerParts = splitPersonKey(ownerKey);
     const backupParts = splitPersonKey(backup);
     return guarded(async () => {
       await insertSyncTask({
@@ -247,7 +258,7 @@ export function RunSyncScreen() {
       });
       setTaskTitle('');
       setTaskDue('');
-      setOwner(null);
+      setOwner(userId ? `user:${userId}` : null);
       setBackup(null);
       invalidate('syncTasks');
     });
@@ -256,11 +267,13 @@ export function RunSyncScreen() {
   const onFinish = () =>
     guarded(async () => {
       const fallback = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      // After this meeting's slot — not "from now", which is often the same Sunday.
+      const afterMeeting = new Date(new Date(meeting.scheduledFor).getTime() + 1000);
       await finishSyncMeeting({
         meetingId: meeting.id,
         priorityText: priority.trim(),
         summary: buildMeetingSummary(agenda),
-        nextScheduledFor: schedule ? nextMeetingAt(schedule) : fallback,
+        nextScheduledFor: schedule ? nextMeetingAt(schedule, afterMeeting) : fallback,
       });
       sync.refresh();
       router.replace(routes.sync);

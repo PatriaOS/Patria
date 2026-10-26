@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Sync 38: task save race; next meeting after finish
+
+Phone test 38 still failed at e2e step 1 (whole PHASE=run). Continue did open Wins; the miss was wrap-up: Maestro waited for "Pack kit bags" while it was still the task field text, then Finish ran with no insert (empty Tasks). Flow now clears the field before asserting the saved row; Add defaults the owner and uses an op lock so Finish cannot race. finish/ensure_next no longer treat a finished meeting’s scheduled_for as the next upcoming (client passes after the finished slot; SQL skips finished conflicts and advances a week).
+
+---
+
 ## 2026-10-26 — Sync 37 step 4 a11y body; 38 hideKeyboard
 
 37 see_member_win: Park picnic was on Test 1's meeting after refresh; Maestro failed on "Added by Test 2" because the row's title-only accessibilityLabel hid the body. Agenda rows now expose title (button), body, and kind as separate a11y nodes. Sync hub also refetches on focus and pull. 38 alone: Continue did open Wins and reached wrap-up; Maestro failed on hideKeyboard with the task field focused — dismiss by tapping Owner instead.
