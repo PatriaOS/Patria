@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Sync 37 step 4 a11y body; 38 hideKeyboard
+
+37 see_member_win: Park picnic was on Test 1's meeting after refresh; Maestro failed on "Added by Test 2" because the row's title-only accessibilityLabel hid the body. Agenda rows now expose title (button), body, and kind as separate a11y nodes. Sync hub also refetches on focus and pull. 38 alone: Continue did open Wins and reached wrap-up; Maestro failed on hideKeyboard with the task field focused — dismiss by tapping Owner instead.
+
+---
+
 ## 2026-10-26 — Sync 37/38: agenda a11y label, task wait, seed isolation
 
 Third fail of 37/38: hub showed "Soccer carpool" but Maestro asserted against a11y text "Soccer carpool, Discuss" (full-string match). Agenda rows now label the title only. Test 38 finished with an empty Tasks list — flow now waits for "Pack kit bags" on wrap-up before Finish, clears the task field, and the wrap-up owner defaults to the current member. e2e-setup resets all Sync tables per test and seeds `nextMeetingAt` (Sunday 19:00 Chicago) so ensureNextMeeting does not create a second upcoming meeting when 36–42 run in any order.

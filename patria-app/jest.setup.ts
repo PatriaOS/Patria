@@ -141,10 +141,18 @@ jest.mock('expo-crypto', () => ({
 }));
 
 jest.mock('expo-router', () => {
+  const React = require('react') as typeof import('react');
   const push = jest.fn();
   const replace = jest.fn();
   return {
     useRouter: () => ({ push, replace }),
+    // Match focus-effect once per callback identity — do not call during render.
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      React.useEffect(() => {
+        const cleanup = effect();
+        return typeof cleanup === 'function' ? cleanup : undefined;
+      }, [effect]);
+    },
     useNavigation: () => ({
       canGoBack: () => false,
       addListener: (_event: string, _handler: () => void) => {

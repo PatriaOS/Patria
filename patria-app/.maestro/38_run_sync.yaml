@@ -85,7 +85,7 @@ appId: app.patria.dev
           id: "task"
       - eraseText: 40
       - inputText: "Pack kit bags"
-      - hideKeyboard
+      - tapOn: "Owner"
       - tapOn:
           id: "owner-test-1"
       - tapOn:

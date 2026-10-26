@@ -182,15 +182,9 @@ function AgendaCard(props: {
           {props.agenda.map((item, index) => {
             const tone = kindColors(item.kind, colors);
             return (
-              <Pressable
+              <View
                 key={item.id}
                 testID={`agenda-item-${item.id}`}
-                accessibilityRole={item.editable ? 'button' : undefined}
-                // Title only — "title, kind" made Maestro miss assertVisible: "Soccer carpool"
-                // (full-string match against "Soccer carpool, Discuss").
-                accessibilityLabel={item.title}
-                accessibilityHint={item.kindLabel}
-                onPress={item.editable ? () => props.onOpenItem(item.id) : undefined}
                 style={[
                   styles.agendaRow,
                   index > 0 ? { borderTopWidth: stroke.hairline, borderTopColor: colors.hairline } : null,
@@ -198,19 +192,29 @@ function AgendaCard(props: {
                 ]}
               >
                 <View style={styles.agendaCopy}>
-                  <Body accessible={false}>{item.title}</Body>
+                  <Pressable
+                    accessibilityRole={item.editable ? 'button' : undefined}
+                    accessibilityLabel={item.title}
+                    onPress={item.editable ? () => props.onOpenItem(item.id) : undefined}
+                  >
+                    <Body accessible={false}>{item.title}</Body>
+                  </Pressable>
                   {item.body ? (
-                    <Caption tone="muted" accessible={false}>
+                    <Caption tone="muted" accessible accessibilityLabel={item.body}>
                       {item.body}
                     </Caption>
                   ) : null}
                 </View>
-                <View style={[styles.kindPill, { backgroundColor: tone.bg }]}>
+                <View
+                  style={[styles.kindPill, { backgroundColor: tone.bg }]}
+                  accessible
+                  accessibilityLabel={item.kindLabel}
+                >
                   <Caption color={tone.text} accessible={false}>
                     {item.kindLabel}
                   </Caption>
                 </View>
-              </Pressable>
+              </View>
             );
           })}
         </Card>

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { copy } from '../../lib/copy';
 import { logFailedAction } from '../../lib/devLog';
@@ -28,6 +28,11 @@ export function SyncScreen() {
   const sync = useSyncSpace();
   const { userId, spaceId, admin, schedule, active, people, circlesQuery, refresh } = sync;
   const agendaQuery = useAgendaItems(active?.id);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
   const flowStepQuery = useQuery({
     queryKey: ['syncFlowStep', active?.id ?? 'none'],
     queryFn: async () => 0,
@@ -156,7 +161,10 @@ export function SyncScreen() {
       testID="screen-sync"
       accessibilityLabel={copy.sync.title}
       refreshing={sync.refreshing || agendaQuery.isRefetching}
-      onRefresh={refresh}
+      onRefresh={() => {
+        refresh();
+        void agendaQuery.refetch();
+      }}
     >
       <SyncHubView
         admin={admin}
