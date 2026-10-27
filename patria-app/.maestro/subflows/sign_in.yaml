@@ -56,18 +56,15 @@ appId: app.patria.dev
     when:
       true: ${EXPECT_HOME != '0'}
     commands:
+      # Reminder Modal covers Home, so Maestro does not treat id home as visible
+      # while the sheet is up. Wait for home, waiting, or the reminder, then dismiss.
+      - extendedWaitUntil:
+          visible:
+            id: "^home$|^screen-waiting-own-phone$|recovery-reminder-later"
+          timeout: 45000
+      - runFlow:
+          file: dismiss_recovery_reminder.yaml
       - extendedWaitUntil:
           visible:
             id: "^home$|^screen-waiting-own-phone$"
-          timeout: 45000
-      - runFlow:
-          when:
-            visible:
-              id: "recovery-reminder-later"
-          commands:
-            - tapOn:
-                id: "recovery-reminder-later"
-            - extendedWaitUntil:
-                notVisible:
-                  id: "recovery-reminder-sheet"
-                timeout: 10000
+          timeout: 15000

@@ -227,6 +227,7 @@ export function HomeMenuDrawer(props: Props) {
             </View>
             <IconButton
               icon={X}
+              name="x"
               accessibilityLabel={copy.home.closeMenu}
               testID="home-menu-close"
               onPress={animateClose}

@@ -1,0 +1,15 @@
+# Dismiss the post-sign-in recovery reminder when present.
+# The sheet is a Modal that covers Home, so Maestro will not see id home until it is gone.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      visible:
+        id: "recovery-reminder-later"
+    commands:
+      - tapOn:
+          id: "recovery-reminder-later"
+      - extendedWaitUntil:
+          notVisible:
+            id: "recovery-reminder-sheet"
+          timeout: 10000

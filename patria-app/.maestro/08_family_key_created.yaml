@@ -24,8 +24,14 @@ appId: app.patria.dev
           optional: true
       - extendedWaitUntil:
           visible:
-            id: "^home$"
+            id: "^home$|recovery-reminder-later"
           timeout: 30000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
       - runFlow:
           file: subflows/open_family.yaml
       - extendedWaitUntil:
@@ -72,8 +78,14 @@ appId: app.patria.dev
       - launchApp
       - extendedWaitUntil:
           visible:
-            id: "^home$"
+            id: "^home$|recovery-reminder-later"
           timeout: 30000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
       - runFlow:
           file: subflows/open_family.yaml
       - extendedWaitUntil:

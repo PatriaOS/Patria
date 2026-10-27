@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — Home header icons + reminder Maestro visibility
+
+Bell and menu were empty circles: `Icon` only draws paths from its local SVG map (same as the tab bar), and Menu/Bell/X were never added, so the SVG had no strokes. Added Lucide menu/bell/x paths; transparent 44 pt hits; badge on the bell’s top-right. This week “Add to agenda” uses primary green (mustard stays on Sync only). Sign-in reminder Modal covers Home so Maestro never saw `id: home` — shared sign_in waits for the reminder, dismisses it, then asserts Home; test 45 waits for the sheet itself.
+
+---
+
 ## 2026-10-26 — Needs you off Home (bell, reminder, Privacy and Security)
 
 Urgent items leave Home. Home starts at the greeting; a Needs you bell (badge count, 9+) opens a ranked list that only navigates (recovery → Privacy and Security, devices → Family with Let in unchanged, Sync / overdue tasks, Memories only when failed uploads already exist — none yet). Sign-in shows a one-shot in-memory recovery reminder (Set it up now / Remind me later); shared Maestro sign_in taps later when present. Drawer: Privacy and Security is real (Recovery section), group dividers, pinned version + close. Soft-surface chips behind bell and menu so they read under the avatars. Phone tests 9/11/42–44 updated; 45 added. No RLS or hosted push.

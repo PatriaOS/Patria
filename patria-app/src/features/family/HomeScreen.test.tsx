@@ -1,4 +1,4 @@
-import { fireEvent, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
 import type { TestInstance } from 'test-renderer';
 
 import { copy } from '../../lib/copy';
@@ -544,9 +544,11 @@ describe('HomeScreen invite entry', () => {
   it('shows the recovery reminder once after sign in until Remind me later', async () => {
     clearRecoveryReminderSession();
     const { findByTestId, queryByTestId } = await renderScreen(<HomeScreen />);
-    await waitFor(async () => {
-      expect(await findByTestId('recovery-reminder-sheet')).toBeTruthy();
+    // Reminder opens on a 0ms timeout so the lint rule allows setState outside the effect body.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
+    expect(await findByTestId('recovery-reminder-sheet')).toBeTruthy();
     await fireEvent.press(await findByTestId('recovery-reminder-later'));
     await waitFor(() => {
       expect(queryByTestId('recovery-reminder-sheet')).toBeNull();

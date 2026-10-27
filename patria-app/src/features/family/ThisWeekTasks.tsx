@@ -123,7 +123,6 @@ export function ThisWeekTasks(props: Props) {
           {props.canAdd && props.onAdd ? (
             <Button
               label={copy.home.thisWeekAdd}
-              variant="accent"
               testID="home-this-week-add"
               onPress={props.onAdd}
             />

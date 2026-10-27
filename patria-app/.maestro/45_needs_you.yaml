@@ -1,6 +1,7 @@
 # PHONE_TESTS: 45
 # AREAS: navigation, recovery
 # Reminder is not dismissed by sign_in for this flow — handle it here.
+# The reminder Modal covers Home, so wait for the sheet (or greeting) first.
 appId: app.patria.dev
 ---
 - runFlow:
@@ -14,7 +15,7 @@ appId: app.patria.dev
           file: subflows/sign_in_form.yaml
       - extendedWaitUntil:
           visible:
-            id: "^home$"
+            id: "recovery-reminder-sheet|home-greeting"
           timeout: 45000
       - extendedWaitUntil:
           visible:
@@ -30,6 +31,10 @@ appId: app.patria.dev
           notVisible:
             id: "recovery-reminder-sheet"
           timeout: 10000
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
       - assertVisible:
           id: "home-needs-you-badge"
       - tapOn:
@@ -83,7 +88,7 @@ appId: app.patria.dev
           file: subflows/sign_in_form.yaml
       - extendedWaitUntil:
           visible:
-            id: "^home$"
+            id: "recovery-reminder-sheet|home-greeting"
           timeout: 45000
       - extendedWaitUntil:
           visible:

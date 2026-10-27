@@ -42,7 +42,6 @@ import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
-import { useTheme } from '../../theme';
 import { countDeviceOrJoinAttention } from './deviceAttention';
 import { homeDateOverline, homeFamilyLine, homeGreeting } from './homeGreeting';
 import { HomeMenuDrawer } from './HomeMenuDrawer';
@@ -64,7 +63,6 @@ export function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
-  const { colors } = useTheme();
   const { userId, spaceId, membershipsQuery, current, admin, keyHolder } = useCurrentFamily();
   const sync = useSyncSpace();
   const [signingOut, setSigningOut] = useState(false);
@@ -440,17 +438,13 @@ export function HomeScreen() {
           </Pressable>
           <View style={styles.iconRow}>
             <NeedsYouBell count={needsYouCount} onPress={() => router.push(routes.needsYou)} />
-            <View
-              style={[styles.iconChip, { backgroundColor: colors.softSurface }]}
-              pointerEvents="box-none"
-            >
-              <IconButton
-                icon={Menu}
-                accessibilityLabel={copy.home.openMenu}
-                testID="home-menu"
-                onPress={() => setMenuOpen(true)}
-              />
-            </View>
+            <IconButton
+              icon={Menu}
+              name="menu"
+              accessibilityLabel={copy.home.openMenu}
+              testID="home-menu"
+              onPress={() => setMenuOpen(true)}
+            />
           </View>
         </View>
       </View>
@@ -497,12 +491,8 @@ const styles = StyleSheet.create({
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
+    gap: space.xxs,
     minHeight: 44,
-  },
-  iconChip: {
-    borderRadius: 22,
-    overflow: 'hidden',
   },
   joinLink: {
     alignSelf: 'center',
