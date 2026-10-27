@@ -568,21 +568,53 @@ function seedAdminKeys() {
 }
 
 function seedLetIn(memberN, device) {
-  maestro({
+  const waiting = tryMaestro({
     flow: flow('09_let_in.yaml'),
     device,
     env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
   });
+  if (waiting.ok) {
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: deviceA,
+      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+    });
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device,
+      env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+    });
+    return;
+  }
+  // Already let in (common when test 9 ran first): verify member + approved device.
   maestro({
     flow: flow('09_let_in.yaml'),
     device: deviceA,
-    env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'verify_member',
+      MEMBER_ID: `member-test-${memberN}`,
+    },
   });
   maestro({
     flow: flow('09_let_in.yaml'),
     device,
     env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
   });
+  const wraps = dbCheck([
+    'assert-wraps',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+    '--min',
+    '1',
+  ]);
+  if (!wraps.ok) {
+    throw new Error(
+      `Test ${memberN} is a member but has no approved device wrap: ${wraps.error ?? 'assert-wraps failed'}`,
+    );
+  }
 }
 
 function seedBeforeYouStart(testNumber) {

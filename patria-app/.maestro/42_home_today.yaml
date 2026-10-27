@@ -51,6 +51,12 @@ appId: app.patria.dev
           optional: true
       - assertVisible:
           id: "home-this-week"
+      # Scrolling for This week / Memories / Vault moves Sync off screen.
+      - scrollUntilVisible:
+          element:
+            id: "home-sync-review"
+          direction: UP
+          timeout: 20000
       - tapOn:
           id: "home-sync-review"
       - extendedWaitUntil:

@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   BackHandler,
   Dimensions,
@@ -17,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   Body,
+  Button,
+  ButtonStack,
   Caption,
   Divider,
   IconButton,
@@ -91,6 +92,7 @@ export function HomeMenuDrawer(props: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [slide] = useState(() => new Animated.Value(DRAWER_WIDTH));
   const [dim] = useState(() => new Animated.Value(0));
   const closing = useRef(false);
@@ -99,6 +101,7 @@ export function HomeMenuDrawer(props: Props) {
 
   const finishClose = useCallback(() => {
     setVisible(false);
+    setConfirmSignOut(false);
     closing.current = false;
     props.onClose();
   }, [props]);
@@ -108,6 +111,7 @@ export function HomeMenuDrawer(props: Props) {
       return;
     }
     closing.current = true;
+    setConfirmSignOut(false);
     Animated.parallel([
       Animated.timing(slide, { toValue: DRAWER_WIDTH, duration: 200, useNativeDriver: true }),
       Animated.timing(dim, { toValue: 0, duration: 200, useNativeDriver: true }),
@@ -150,22 +154,17 @@ export function HomeMenuDrawer(props: Props) {
     router.push(href as never);
   };
 
-  const onSignOut = () => {
-    Alert.alert(copy.home.signOutConfirmTitle, copy.home.signOutConfirmBody, [
-      { text: copy.common.cancel, style: 'cancel' },
-      {
-        text: copy.home.signOutConfirm,
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            animateClose();
-            clearRecoveryReminderSession();
-            await wipeVaultAudioCache();
-            props.onSignOut();
-          })();
-        },
-      },
-    ]);
+  const onSignOutPress = () => {
+    setConfirmSignOut(true);
+  };
+
+  const onConfirmSignOut = () => {
+    void (async () => {
+      animateClose();
+      clearRecoveryReminderSession();
+      await wipeVaultAudioCache();
+      props.onSignOut();
+    })();
   };
 
   if (!visible) {
@@ -233,67 +232,90 @@ export function HomeMenuDrawer(props: Props) {
               onPress={animateClose}
             />
           </View>
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {buildRows(Boolean(props.privacyNeedsAttention)).map((item, index) => {
-              if (item.kind === 'divider') {
-                return <Divider key={`divider-${index}`} />;
-              }
-              if (item.kind === 'signOut') {
-                return (
-                  <Pressable
-                    key="sign-out"
-                    testID="menu-sign-out"
-                    accessibilityRole="button"
-                    accessibilityLabel={copy.auth.signOut}
-                    onPress={onSignOut}
-                    style={styles.item}
-                  >
-                    <Body tone="danger">{copy.auth.signOut}</Body>
-                  </Pressable>
-                );
-              }
-              if (item.kind === 'soon') {
-                return (
-                  <View
-                    key={item.testID}
-                    testID={item.testID}
-                    accessibilityLabel={`${item.label}, ${copy.home.menuSoon}`}
-                    style={styles.item}
-                  >
-                    <Body tone="muted">{item.label}</Body>
-                    <View style={[styles.soon, { backgroundColor: colors.softSurface }]}>
-                      <Caption tone="muted">{copy.home.menuSoon}</Caption>
-                    </View>
-                  </View>
-                );
-              }
-              return (
-                <Pressable
-                  key={item.testID}
-                  testID={item.testID}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.label}
-                  onPress={() => onNavigate(item.href)}
-                  style={styles.item}
-                >
-                  <Body>{item.label}</Body>
-                  {item.dot ? (
-                    <View
-                      testID="menu-privacy-security-dot"
-                      style={[styles.dot, { backgroundColor: colors.accentTerracotta }]}
-                    />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <Caption tone="muted" testID={testIdFromLabel(copy.home.menuVersion)}>
-            {copy.home.menuVersion.replace('{version}', version)}
-          </Caption>
+          {confirmSignOut ? (
+            <View style={styles.confirm} testID="sign-out-confirm">
+              <Title>{copy.home.signOutConfirmTitle}</Title>
+              <Body>{copy.home.signOutConfirmBody}</Body>
+              <ButtonStack>
+                <Button
+                  label={copy.home.signOutConfirm}
+                  variant="danger"
+                  testID="sign-out-confirm-yes"
+                  onPress={onConfirmSignOut}
+                />
+                <Button
+                  label={copy.common.cancel}
+                  variant="secondary"
+                  testID="sign-out-cancel"
+                  onPress={() => setConfirmSignOut(false)}
+                />
+              </ButtonStack>
+            </View>
+          ) : (
+            <>
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {buildRows(Boolean(props.privacyNeedsAttention)).map((item, index) => {
+                  if (item.kind === 'divider') {
+                    return <Divider key={`divider-${index}`} />;
+                  }
+                  if (item.kind === 'signOut') {
+                    return (
+                      <Pressable
+                        key="sign-out"
+                        testID="menu-sign-out"
+                        accessibilityRole="button"
+                        accessibilityLabel={copy.auth.signOut}
+                        onPress={onSignOutPress}
+                        style={styles.item}
+                      >
+                        <Body tone="danger">{copy.auth.signOut}</Body>
+                      </Pressable>
+                    );
+                  }
+                  if (item.kind === 'soon') {
+                    return (
+                      <View
+                        key={item.testID}
+                        testID={item.testID}
+                        accessibilityLabel={`${item.label}, ${copy.home.menuSoon}`}
+                        style={styles.item}
+                      >
+                        <Body tone="muted">{item.label}</Body>
+                        <View style={[styles.soon, { backgroundColor: colors.softSurface }]}>
+                          <Caption tone="muted">{copy.home.menuSoon}</Caption>
+                        </View>
+                      </View>
+                    );
+                  }
+                  return (
+                    <Pressable
+                      key={item.testID}
+                      testID={item.testID}
+                      accessibilityRole="button"
+                      accessibilityLabel={item.label}
+                      onPress={() => onNavigate(item.href)}
+                      style={styles.item}
+                    >
+                      <Body>{item.label}</Body>
+                      {item.dot ? (
+                        <View
+                          testID="menu-privacy-security-dot"
+                          style={[styles.dot, { backgroundColor: colors.accentTerracotta }]}
+                        />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Caption tone="muted" testID={testIdFromLabel(copy.home.menuVersion)}>
+                {copy.home.menuVersion.replace('{version}', version)}
+              </Caption>
+            </>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -335,6 +357,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: space.xxs,
     paddingBottom: space.md,
+  },
+  confirm: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: space.sm,
   },
   item: {
     minHeight: 44,

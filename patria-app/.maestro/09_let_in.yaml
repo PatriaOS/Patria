@@ -68,6 +68,23 @@ appId: app.patria.dev
       - extendedWaitUntil:
           notVisible: "added a new phone"
           timeout: 20000
+# Already let in (e.g. test 9 before 11): member row present, no pending phone notice.
+- runFlow:
+    when:
+      true: ${PHASE == 'verify_member'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: ${MEMBER_ID}
+          direction: DOWN
+          timeout: 15000
+      - assertVisible:
+          id: ${MEMBER_ID}
+      - assertNotVisible: "added a new phone"
 - runFlow:
     when:
       true: ${PHASE == 'keys_ready'}

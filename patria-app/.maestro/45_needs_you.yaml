@@ -60,18 +60,18 @@ appId: app.patria.dev
           visible:
             id: "screen-privacy-security"
           timeout: 15000
-      # Privacy sits on Needs you; back once to Needs you, then Home tab.
+      # Privacy sits on Needs you (stack, no tab bar). Back to Needs you, then Home.
       - tapOn:
-          point: 8%, 12%
+          id: "BackButton"
       - extendedWaitUntil:
           visible:
             id: "screen-needs-you"
           timeout: 15000
       - tapOn:
-          id: "^home$"
+          id: "BackButton"
       - extendedWaitUntil:
           visible:
-            id: "^home$"
+            id: "home-greeting"
           timeout: 15000
       - assertVisible:
           id: "home-needs-you-badge"
@@ -86,9 +86,11 @@ appId: app.patria.dev
       - tapOn:
           id: "menu-sign-out"
       - extendedWaitUntil:
-          visible: "Sign out?"
+          visible:
+            id: "sign-out-confirm"
           timeout: 10000
-      - tapOn: "Sign out"
+      - tapOn:
+          id: "sign-out-confirm-yes"
       - extendedWaitUntil:
           visible:
             id: "screen-welcome"
