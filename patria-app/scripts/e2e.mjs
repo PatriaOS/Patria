@@ -2083,10 +2083,29 @@ try {
         });
       });
       step(44, 2, 'Double-tap Settings opens Appearance once', () => result('pass'));
-      step(44, 3, 'Sign out asks for confirmation and cancel keeps session', () =>
+      step(44, 3, 'Privacy and Security and Sign out cancel', () => result('pass'));
+      step(44, 4, 'Confirm Sign out lands on Welcome', () => result('pass'));
+    }
+
+    if (test.number === 45) {
+      step(45, 1, 'Sign-in recovery reminder once, dismiss with Remind me later', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'main', E2E_STAY: '1' },
+        });
+      });
+      step(45, 2, 'Needs you bell badge and ranked list', () => result('pass'));
+      step(45, 3, 'Open recovery from Needs you; badge reflects open items', () =>
         result('pass'),
       );
-      step(44, 4, 'Confirm Sign out lands on Welcome', () => result('pass'));
+      step(45, 4, 'Reminder returns next sign in, not again after Remind me later', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'again' },
+        });
+      });
     }
     } catch (error) {
       const failed = reports

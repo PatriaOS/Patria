@@ -83,6 +83,11 @@ export default function SignedInLayout() {
         options={{ ...pushed, title: screenTitles.removeOldPhones }}
       />
       <Stack.Screen name="appearance" options={{ ...pushed, title: screenTitles.appearance }} />
+      <Stack.Screen name="needs-you" options={{ ...pushed, title: screenTitles.needsYou }} />
+      <Stack.Screen
+        name="privacy-security"
+        options={{ ...pushed, title: screenTitles.privacySecurity }}
+      />
       <Stack.Screen name="memories-add" options={{ ...pushed, title: screenTitles.memoriesAdd }} />
       <Stack.Screen
         name="memories-connect"

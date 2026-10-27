@@ -8,6 +8,7 @@ import {
   BackHandler,
   Dimensions,
   Modal,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -17,6 +18,7 @@ import {
   Avatar,
   Body,
   Caption,
+  Divider,
   IconButton,
   Muted,
   Pressable,
@@ -26,34 +28,37 @@ import { copy } from '../../lib/copy';
 import { memberDisplayName } from '../../lib/displayName';
 import { routes } from '../../lib/navigation';
 import { testIdFromLabel } from '../../lib/testId';
-import { signOutAndGoWelcome } from '../../lib/authSession';
-import { supabase } from '../../lib/supabase';
 import { wipeVaultAudioCache } from '../vault/vaultPlayback';
 import { useTheme } from '../../theme';
 import { radius, space } from '../../theme/tokens';
 import { homeFamilyLine } from './homeGreeting';
+import { clearRecoveryReminderSession } from './recoveryReminderSession';
 
 const DRAWER_WIDTH = Math.min(320, Dimensions.get('window').width * 0.86);
 
-type MenuItem =
-  | { kind: 'link'; label: string; href: string; testID: string }
+type MenuRow =
+  | { kind: 'link'; label: string; href: string; testID: string; dot?: boolean }
   | { kind: 'soon'; label: string; testID: string }
-  | { kind: 'signOut' };
+  | { kind: 'signOut' }
+  | { kind: 'divider' };
 
 type Props = {
   open: boolean;
   onClose: () => void;
   displayName: string;
   familyName: string;
+  privacyNeedsAttention?: boolean;
+  onSignOut: () => void;
 };
 
-function buildItems(): MenuItem[] {
+function buildRows(privacyNeedsAttention: boolean): MenuRow[] {
   return [
     { kind: 'link', label: copy.home.menuHome, href: routes.home, testID: 'menu-home' },
     { kind: 'link', label: copy.home.menuMemories, href: routes.memories, testID: 'menu-memories' },
     { kind: 'link', label: copy.home.menuSync, href: routes.sync, testID: 'menu-sync' },
     { kind: 'link', label: copy.home.menuVault, href: routes.vault, testID: 'menu-vault' },
     { kind: 'link', label: copy.home.menuFamily, href: routes.family, testID: 'menu-family' },
+    { kind: 'divider' },
     { kind: 'soon', label: copy.home.menuProfile, testID: 'menu-profile' },
     {
       kind: 'link',
@@ -62,12 +67,21 @@ function buildItems(): MenuItem[] {
       testID: 'menu-settings',
     },
     { kind: 'soon', label: copy.home.menuNotifications, testID: 'menu-notifications' },
-    { kind: 'soon', label: copy.home.menuPrivacySecurity, testID: 'menu-privacy-security' },
+    {
+      kind: 'link',
+      label: copy.home.menuPrivacySecurity,
+      href: routes.privacySecurity,
+      testID: 'menu-privacy-security',
+      dot: privacyNeedsAttention,
+    },
+    { kind: 'divider' },
     { kind: 'soon', label: copy.home.menuHelp, testID: 'menu-help' },
     { kind: 'soon', label: copy.home.menuFeedback, testID: 'menu-feedback' },
     { kind: 'soon', label: copy.home.menuAbout, testID: 'menu-about' },
+    { kind: 'divider' },
     { kind: 'soon', label: copy.home.menuTerms, testID: 'menu-terms' },
     { kind: 'soon', label: copy.home.menuPrivacyPolicy, testID: 'menu-privacy-policy' },
+    { kind: 'divider' },
     { kind: 'signOut' },
   ];
 }
@@ -107,7 +121,6 @@ export function HomeMenuDrawer(props: Props) {
       }
       return;
     }
-    // Mount then slide in — external open prop is the source of truth.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- open the modal before animating
     setVisible(true);
     closing.current = false;
@@ -146,12 +159,9 @@ export function HomeMenuDrawer(props: Props) {
         onPress: () => {
           void (async () => {
             animateClose();
-            // Temp decrypted audio files only; titles live in React state and clear on unmount.
+            clearRecoveryReminderSession();
             await wipeVaultAudioCache();
-            await signOutAndGoWelcome({
-              signOut: () => supabase.auth.signOut(),
-              replace: (href) => router.replace(href),
-            });
+            props.onSignOut();
           })();
         },
       },
@@ -222,8 +232,15 @@ export function HomeMenuDrawer(props: Props) {
               onPress={animateClose}
             />
           </View>
-          <View style={styles.items}>
-            {buildItems().map((item) => {
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {buildRows(Boolean(props.privacyNeedsAttention)).map((item, index) => {
+              if (item.kind === 'divider') {
+                return <Divider key={`divider-${index}`} />;
+              }
               if (item.kind === 'signOut') {
                 return (
                   <Pressable
@@ -263,10 +280,16 @@ export function HomeMenuDrawer(props: Props) {
                   style={styles.item}
                 >
                   <Body>{item.label}</Body>
+                  {item.dot ? (
+                    <View
+                      testID="menu-privacy-security-dot"
+                      style={[styles.dot, { backgroundColor: colors.accentTerracotta }]}
+                    />
+                  ) : null}
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
           <Caption tone="muted" testID={testIdFromLabel(copy.home.menuVersion)}>
             {copy.home.menuVersion.replace('{version}', version)}
           </Caption>
@@ -305,9 +328,12 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: space.xxs,
   },
-  items: {
-    flexGrow: 1,
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
     gap: space.xxs,
+    paddingBottom: space.md,
   },
   item: {
     minHeight: 44,
@@ -321,5 +347,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
     paddingVertical: space.xxs,
     overflow: 'hidden',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

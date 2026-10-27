@@ -167,7 +167,7 @@ export function HomeToday() {
           onOpenOnThisDay={(id) => router.push(routes.memoryItem(id))}
         />
       ) : (
-        <Card testID="home-memories-empty">
+        <Card variant="default" testID="home-memories-empty">
           <Title>{copy.home.memoriesCardEmptyTitle}</Title>
           <Muted>{copy.home.memoriesCardAskAdmin}</Muted>
         </Card>

@@ -15,7 +15,7 @@ type Props = {
 export function HomeVaultCard(props: Props) {
   if (props.loading) {
     return (
-      <Card testID="home-vault-loading">
+      <Card variant="soft" testID="home-vault-loading">
         <Muted>{copy.common.loading}</Muted>
       </Card>
     );
@@ -23,7 +23,7 @@ export function HomeVaultCard(props: Props) {
 
   if (props.failed) {
     return (
-      <Card testID="home-vault-error">
+      <Card variant="soft" testID="home-vault-error">
         <Muted>{copy.home.vaultCardFailed}</Muted>
         <Button label={copy.home.cardRetry} variant="secondary" onPress={props.onRetry} />
       </Card>
@@ -32,7 +32,7 @@ export function HomeVaultCard(props: Props) {
 
   if (props.peek.state === 'locked') {
     return (
-      <Card testID="home-vault-locked">
+      <Card variant="soft" testID="home-vault-locked">
         <Overline>{copy.home.vaultCardOverline}</Overline>
         <Title>{copy.vault.title}</Title>
         <Body>{copy.home.vaultCardLocked}</Body>
@@ -42,14 +42,14 @@ export function HomeVaultCard(props: Props) {
 
   if (props.peek.state === 'empty') {
     return (
-      <Card testID="home-vault-empty">
+      <Card variant="soft" testID="home-vault-empty">
         <Overline>{copy.home.vaultCardOverline}</Overline>
         <Title>{copy.home.vaultCardEmptyTitle}</Title>
         <Body>{copy.home.vaultCardEmptyBody}</Body>
         {props.canAdd ? (
           <Button
             label={copy.home.vaultCardAdd}
-            variant="secondary"
+            variant="accent"
             testID="home-vault-add"
             onPress={props.onAdd}
           />
@@ -66,7 +66,7 @@ export function HomeVaultCard(props: Props) {
       : copy.home.vaultCardVisibilityFamily;
 
   return (
-    <Card testID="home-vault-card">
+    <Card variant="soft" testID="home-vault-card">
       <Overline>{copy.home.vaultCardOverline}</Overline>
       <Title testID="home-vault-title">{props.peek.title}</Title>
       <Caption tone="muted">
@@ -74,7 +74,7 @@ export function HomeVaultCard(props: Props) {
       </Caption>
       <Button
         label={copy.home.vaultCardOpen}
-        variant="secondary"
+        variant="accent"
         testID="home-vault-open"
         onPress={props.onOpenVault}
       />

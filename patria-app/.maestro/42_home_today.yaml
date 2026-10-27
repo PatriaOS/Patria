@@ -18,7 +18,11 @@ appId: app.patria.dev
       - assertVisible:
           id: "home-avatars"
       - assertVisible:
+          id: "home-needs-you-bell"
+      - assertVisible:
           id: "home-menu"
+      - assertNotVisible:
+          id: "home-needs-attention"
       - extendedWaitUntil:
           visible:
             id: "home-sync-card"

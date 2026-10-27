@@ -52,7 +52,7 @@ export function HomeVoiceCard(props: Props) {
         {props.canRecord ? (
           <Button
             label={copy.home.voiceCardRecord}
-            variant="secondary"
+            variant="accent"
             testID="home-voice-record"
             onPress={props.onRecord}
           />
@@ -70,7 +70,7 @@ export function HomeVoiceCard(props: Props) {
         <Title>{copy.home.voiceCardOlder}</Title>
         <Button
           label={copy.home.voiceCardOpenVault}
-          variant="secondary"
+          variant="accent"
           testID="home-voice-open-vault"
           onPress={props.onOpenVault}
         />

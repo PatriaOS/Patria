@@ -2,9 +2,18 @@ import { Button, Card, Muted, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import type { FirstDeviceNotice } from '../../lib/crypto/deviceAccess';
 
+/** Date and time without seconds, e.g. "Oct 26, 2:37 PM". */
 export function formatDeviceWhen(iso: string): string {
   const when = new Date(iso);
-  return Number.isNaN(when.getTime()) ? iso : when.toLocaleString();
+  if (Number.isNaN(when.getTime())) {
+    return iso;
+  }
+  return when.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 type ApproveMyDeviceCardProps = {

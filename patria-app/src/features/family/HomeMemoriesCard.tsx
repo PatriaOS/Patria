@@ -25,7 +25,7 @@ type Props = {
 export function HomeMemoriesCard(props: Props) {
   if (props.loading) {
     return (
-      <Card testID="home-memories-loading">
+      <Card variant="default" testID="home-memories-loading">
         <Muted>{copy.common.loading}</Muted>
       </Card>
     );
@@ -33,7 +33,7 @@ export function HomeMemoriesCard(props: Props) {
 
   if (props.failed) {
     return (
-      <Card testID="home-memories-error">
+      <Card variant="default" testID="home-memories-error">
         <Muted>{copy.home.memoriesCardFailed}</Muted>
         <Button label={copy.home.cardRetry} variant="secondary" onPress={props.onRetry} />
       </Card>
@@ -42,14 +42,14 @@ export function HomeMemoriesCard(props: Props) {
 
   if (props.items.length === 0) {
     return (
-      <Card testID="home-memories-empty">
+      <Card variant="default" testID="home-memories-empty">
         <Overline>{copy.home.memoriesCardOverline}</Overline>
         <Title>{copy.home.memoriesCardEmptyTitle}</Title>
         <Body>{copy.home.memoriesCardEmptyBody}</Body>
         {props.canAdd ? (
           <Button
             label={copy.home.memoriesCardAdd}
-            variant="secondary"
+            variant="accent"
             testID="home-memories-add"
             onPress={props.onAdd}
           />
@@ -64,7 +64,7 @@ export function HomeMemoriesCard(props: Props) {
   const otd = props.onThisDay;
 
   return (
-    <Card testID="home-memories-card">
+    <Card variant="default" testID="home-memories-card">
       <View style={styles.header}>
         <Overline>{copy.home.memoriesCardOverline}</Overline>
         <Pressable

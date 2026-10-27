@@ -53,18 +53,20 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - scrollUntilVisible:
           element:
             id: "let-in-notice"
           direction: DOWN
-          timeout: 10000
+          timeout: 15000
       - assertVisible:
           id: "let-in-notice"
-          text: ".*wants this phone let in.*"
+          text: ".*added a new phone.*"
       - tapOn:
           id: "^let-in$"
       - extendedWaitUntil:
-          notVisible: "wants this phone let in"
+          notVisible: "added a new phone"
           timeout: 20000
 - runFlow:
     when:
@@ -83,16 +85,20 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertNotVisible: "wants this phone let in"
+      - runFlow:
+          file: subflows/open_family.yaml
+      - assertNotVisible: "added a new phone"
 - runFlow:
     when:
       true: ${PHASE == 'decline'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - assertVisible:
           id: "let-in-notice"
-          text: ".*wants this phone let in.*"
+          text: ".*added a new phone.*"
       - tapOn:
           id: "decline"
       - assertNotVisible: "Let in"

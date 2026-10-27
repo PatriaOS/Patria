@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-26 — Needs you off Home (bell, reminder, Privacy and Security)
+
+Urgent items leave Home. Home starts at the greeting; a Needs you bell (badge count, 9+) opens a ranked list that only navigates (recovery → Privacy and Security, devices → Family with Let in unchanged, Sync / overdue tasks, Memories only when failed uploads already exist — none yet). Sign-in shows a one-shot in-memory recovery reminder (Set it up now / Remind me later); shared Maestro sign_in taps later when present. Drawer: Privacy and Security is real (Recovery section), group dividers, pinned version + close. Soft-surface chips behind bell and menu so they read under the avatars. Phone tests 9/11/42–44 updated; 45 added. No RLS or hosted push.
+
+---
+
 ## 2026-10-26 — Home v2 + ButtonStack
 
 Home is rebuilt to the Figma Today order: Needs attention (≤2 + See all), greeting with Open menu, then Sync / This week / voice / Memories / Vault. On this day stays as a line inside Memories. Family name gets “The ” only when missing, casing preserved. Voice and Vault peeks decrypt at most ten recent sealed rows in memory only (no has_audio column, no AsyncStorage/SecureStore for titles); locked phones show a calm state. Drawer uses the shared Pressable (300 ms re-entry) so a double tap opens one screen. Shared `ButtonStack` spaces stacked Vault / Sync / Memories / voice actions with `space.sm`. Phone tests 42–44.

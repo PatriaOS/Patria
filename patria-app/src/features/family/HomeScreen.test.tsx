@@ -20,19 +20,17 @@ import {
   type SyncTaskRow,
 } from '../sync/syncApi';
 import { getZonedParts, zonedTimeToUtc } from '../sync/syncSchedule';
-import {
-  approveFirstDevice,
-  approveOwnExtraDevice,
-  declineFirstDevice,
-  fetchFirstDeviceNotices,
-  rejectOwnExtraDevice,
-} from '../../lib/crypto/deviceAccess';
+import { fetchFirstDeviceNotices } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { rotateFamilyKeyIfNeeded } from '../../lib/crypto/rotateFamilyKey';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
+import {
+  clearRecoveryReminderSession,
+  markRecoveryReminderShownThisSession,
+} from './recoveryReminderSession';
 
 jest.mock('../../lib/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
@@ -284,6 +282,9 @@ describe('HomeScreen invite entry', () => {
   });
 
   beforeEach(() => {
+    clearRecoveryReminderSession();
+    // Most Home tests are not about the sign-in reminder sheet.
+    markRecoveryReminderShownThisSession();
     mockedRouter().push.mockClear();
     mockedRouter().replace.mockClear();
     (supabase.auth.signOut as jest.Mock).mockClear();
@@ -317,10 +318,6 @@ describe('HomeScreen invite entry', () => {
     (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([]);
     (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('ready');
     (rotateFamilyKeyIfNeeded as jest.Mock).mockResolvedValue('idle');
-    (approveFirstDevice as jest.Mock).mockClear();
-    (declineFirstDevice as jest.Mock).mockClear();
-    (approveOwnExtraDevice as jest.Mock).mockClear();
-    (rejectOwnExtraDevice as jest.Mock).mockClear();
     (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
       contacts: [],
       ownContacts: [],
@@ -364,26 +361,11 @@ describe('HomeScreen invite entry', () => {
     expect(queryByText(copy.home.recoveryNotSetup)).toBeNull();
   });
 
-  it('shows a calm recovery card on Home that does not block the family', async () => {
-    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
-    expect(await findByText(copy.home.recoveryCardTitle)).toBeTruthy();
-    expect(queryByText(copy.home.invite)).toBeNull();
-  });
-
-  it('shows Recovery needs attention on Home because it asks for action', async () => {
-    (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
-      contacts: [],
-      ownContacts: [],
-      accepted: 1,
-      pending: [],
-      hasPaper: false,
-      hasRecoveryPublic: true,
-      recoveryKeyEpoch: 1,
-      keyEpoch: 2,
-      status: 'needs_attention',
-    });
-    const { findByText } = await renderScreen(<HomeScreen />);
-    expect(await findByText(copy.home.recoveryNeedsAttention)).toBeTruthy();
+  it('keeps recovery setup off Home and shows it on the Needs you bell', async () => {
+    const { findByTestId, queryByText } = await renderScreen(<HomeScreen />);
+    expect(queryByText(copy.home.recoveryCardTitle)).toBeNull();
+    expect(await findByTestId('home-needs-you-bell')).toBeTruthy();
+    expect(await findByTestId('home-needs-you-badge')).toBeTruthy();
   });
 
   it('greets the family by name with The when needed, and shows Home body cards', async () => {
@@ -391,6 +373,7 @@ describe('HomeScreen invite entry', () => {
     expect(await findByTestId('home-family-name')).toBeTruthy();
     expect(await findByText('The Riveras')).toBeTruthy();
     expect(await findByTestId('home-menu')).toBeTruthy();
+    expect(await findByTestId('home-needs-you-bell')).toBeTruthy();
     expect(await findByTestId('home-sync-card')).toBeTruthy();
     expect(queryByText(copy.home.vaultComing)).toBeNull();
     expect(queryByText(/Hello,/)).toBeNull();
@@ -521,13 +504,6 @@ describe('HomeScreen invite entry', () => {
     });
   });
 
-  it('says this phone needs to be let in again when the family key cannot be obtained', async () => {
-    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('needsRelink');
-    const { findByText } = await renderScreen(<HomeScreen />);
-    expect(await findByText(copy.home.keysNeedRelink)).toBeTruthy();
-    expect(await findByText(copy.home.lostPhone)).toBeTruthy();
-  });
-
   it('refetches first-device notices on pull to refresh', async () => {
     const { getByTestId, findByTestId } = await renderScreen(<HomeScreen />);
     expect(await findByTestId('home-family-name')).toBeTruthy();
@@ -538,7 +514,7 @@ describe('HomeScreen invite entry', () => {
     });
   });
 
-  it('lets an admin wrap or decline a first device from Home', async () => {
+  it('keeps Let in and recovery CTAs off Home; bell reflects open items', async () => {
     (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([
       {
         id: 'n1',
@@ -550,62 +526,34 @@ describe('HomeScreen invite entry', () => {
         kind: 'first_device',
       },
     ]);
-    const { findByText, findByTestId, getByText } = await renderScreen(<HomeScreen />);
+    const { findByTestId, queryByText, queryByTestId } = await renderScreen(<HomeScreen />);
+    expect(await findByTestId('home-needs-you-bell')).toBeTruthy();
+    expect(await findByTestId('home-needs-you-badge')).toBeTruthy();
+    expect(queryByTestId('let-in-notice')).toBeNull();
+    expect(queryByText(copy.home.letIn)).toBeNull();
+    expect(queryByText(copy.home.recoveryCardTitle)).toBeNull();
+    expect(queryByTestId('create-printed-code')).toBeNull();
+  });
 
-    expect(await findByText(`${copy.member.fallbackName} wants this phone let in`)).toBeTruthy();
-    expect((await findByTestId('let-in-notice')).props.testID).toBe('let-in-notice');
-    await fireEvent.press(getByText(copy.home.letIn));
+  it('opens Needs you from the bell', async () => {
+    const { findByTestId } = await renderScreen(<HomeScreen />);
+    await fireEvent.press(await findByTestId('home-needs-you-bell'));
+    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/needs-you');
+  });
+
+  it('shows the recovery reminder once after sign in until Remind me later', async () => {
+    clearRecoveryReminderSession();
+    const { findByTestId, queryByTestId } = await renderScreen(<HomeScreen />);
+    await waitFor(async () => {
+      expect(await findByTestId('recovery-reminder-sheet')).toBeTruthy();
+    });
+    await fireEvent.press(await findByTestId('recovery-reminder-later'));
     await waitFor(() => {
-      expect(approveFirstDevice).toHaveBeenCalled();
+      expect(queryByTestId('recovery-reminder-sheet')).toBeNull();
     });
   });
 
-  it('lets a member approve their own extra phone and hides Let in for admins', async () => {
-    (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([
-      {
-        id: 'n-extra',
-        spaceId: 's1',
-        userId: 'u1',
-        deviceId: 'd-new',
-        publicKey: new Uint8Array(32),
-        deviceCreatedAt: '2026-10-12T12:00:00.000Z',
-        kind: 'extra_device',
-      },
-    ]);
-    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
-    expect(await findByText(copy.home.extraDeviceOwnNotice)).toBeTruthy();
-    expect(queryByText(copy.home.letIn)).toBeNull();
-    await fireEvent.press(await findByText(copy.home.yesMyPhone));
-    await waitFor(() => {
-      expect(approveOwnExtraDevice).toHaveBeenCalled();
-    });
-  });
-
-  it('shows admins an information-only extra-device notice', async () => {
-    (fetchFirstDeviceNotices as jest.Mock).mockResolvedValue([
-      {
-        id: 'n-extra-other',
-        spaceId: 's1',
-        userId: 'u2',
-        deviceId: 'd-marco-2',
-        publicKey: new Uint8Array(32),
-        deviceCreatedAt: '2026-10-12T12:00:00.000Z',
-        kind: 'extra_device',
-      },
-    ]);
-    const { findByText, queryByText } = await renderScreen(<HomeScreen />);
-    expect(await findByText(`${copy.member.fallbackName} added a new phone`)).toBeTruthy();
-    expect(queryByText(copy.home.letIn)).toBeNull();
-    expect(queryByText(copy.home.yesMyPhone)).toBeNull();
-  });
-
-  it('waits for one of your phones when this is an extra device', async () => {
-    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('waitingOwnPhone');
-    const { findByText } = await renderScreen(<HomeScreen />);
-    expect(await findByText(copy.home.keysWaitingOwnPhone)).toBeTruthy();
-  });
-
-  it('offers a printed-code step from Home after two contacts accept', async () => {
+  it('does not put printed-code on Home after two contacts accept', async () => {
     (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
       contacts: [],
       ownContacts: [],
@@ -617,9 +565,9 @@ describe('HomeScreen invite entry', () => {
       keyEpoch: 1,
       status: 'setup',
     });
-    const { findByTestId } = await renderScreen(<HomeScreen />);
-    await fireEvent.press(await findByTestId('create-printed-code'));
-    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/printed-code');
+    const { findByTestId, queryByTestId } = await renderScreen(<HomeScreen />);
+    expect(await findByTestId('home-needs-you-badge')).toBeTruthy();
+    expect(queryByTestId('create-printed-code')).toBeNull();
   });
 
   it('refetches memberships when family members fail to load', async () => {

@@ -60,3 +60,14 @@ appId: app.patria.dev
           visible:
             id: "^home$|^screen-waiting-own-phone$"
           timeout: 45000
+      - runFlow:
+          when:
+            visible:
+              id: "recovery-reminder-later"
+          commands:
+            - tapOn:
+                id: "recovery-reminder-later"
+            - extendedWaitUntil:
+                notVisible:
+                  id: "recovery-reminder-sheet"
+                timeout: 10000

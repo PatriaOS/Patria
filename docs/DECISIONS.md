@@ -260,4 +260,4 @@ GOV02 slice 1. Sync agenda and notes use the **Standard** tier (same idea as pho
 * Countdown (family time zone): TONIGHT if today and start ≥ 17:00; TODAY if today and earlier; TOMORROW; else IN N DAYS.
 * Attributed children must belong to the same family. Former members show as **A former family member**. Admins may edit notes after Finish. On this day uses the family time zone.
 * No Fair Share, no auto agenda, no push, no guilt when a meeting is missed.
-* Home Today layout (same slice, after Sync): security notices first; date overline and greeting; Sync hero card; On this day when a memory exists; This week tasks. Keys and recovery status move to Family.
+* Home Today layout (same slice, after Sync; Needs-you round 26 Oct): Home starts at the greeting (no attention cards). Urgent items live under a Needs you bell and on Family / Privacy and Security. Sign-in may show a one-shot in-memory recovery reminder. Sync hero card; On this day inside Memories; This week tasks. Keys and recovery status stay on Family.

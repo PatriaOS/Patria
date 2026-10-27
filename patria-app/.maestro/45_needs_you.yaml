@@ -1,0 +1,101 @@
+# PHONE_TESTS: 45
+# AREAS: navigation, recovery
+# Reminder is not dismissed by sign_in for this flow — handle it here.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'main' || PHASE == null || PHASE == ''}
+    commands:
+      - launchApp
+      - runFlow:
+          file: subflows/dismiss_open_in.yaml
+      - runFlow:
+          file: subflows/sign_in_form.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet"
+          timeout: 20000
+      - assertVisible:
+          id: "recovery-reminder-set-up"
+      - assertVisible:
+          id: "recovery-reminder-later"
+      - tapOn:
+          id: "recovery-reminder-later"
+      - extendedWaitUntil:
+          notVisible:
+            id: "recovery-reminder-sheet"
+          timeout: 10000
+      - assertVisible:
+          id: "home-needs-you-badge"
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - assertVisible:
+          id: "needs-you-recovery-setup"
+      - tapOn:
+          id: "needs-you-recovery-setup"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
+      - tapOn:
+          point: 8%, 12%
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - assertVisible:
+          id: "home-needs-you-badge"
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-sign-out"
+          timeout: 10000
+      - tapOn:
+          id: "menu-sign-out"
+      - extendedWaitUntil:
+          visible: "Sign out?"
+          timeout: 10000
+      - tapOn: "Sign out"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-welcome"
+          timeout: 20000
+- runFlow:
+    when:
+      true: ${PHASE == 'again'}
+    commands:
+      - launchApp
+      - runFlow:
+          file: subflows/dismiss_open_in.yaml
+      - runFlow:
+          file: subflows/sign_in_form.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet"
+          timeout: 20000
+      - tapOn:
+          id: "recovery-reminder-later"
+      - extendedWaitUntil:
+          notVisible:
+            id: "recovery-reminder-sheet"
+          timeout: 10000
+      - swipe:
+          direction: DOWN
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"

@@ -15,6 +15,10 @@ appId: app.patria.dev
     timeout: 10000
 - assertVisible:
     id: "menu-settings"
+- assertVisible:
+    id: "menu-privacy-security"
+- assertVisible:
+    id: "home-menu-close"
 - tapOn:
     id: "menu-settings"
 - tapOn:
@@ -33,6 +37,26 @@ appId: app.patria.dev
     timeout: 15000
 - assertNotVisible:
     id: "home-menu-drawer"
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-privacy-security"
+    timeout: 10000
+- tapOn:
+    id: "menu-privacy-security"
+- extendedWaitUntil:
+    visible:
+      id: "screen-privacy-security"
+    timeout: 15000
+- assertVisible:
+    id: "privacy-security-recovery"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
 - tapOn:
     id: "home-menu"
 - extendedWaitUntil:

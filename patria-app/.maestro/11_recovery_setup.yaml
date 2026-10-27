@@ -10,9 +10,22 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - assertVisible: "Set up recovery"
       - tapOn:
-          id: "choose-recovery-contacts"
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - assertVisible:
+          id: "needs-you-recovery-setup"
+      - tapOn:
+          id: "needs-you-recovery-setup"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
+      - tapOn:
+          id: "privacy-recovery-contacts"
       - assertVisible: "Recovery contacts"
 - runFlow:
     when:
@@ -20,9 +33,28 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - tapOn:
-          id: "choose-recovery-contacts"
-          optional: true
+      - runFlow:
+          when:
+            notVisible: "Ask these people"
+          commands:
+            - tapOn:
+                id: "home-needs-you-bell"
+                optional: true
+            - tapOn:
+                id: "needs-you-recovery-setup"
+                optional: true
+            - tapOn:
+                id: "privacy-recovery-contacts"
+                optional: true
+            - tapOn:
+                id: "home-menu"
+                optional: true
+            - tapOn:
+                id: "menu-privacy-security"
+                optional: true
+            - tapOn:
+                id: "privacy-recovery-contacts"
+                optional: true
       - scrollUntilVisible:
           element:
             id: ${CONTACT_ID}
@@ -38,6 +70,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%
@@ -59,18 +93,18 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
-      - runFlow:
-          when:
-            notVisible:
-              id: "^create-printed-code$"
-          commands:
-            - scrollUntilVisible:
-                element:
-                  id: "^recovery-contacts$"
-                direction: DOWN
-                timeout: 10000
-            - tapOn:
-                id: "^recovery-contacts$"
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-privacy-security"
+          timeout: 10000
+      - tapOn:
+          id: "menu-privacy-security"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
       - scrollUntilVisible:
           element:
             id: "^create-printed-code$"
