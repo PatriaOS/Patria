@@ -395,3 +395,4 @@ Areas: navigation, recovery
 2. Pass if the **Needs you** bell shows a terracotta badge with the count. Tap the bell. Pass if **Needs you** lists recovery (and any other ranked items), most important first.
 3. From **Needs you**, open recovery. Return to Home. Pass if the badge still reflects open items (count drops when an item is fully resolved).
 4. Sign out and sign in again as Test 1 without finishing recovery. Pass if the reminder sheet appears once. Tap **Remind me later**. Pass if opening Home again in the same session does not show the sheet again.
+5. Force-quit and reopen the app while still signed in. Pass if the reminder sheet does not appear, Home is usable, and the **Needs you** bell still shows the recovery item.

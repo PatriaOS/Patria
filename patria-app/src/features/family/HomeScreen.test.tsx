@@ -1,4 +1,4 @@
-import { act, fireEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 import type { TestInstance } from 'test-renderer';
 
 import { copy } from '../../lib/copy';
@@ -29,8 +29,13 @@ import { renderScreen } from '../../test/renderScreen';
 import { HomeScreen } from './HomeScreen';
 import {
   clearRecoveryReminderSession,
-  markRecoveryReminderShownThisSession,
+  markRecoveryReminderShown,
+  resetRecoveryReminderMemoryForTests,
 } from './recoveryReminderSession';
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
 
 jest.mock('../../lib/auth-context', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }),
@@ -281,10 +286,11 @@ describe('HomeScreen invite entry', () => {
     warmed.queryClient.clear();
   });
 
-  beforeEach(() => {
-    clearRecoveryReminderSession();
+  beforeEach(async () => {
+    await clearRecoveryReminderSession('u1');
+    resetRecoveryReminderMemoryForTests();
     // Most Home tests are not about the sign-in reminder sheet.
-    markRecoveryReminderShownThisSession();
+    await markRecoveryReminderShown('u1');
     mockedRouter().push.mockClear();
     mockedRouter().replace.mockClear();
     (supabase.auth.signOut as jest.Mock).mockClear();
@@ -549,12 +555,10 @@ describe('HomeScreen invite entry', () => {
   });
 
   it('shows the recovery reminder once after sign in until Remind me later', async () => {
-    clearRecoveryReminderSession();
+    await clearRecoveryReminderSession('u1');
+    resetRecoveryReminderMemoryForTests();
     const { findByTestId, queryByTestId } = await renderScreen(<HomeScreen />);
-    // Reminder opens on a 0ms timeout so the lint rule allows setState outside the effect body.
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    // Reminder opens after hydrate + a 0ms timeout.
     expect(await findByTestId('recovery-reminder-sheet')).toBeTruthy();
     await fireEvent.press(await findByTestId('recovery-reminder-later'));
     await waitFor(() => {

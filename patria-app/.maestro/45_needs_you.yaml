@@ -136,3 +136,26 @@ appId: app.patria.dev
           direction: DOWN
       - assertNotVisible:
           id: "recovery-reminder-sheet"
+# Cold start with the same session: no reminder sheet; Needs you bell still counts.
+- runFlow:
+    when:
+      true: ${PHASE == 'reopen_no_reminder'}
+    commands:
+      - stopApp
+      - launchApp
+      - extendedWaitUntil:
+          visible:
+            id: "home-greeting"
+          timeout: 30000
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"
+      - assertVisible:
+          id: "home-needs-you-badge"
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - assertVisible:
+          id: "needs-you-recovery-setup"

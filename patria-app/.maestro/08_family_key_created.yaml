@@ -34,9 +34,10 @@ appId: app.patria.dev
           timeout: 15000
       - runFlow:
           file: subflows/open_family.yaml
-      - extendedWaitUntil:
-          visible:
+      - scrollUntilVisible:
+          element:
             id: "family-keys-status"
+          direction: DOWN
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"
 - runFlow:
@@ -65,9 +66,10 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
-      - extendedWaitUntil:
-          visible:
+      - scrollUntilVisible:
+          element:
             id: "family-keys-status"
+          direction: DOWN
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"
 - runFlow:
@@ -76,20 +78,26 @@ appId: app.patria.dev
     commands:
       - stopApp
       - launchApp
+      # After a prior dismiss this sign-in, cold start must not show the sheet.
+      # (First launch after wipe may still show it once — dismiss, then prove keys.)
       - extendedWaitUntil:
           visible:
-            id: "^home$|recovery-reminder-later"
+            id: "home-greeting|recovery-reminder-later"
           timeout: 30000
       - runFlow:
           file: subflows/dismiss_recovery_reminder.yaml
       - extendedWaitUntil:
           visible:
-            id: "^home$"
+            id: "home-greeting"
           timeout: 15000
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"
       - runFlow:
           file: subflows/open_family.yaml
-      - extendedWaitUntil:
-          visible:
+      # Let-in notices push keys status below the fold — scroll, do not loosen.
+      - scrollUntilVisible:
+          element:
             id: "family-keys-status"
+          direction: DOWN
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"

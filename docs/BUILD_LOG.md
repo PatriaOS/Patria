@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — Recovery reminder once per sign-in (persisted)
+
+The reminder’s “shown” flag lived only in memory, so every cold start offered the sheet again and covered Home (smoke test 8 reopen). Persist a non-sensitive AsyncStorage marker `patria.recoveryReminder.shown.<userId>` = `1` when the sheet is shown; hydrate before offering; clear on sign out. Cold start with the same session stays quiet; Needs you still lists recovery. Phone test 45 step 5 covers reopen; 08 reopen scrolls to keys status (not lost — reminder required keys ready).
+
+---
+
 ## 2026-10-27 — Drawer Sign out pin + honest e2e step labels
 
 Sign out sat in the drawer ScrollView under a pinned version line, so Maestro “tapped” a clipped row and the in-drawer confirm never opened. Sign out is pinned above the version. Phone tests 44 and 45 run one Maestro PHASE per PHONE_TESTS step; `firstFailureSummary` names that step in the table (with a unit test). Family-tab sign-out now clears the recovery reminder session via `signOutAndGoWelcome`, so the next sign-in can show the sheet again.

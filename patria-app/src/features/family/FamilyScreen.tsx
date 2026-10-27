@@ -90,6 +90,7 @@ export function FamilyScreen() {
     setSigningOut(true);
     try {
       await signOutAndGoWelcome({
+        userId,
         signOut: () => supabase.auth.signOut(),
         replace: (href) => router.replace(href),
       });

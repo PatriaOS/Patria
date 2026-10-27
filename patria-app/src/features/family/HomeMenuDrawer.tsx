@@ -33,7 +33,6 @@ import { wipeVaultAudioCache } from '../vault/vaultPlayback';
 import { useTheme } from '../../theme';
 import { radius, space } from '../../theme/tokens';
 import { homeFamilyLine } from './homeGreeting';
-import { clearRecoveryReminderSession } from './recoveryReminderSession';
 
 const DRAWER_WIDTH = Math.min(320, Dimensions.get('window').width * 0.86);
 
@@ -158,7 +157,6 @@ export function HomeMenuDrawer(props: Props) {
   const onConfirmSignOut = () => {
     void (async () => {
       animateClose();
-      clearRecoveryReminderSession();
       await wipeVaultAudioCache();
       props.onSignOut();
     })();

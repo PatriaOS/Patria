@@ -1051,9 +1051,13 @@ try {
         result('skip', 'needs a second family name on this account'),
       );
       step(8, 6, 'Test 2 waiting if not let in', () => {
+        // Never sign Test 2 onto device A — step 7 reopens A and must stay Test 1.
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators so Test 2 does not take over device A');
+        }
         const waiting = tryMaestro({
           flow: flow('08_family_key_created.yaml'),
-          device: args.devices >= 2 ? deviceB : deviceA,
+          device: deviceB,
           env: { ...signInEnv(secrets, 2), PHASE: 'member_waiting' },
         });
         if (!waiting.ok) {
@@ -2165,6 +2169,13 @@ try {
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'again' },
+        });
+      });
+      step(45, 5, 'Cold reopen keeps reminder away; Needs you still lists recovery', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'reopen_no_reminder', E2E_STAY: '1' },
         });
       });
     }

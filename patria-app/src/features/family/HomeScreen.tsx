@@ -50,8 +50,8 @@ import { NeedsYouBell } from './NeedsYouBell';
 import { buildNeedsYouItems } from './needsYou';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import {
-  clearRecoveryReminderSession,
-  markRecoveryReminderShownThisSession,
+  hydrateRecoveryReminderShown,
+  markRecoveryReminderShown,
   shouldOfferRecoveryReminder,
 } from './recoveryReminderSession';
 import { RecoveryReminderSheet } from './RecoveryReminderSheet';
@@ -69,6 +69,7 @@ export function HomeScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderHydrated, setReminderHydrated] = useState(false);
   const [rotationUi, setRotationUi] = useState<HomeRotationUi>('hidden');
   const [rotationAttempt, setRotationAttempt] = useState(0);
 
@@ -228,12 +229,35 @@ export function HomeScreen() {
   }, [keyHolder, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted]);
 
   useEffect(() => {
-    if (!current || menuOpen || recoveryQuery.isLoading || keyStatusQuery.isLoading) {
+    if (!userId) {
+      return;
+    }
+    let cancelled = false;
+    void hydrateRecoveryReminderShown(userId).then(() => {
+      if (!cancelled) {
+        setReminderHydrated(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (
+      !userId ||
+      !reminderHydrated ||
+      !current ||
+      menuOpen ||
+      recoveryQuery.isLoading ||
+      keyStatusQuery.isLoading
+    ) {
       return;
     }
     const keysReady = keyStatusQuery.data === 'ready';
     if (
       !shouldOfferRecoveryReminder({
+        userId,
         keyHolder,
         recoveryAccepted: recoveryQuery.data?.accepted ?? 0,
         hasPaper: Boolean(recoveryQuery.data?.hasPaper),
@@ -244,11 +268,13 @@ export function HomeScreen() {
     }
     const open = () => {
       setReminderOpen(true);
-      markRecoveryReminderShownThisSession();
+      void markRecoveryReminderShown(userId);
     };
     const handle = setTimeout(open, 0);
     return () => clearTimeout(handle);
   }, [
+    userId,
+    reminderHydrated,
     current,
     menuOpen,
     keyHolder,
@@ -270,8 +296,8 @@ export function HomeScreen() {
   const onSignOut = async () => {
     setSigningOut(true);
     try {
-      clearRecoveryReminderSession();
       await signOutAndGoWelcome({
+        userId,
         signOut: () => supabase.auth.signOut(),
         replace: (href) => router.replace(href),
       });
