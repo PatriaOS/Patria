@@ -117,7 +117,7 @@ export function ThisWeekTasks(props: Props) {
       {props.toggleError ? <ErrorState message={props.toggleError} /> : null}
       {!props.failed && props.loading ? <Muted>{copy.common.loading}</Muted> : null}
       {!props.failed && !props.loading && shown.length === 0 ? (
-        <Card testID="home-this-week-empty">
+        <Card tone="surface" testID="home-this-week-empty">
           <Muted>{copy.home.thisWeekEmpty}</Muted>
           <Body>{copy.home.thisWeekEmptyBody}</Body>
           {props.canAdd && props.onAdd ? (
@@ -132,7 +132,7 @@ export function ThisWeekTasks(props: Props) {
         </Card>
       ) : null}
       {!props.failed && !props.loading && shown.length > 0 ? (
-        <Card>
+        <Card tone="surface">
           {shown.map((task) => (
             <TaskRow
               key={task.id}

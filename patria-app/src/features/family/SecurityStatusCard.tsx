@@ -39,7 +39,7 @@ export function SecurityStatusCard({
     return null;
   }
   return (
-    <Card variant="soft">
+    <Card tone="warm">
       <View testID={rowTestID} style={styles.statusRow}>
         {showKeys && keyStatus ? (
           <StatusPill

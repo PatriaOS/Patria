@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet } from 'react-native';
 import { testIdFromLabel } from '../lib/testId';
 import { radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { useCardTone } from './CardTone';
 import { Pressable } from './Pressable';
 import { AppText } from './Text';
 
@@ -25,36 +26,39 @@ type Props = {
 export function Button({
   label,
   onPress,
-  variant = 'primary',
+  variant,
   disabled = false,
   busy = false,
-  onHero = false,
+  onHero,
   compact = false,
   accessibilityHint,
   testID,
 }: Props) {
   const { colors, fontFamily } = useTheme();
+  const card = useCardTone();
+  const resolvedVariant = variant ?? card?.buttonVariant ?? 'primary';
+  const resolvedOnHero = onHero ?? card?.onHero ?? false;
   const inactive = disabled || busy;
-  const outline = variant === 'ghost' || variant === 'secondary';
+  const outline = resolvedVariant === 'ghost' || resolvedVariant === 'secondary';
   const fill =
-    variant === 'accent'
+    resolvedVariant === 'accent'
       ? colors.accentMustard
-      : variant === 'danger'
+      : resolvedVariant === 'danger'
         ? colors.dangerFill
         : outline
           ? 'transparent'
           : colors.primary;
   const labelColor =
-    variant === 'accent'
+    resolvedVariant === 'accent'
       ? colors.onMustard
-      : variant === 'danger'
+      : resolvedVariant === 'danger'
         ? colors.onDanger
         : outline
-          ? onHero
+          ? resolvedOnHero
             ? colors.heroCardText
             : colors.primary
           : colors.onPrimary;
-  const outlineColor = onHero ? colors.heroCardText : colors.primary;
+  const outlineColor = resolvedOnHero ? colors.heroCardText : colors.primary;
 
   return (
     <Pressable

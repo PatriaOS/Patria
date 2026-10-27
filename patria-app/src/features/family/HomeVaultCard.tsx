@@ -12,10 +12,11 @@ type Props = {
   onRetry: () => void;
 };
 
+/** From the Vault — tone hero (green box, mustard CTA). */
 export function HomeVaultCard(props: Props) {
   if (props.loading) {
     return (
-      <Card variant="soft" testID="home-vault-loading">
+      <Card tone="hero" testID="home-vault-loading">
         <Muted>{copy.common.loading}</Muted>
       </Card>
     );
@@ -23,7 +24,7 @@ export function HomeVaultCard(props: Props) {
 
   if (props.failed) {
     return (
-      <Card variant="soft" testID="home-vault-error">
+      <Card tone="hero" testID="home-vault-error">
         <Muted>{copy.home.vaultCardFailed}</Muted>
         <Button label={copy.home.cardRetry} variant="secondary" onPress={props.onRetry} />
       </Card>
@@ -32,7 +33,7 @@ export function HomeVaultCard(props: Props) {
 
   if (props.peek.state === 'locked') {
     return (
-      <Card variant="soft" testID="home-vault-locked">
+      <Card tone="hero" testID="home-vault-locked">
         <Overline>{copy.home.vaultCardOverline}</Overline>
         <Title>{copy.vault.title}</Title>
         <Body>{copy.home.vaultCardLocked}</Body>
@@ -42,17 +43,12 @@ export function HomeVaultCard(props: Props) {
 
   if (props.peek.state === 'empty') {
     return (
-      <Card variant="soft" testID="home-vault-empty">
+      <Card tone="hero" testID="home-vault-empty">
         <Overline>{copy.home.vaultCardOverline}</Overline>
         <Title>{copy.home.vaultCardEmptyTitle}</Title>
         <Body>{copy.home.vaultCardEmptyBody}</Body>
         {props.canAdd ? (
-          <Button
-            label={copy.home.vaultCardAdd}
-            variant="accent"
-            testID="home-vault-add"
-            onPress={props.onAdd}
-          />
+          <Button label={copy.home.vaultCardAdd} testID="home-vault-add" onPress={props.onAdd} />
         ) : (
           <Muted>{copy.home.vaultCardAskAdmin}</Muted>
         )}
@@ -66,7 +62,7 @@ export function HomeVaultCard(props: Props) {
       : copy.home.vaultCardVisibilityFamily;
 
   return (
-    <Card variant="soft" testID="home-vault-card">
+    <Card tone="hero" testID="home-vault-card">
       <Overline>{copy.home.vaultCardOverline}</Overline>
       <Title testID="home-vault-title">{props.peek.title}</Title>
       <Caption tone="muted">
@@ -74,7 +70,6 @@ export function HomeVaultCard(props: Props) {
       </Caption>
       <Button
         label={copy.home.vaultCardOpen}
-        variant="accent"
         testID="home-vault-open"
         onPress={props.onOpenVault}
       />

@@ -66,13 +66,13 @@ export function HomeToday() {
   let hero = null;
   if (sync.loading) {
     hero = (
-      <Card variant="soft" testID="home-sync-loading">
+      <Card tone="hero" testID="home-sync-loading">
         <Muted>{copy.home.syncLoading}</Muted>
       </Card>
     );
   } else if (sync.failed) {
     hero = (
-      <Card variant="soft" testID="home-sync-error">
+      <Card tone="hero" testID="home-sync-error">
         <Muted>{copy.home.syncFailed}</Muted>
       </Card>
     );
@@ -167,7 +167,7 @@ export function HomeToday() {
           onOpenOnThisDay={(id) => router.push(routes.memoryItem(id))}
         />
       ) : (
-        <Card variant="default" testID="home-memories-empty">
+        <Card tone="surface" testID="home-memories-empty">
           <Title>{copy.home.memoriesCardEmptyTitle}</Title>
           <Muted>{copy.home.memoriesCardAskAdmin}</Muted>
         </Card>

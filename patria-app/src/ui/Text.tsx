@@ -3,6 +3,7 @@ import { Text as RNText, type StyleProp, type TextStyle } from 'react-native';
 
 import { typeScale, type TypeRole } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { useCardTone } from './CardTone';
 
 export type TextTone = 'default' | 'muted' | 'primary' | 'danger' | 'success' | 'inverse' | 'terracotta';
 
@@ -21,7 +22,20 @@ type Props = {
 function toneColor(
   tone: TextTone,
   colors: ReturnType<typeof useTheme>['colors'],
+  card: ReturnType<typeof useCardTone>,
+  role: TypeRole,
 ): string {
+  if (card) {
+    if (tone === 'muted') {
+      return card.textMuted;
+    }
+    if (tone === 'terracotta' || role === 'overline') {
+      return card.overline;
+    }
+    if (tone === 'default' || tone === 'inverse') {
+      return card.text;
+    }
+  }
   switch (tone) {
     case 'muted':
       return colors.textMuted;
@@ -53,6 +67,7 @@ export function AppText({
   accessibilityRole,
 }: Props & { role: TypeRole }) {
   const theme = useTheme();
+  const card = useCardTone();
   const spec = typeScale[role];
   return (
     <RNText
@@ -69,7 +84,7 @@ export function AppText({
           fontSize: spec.size * theme.previewScale,
           letterSpacing: 'letterSpacing' in spec ? spec.letterSpacing : undefined,
           fontVariant: spec.font === 'display' || spec.font === 'displayItalic' ? ['lining-nums'] : undefined,
-          color: color ?? toneColor(tone, theme.colors),
+          color: color ?? toneColor(tone, theme.colors, card, role),
         },
         style,
       ]}

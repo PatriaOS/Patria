@@ -19,10 +19,17 @@ appId: app.patria.dev
     id: "menu-privacy-security"
 - assertVisible:
     id: "home-menu-close"
+# Double-tap Settings: second tap only while the drawer row is still up
+# (shared Pressable should swallow a fast second hit; slow Maestro must not fail).
 - tapOn:
     id: "menu-settings"
-- tapOn:
-    id: "menu-settings"
+- runFlow:
+    when:
+      visible:
+        id: "menu-settings"
+    commands:
+      - tapOn:
+          id: "menu-settings"
 - extendedWaitUntil:
     visible:
       id: "screen-appearance"

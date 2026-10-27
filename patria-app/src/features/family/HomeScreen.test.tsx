@@ -361,6 +361,13 @@ describe('HomeScreen invite entry', () => {
     expect(queryByText(copy.home.recoveryNotSetup)).toBeNull();
   });
 
+  it('shows a calm waiting line on Home when this phone is not let in yet', async () => {
+    (ensureKeysForOpenFamily as jest.Mock).mockResolvedValue('waiting');
+    const { findByText, findByTestId } = await renderScreen(<HomeScreen />);
+    expect(await findByTestId('home-keys-status')).toBeTruthy();
+    expect(await findByText(copy.home.keysWaiting)).toBeTruthy();
+  });
+
   it('keeps recovery setup off Home and shows it on the Needs you bell', async () => {
     const { findByTestId, queryByText } = await renderScreen(<HomeScreen />);
     expect(queryByText(copy.home.recoveryCardTitle)).toBeNull();

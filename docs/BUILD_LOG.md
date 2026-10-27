@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — Home card tones + waiting keys on Home
+
+Card `tone` (hero / surface / warm) sets box, text and default CTA together via context — Sync and Vault hero+mustard, This week and Memories surface+green, voice warm+mustard. Restored calm keys-waiting status on Home (attention-only SecurityStatusCard) so Test 2 still sees “Waiting for a family admin…”. Sign-in: brief optional reminder dismiss before the form (Modal hid Home and blocked sign-out) and again after sign-in with a short timeout so waiting phones are not stuck.
+
+---
+
 ## 2026-10-27 — Home header icons + reminder Maestro visibility
 
 Bell and menu were empty circles: `Icon` only draws paths from its local SVG map (same as the tab bar), and Menu/Bell/X were never added, so the SVG had no strokes. Added Lucide menu/bell/x paths; transparent 44 pt hits; badge on the bell’s top-right. This week “Add to agenda” uses primary green (mustard stays on Sync only). Sign-in reminder Modal covers Home so Maestro never saw `id: home` — shared sign_in waits for the reminder, dismisses it, then asserts Home; test 45 waits for the sheet itself.

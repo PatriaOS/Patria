@@ -48,6 +48,7 @@ import { HomeMenuDrawer } from './HomeMenuDrawer';
 import { HomeToday } from './HomeToday';
 import { NeedsYouBell } from './NeedsYouBell';
 import { buildNeedsYouItems } from './needsYou';
+import { SecurityStatusCard } from './SecurityStatusCard';
 import {
   clearRecoveryReminderSession,
   markRecoveryReminderShownThisSession,
@@ -448,6 +449,16 @@ export function HomeScreen() {
           </View>
         </View>
       </View>
+      <SecurityStatusCard
+        attentionOnly
+        keyStatus={keyStatusQuery.data}
+        recoveryStatus={undefined}
+        keyHolder={keyHolder}
+        admin={admin}
+        familyName={current.space.name}
+        keysTestID="home-keys-status"
+        recoveryTestID="home-recovery-status"
+      />
       <HomeToday />
       <HomeMenuDrawer
         open={menuOpen}

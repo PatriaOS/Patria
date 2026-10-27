@@ -15,10 +15,11 @@ type Props = {
   onRetry: () => void;
 };
 
+/** Latest voice note — tone warm (sand box, mustard CTA). */
 export function HomeVoiceCard(props: Props) {
   if (props.loading) {
     return (
-      <Card variant="soft" testID="home-voice-loading">
+      <Card tone="warm" testID="home-voice-loading">
         <Muted>{copy.common.loading}</Muted>
       </Card>
     );
@@ -26,7 +27,7 @@ export function HomeVoiceCard(props: Props) {
 
   if (props.failed) {
     return (
-      <Card variant="soft" testID="home-voice-error">
+      <Card tone="warm" testID="home-voice-error">
         <Muted>{copy.home.voiceCardFailed}</Muted>
         <Button label={copy.home.cardRetry} variant="secondary" onPress={props.onRetry} />
       </Card>
@@ -35,8 +36,8 @@ export function HomeVoiceCard(props: Props) {
 
   if (props.peek.state === 'locked') {
     return (
-      <Card variant="soft" testID="home-voice-locked">
-        <Overline tone="terracotta">{copy.home.voiceCardOverline}</Overline>
+      <Card tone="warm" testID="home-voice-locked">
+        <Overline>{copy.home.voiceCardOverline}</Overline>
         <Title>{copy.home.voiceCardOverline}</Title>
         <Body>{copy.home.voiceCardLocked}</Body>
       </Card>
@@ -45,14 +46,13 @@ export function HomeVoiceCard(props: Props) {
 
   if (props.peek.state === 'empty') {
     return (
-      <Card variant="soft" testID="home-voice-empty">
-        <Overline tone="terracotta">{copy.home.voiceCardOverline}</Overline>
+      <Card tone="warm" testID="home-voice-empty">
+        <Overline>{copy.home.voiceCardOverline}</Overline>
         <Title>{copy.home.voiceCardEmptyTitle}</Title>
         <Body>{copy.home.voiceCardEmptyBody}</Body>
         {props.canRecord ? (
           <Button
             label={copy.home.voiceCardRecord}
-            variant="accent"
             testID="home-voice-record"
             onPress={props.onRecord}
           />
@@ -65,12 +65,11 @@ export function HomeVoiceCard(props: Props) {
 
   if (props.peek.state === 'older') {
     return (
-      <Card variant="soft" testID="home-voice-older">
-        <Overline tone="terracotta">{copy.home.voiceCardOverline}</Overline>
+      <Card tone="warm" testID="home-voice-older">
+        <Overline>{copy.home.voiceCardOverline}</Overline>
         <Title>{copy.home.voiceCardOlder}</Title>
         <Button
           label={copy.home.voiceCardOpenVault}
-          variant="accent"
           testID="home-voice-open-vault"
           onPress={props.onOpenVault}
         />
@@ -85,8 +84,8 @@ export function HomeVoiceCard(props: Props) {
     .replace('{length}', formatVoiceLength(note.durationSeconds));
 
   return (
-    <Card variant="soft" testID="home-voice-card">
-      <Overline tone="terracotta">{copy.home.voiceCardOverline}</Overline>
+    <Card tone="warm" testID="home-voice-card">
+      <Overline>{copy.home.voiceCardOverline}</Overline>
       <Title testID="home-voice-title">{note.title}</Title>
       <Caption tone="muted">{meta}</Caption>
       {props.spaceId ? (

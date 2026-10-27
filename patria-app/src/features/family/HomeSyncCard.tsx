@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 import { copy } from '../../lib/copy';
 import { Body, Button, Card, Overline, Title } from '../../ui';
 import { space } from '../../theme/tokens';
-import { useTheme } from '../../theme';
 
 export type HomeSyncCardProps = {
   admin: boolean;
@@ -17,22 +16,17 @@ export type HomeSyncCardProps = {
   onAddItem: () => void;
 };
 
-/** Family Sync hero on Home Today (D35). */
+/** Family Sync hero on Home Today — tone hero (green box, mustard CTA). */
 export function HomeSyncCard(props: HomeSyncCardProps) {
-  const { colors } = useTheme();
-
   if (!props.hasSchedule) {
     return (
-      <Card variant="hero" testID="home-sync-card">
-        <Overline color={colors.accentMustard}>{copy.home.syncOverlineLabel}</Overline>
-        <Title color={colors.heroCardText}>{copy.sync.lead}</Title>
-        <Body color={colors.heroCardText}>
-          {props.admin ? copy.sync.setUpBody : copy.sync.askAdminSetup}
-        </Body>
+      <Card tone="hero" testID="home-sync-card">
+        <Overline>{copy.home.syncOverlineLabel}</Overline>
+        <Title>{copy.sync.lead}</Title>
+        <Body>{props.admin ? copy.sync.setUpBody : copy.sync.askAdminSetup}</Body>
         {props.admin ? (
           <Button
             label={copy.sync.setUpOurSync}
-            variant="accent"
             compact
             testID="home-sync-set-up"
             onPress={props.onSetUp}
@@ -43,21 +37,14 @@ export function HomeSyncCard(props: HomeSyncCardProps) {
   }
 
   return (
-    <Card variant="hero" testID="home-sync-card">
-      <Overline color={colors.accentMustard} testID="home-sync-overline">
-        {props.overline}
-      </Overline>
-      <Title color={colors.heroCardText} testID="home-sync-title">
-        {props.title}
-      </Title>
-      <Body color={colors.heroCardText} testID="home-sync-body">
-        {props.body}
-      </Body>
+    <Card tone="hero" testID="home-sync-card">
+      <Overline testID="home-sync-overline">{props.overline}</Overline>
+      <Title testID="home-sync-title">{props.title}</Title>
+      <Body testID="home-sync-body">{props.body}</Body>
       <View style={styles.actions}>
         <View style={styles.action}>
           <Button
             label={copy.home.syncReviewAgenda}
-            variant="accent"
             compact
             testID="home-sync-review"
             onPress={props.onReview}
@@ -68,7 +55,6 @@ export function HomeSyncCard(props: HomeSyncCardProps) {
             <Button
               label={copy.home.syncAddItem}
               variant="ghost"
-              onHero
               compact
               testID="home-sync-add"
               onPress={props.onAddItem}

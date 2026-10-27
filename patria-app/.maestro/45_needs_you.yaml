@@ -11,8 +11,17 @@ appId: app.patria.dev
       - launchApp
       - runFlow:
           file: subflows/dismiss_open_in.yaml
+      # Clear a leftover reminder so sign_in_form can see Home and sign out.
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-later"
+          timeout: 3000
+          optional: true
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
       - runFlow:
           file: subflows/sign_in_form.yaml
+      # This flow must see the post-sign-in reminder (do not use shared sign_in dismiss).
       - extendedWaitUntil:
           visible:
             id: "recovery-reminder-sheet|home-greeting"
@@ -51,8 +60,15 @@ appId: app.patria.dev
           visible:
             id: "screen-privacy-security"
           timeout: 15000
+      # Privacy sits on Needs you; back once to Needs you, then Home tab.
       - tapOn:
           point: 8%, 12%
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - tapOn:
+          id: "^home$"
       - extendedWaitUntil:
           visible:
             id: "^home$"
@@ -84,6 +100,13 @@ appId: app.patria.dev
       - launchApp
       - runFlow:
           file: subflows/dismiss_open_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-later"
+          timeout: 3000
+          optional: true
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
       - runFlow:
           file: subflows/sign_in_form.yaml
       - extendedWaitUntil:

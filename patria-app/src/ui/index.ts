@@ -24,6 +24,8 @@ export { UnderlineTabs } from './UnderlineTabs';
 export type { BannerTone } from './Banner';
 export type { ButtonVariant } from './Button';
 export type { CardVariant } from './Card';
+export type { CardTone, CardToneColors } from './CardTone';
+export { cardToneColors } from './CardTone';
 export type { PillTone } from './StatusPill';
 export type { TabKey } from './TabBar';
 export type { TextTone } from './Text';
