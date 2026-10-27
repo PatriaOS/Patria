@@ -1,12 +1,12 @@
 # PHONE_TESTS: 45
 # AREAS: navigation, recovery
-# Reminder is not dismissed by sign_in for this flow — handle it here.
-# The reminder Modal covers Home, so wait for the sheet (or greeting) first.
+# Reminder is not dismissed by sign_in for reminder/again — handle it here.
+# PHASE matches PHONE_TESTS steps so the runner names the step that failed.
 appId: app.patria.dev
 ---
 - runFlow:
     when:
-      true: ${PHASE == 'main' || PHASE == null || PHASE == ''}
+      true: ${PHASE == 'reminder' || PHASE == 'main' || PHASE == null || PHASE == ''}
     commands:
       - launchApp
       - runFlow:
@@ -45,6 +45,14 @@ appId: app.patria.dev
             id: "^home$"
           timeout: 15000
       - assertVisible:
+          id: "home-greeting"
+- runFlow:
+    when:
+      true: ${PHASE == 'bell'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
           id: "home-needs-you-badge"
       - tapOn:
           id: "home-needs-you-bell"
@@ -54,6 +62,23 @@ appId: app.patria.dev
           timeout: 15000
       - assertVisible:
           id: "needs-you-recovery-setup"
+- runFlow:
+    when:
+      true: ${PHASE == 'recovery'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          when:
+            notVisible:
+              id: "screen-needs-you"
+          commands:
+            - tapOn:
+                id: "home-needs-you-bell"
+            - extendedWaitUntil:
+                visible:
+                  id: "screen-needs-you"
+                timeout: 15000
       - tapOn:
           id: "needs-you-recovery-setup"
       - extendedWaitUntil:
@@ -77,24 +102,6 @@ appId: app.patria.dev
           id: "home-needs-you-badge"
       - assertNotVisible:
           id: "recovery-reminder-sheet"
-      - tapOn:
-          id: "home-menu"
-      - extendedWaitUntil:
-          visible:
-            id: "menu-sign-out"
-          timeout: 10000
-      - tapOn:
-          id: "menu-sign-out"
-      - extendedWaitUntil:
-          visible:
-            id: "sign-out-confirm"
-          timeout: 10000
-      - tapOn:
-          id: "sign-out-confirm-yes"
-      - extendedWaitUntil:
-          visible:
-            id: "screen-welcome"
-          timeout: 20000
 - runFlow:
     when:
       true: ${PHASE == 'again'}

@@ -40,7 +40,6 @@ const DRAWER_WIDTH = Math.min(320, Dimensions.get('window').width * 0.86);
 type MenuRow =
   | { kind: 'link'; label: string; href: string; testID: string; dot?: boolean }
   | { kind: 'soon'; label: string; testID: string }
-  | { kind: 'signOut' }
   | { kind: 'divider' };
 
 type Props = {
@@ -82,8 +81,6 @@ function buildRows(privacyNeedsAttention: boolean): MenuRow[] {
     { kind: 'divider' },
     { kind: 'soon', label: copy.home.menuTerms, testID: 'menu-terms' },
     { kind: 'soon', label: copy.home.menuPrivacyPolicy, testID: 'menu-privacy-policy' },
-    { kind: 'divider' },
-    { kind: 'signOut' },
   ];
 }
 
@@ -262,20 +259,6 @@ export function HomeMenuDrawer(props: Props) {
                   if (item.kind === 'divider') {
                     return <Divider key={`divider-${index}`} />;
                   }
-                  if (item.kind === 'signOut') {
-                    return (
-                      <Pressable
-                        key="sign-out"
-                        testID="menu-sign-out"
-                        accessibilityRole="button"
-                        accessibilityLabel={copy.auth.signOut}
-                        onPress={onSignOutPress}
-                        style={styles.item}
-                      >
-                        <Body tone="danger">{copy.auth.signOut}</Body>
-                      </Pressable>
-                    );
-                  }
                   if (item.kind === 'soon') {
                     return (
                       <View
@@ -311,6 +294,16 @@ export function HomeMenuDrawer(props: Props) {
                   );
                 })}
               </ScrollView>
+              {/* Pin Sign out above version so it is never clipped under the footer. */}
+              <Pressable
+                testID="menu-sign-out"
+                accessibilityRole="button"
+                accessibilityLabel={copy.auth.signOut}
+                onPress={onSignOutPress}
+                style={styles.item}
+              >
+                <Body tone="danger">{copy.auth.signOut}</Body>
+              </Pressable>
               <Caption tone="muted" testID={testIdFromLabel(copy.home.menuVersion)}>
                 {copy.home.menuVersion.replace('{version}', version)}
               </Caption>

@@ -19,6 +19,7 @@ import {
   e2eDeviceCount,
   ensureJavaHome,
   loadLocalFiles,
+  firstFailureSummary,
   notReachedRows,
   parsePhoneTests,
   passwordFor,
@@ -2111,12 +2112,30 @@ try {
         maestro({
           flow: flow('44_home_menu.yaml'),
           device: deviceA,
-          env: signInEnv(secrets, 1),
+          env: { ...signInEnv(secrets, 1), PHASE: 'open' },
         });
       });
-      step(44, 2, 'Double-tap Settings opens Appearance once', () => result('pass'));
-      step(44, 3, 'Privacy and Security and Sign out cancel', () => result('pass'));
-      step(44, 4, 'Confirm Sign out lands on Welcome', () => result('pass'));
+      step(44, 2, 'Double-tap Settings opens Appearance once', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'settings', E2E_STAY: '1' },
+        });
+      });
+      step(44, 3, 'Privacy and Security and Sign out cancel', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'privacy_cancel', E2E_STAY: '1' },
+        });
+      });
+      step(44, 4, 'Confirm Sign out lands on Welcome', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'sign_out', E2E_STAY: '1' },
+        });
+      });
     }
 
     if (test.number === 45) {
@@ -2124,13 +2143,23 @@ try {
         maestro({
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'main', E2E_STAY: '1' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'reminder', E2E_STAY: '1' },
         });
       });
-      step(45, 2, 'Needs you bell badge and ranked list', () => result('pass'));
-      step(45, 3, 'Open recovery from Needs you; badge reflects open items', () =>
-        result('pass'),
-      );
+      step(45, 2, 'Needs you bell badge and ranked list', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'bell', E2E_STAY: '1' },
+        });
+      });
+      step(45, 3, 'Open recovery from Needs you; badge reflects open items', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'recovery', E2E_STAY: '1' },
+        });
+      });
       step(45, 4, 'Reminder returns next sign in, not again after Remind me later', () => {
         maestro({
           flow: flow('45_needs_you.yaml'),
@@ -2202,9 +2231,9 @@ for (const [number, rows] of byTest) {
   } else {
     passed += 1;
   }
-  const failedStep = rows.find((row) => row.status === 'fail');
-  const first = failedStep
-    ? `step ${failedStep.stepNumber}: ${failedStep.label}${failedStep.detail ? ` — ${failedStep.detail}` : ''}`
+  const failure = firstFailureSummary(rows);
+  const first = failure
+    ? failure
     : overall === 'SKIP'
       ? rows[0]?.detail || 'skipped'
       : '';

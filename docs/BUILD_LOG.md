@@ -7,6 +7,13 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — Drawer Sign out pin + honest e2e step labels
+
+Sign out sat in the drawer ScrollView under a pinned version line, so Maestro “tapped” a clipped row and the in-drawer confirm never opened. Sign out is pinned above the version. Phone tests 44 and 45 run one Maestro PHASE per PHONE_TESTS step; `firstFailureSummary` names that step in the table (with a unit test). Family-tab sign-out now clears the recovery reminder session via `signOutAndGoWelcome`, so the next sign-in can show the sheet again.
+
+
+---
+
 ## 2026-10-27 — Maestro 42/44/45/11 from debug evidence
 
 42 scrolled Sync off screen before tapping Review — scroll Review back into view. 44 matched native `Alert` title `Sign out?` as regex against the menu label `Sign out`, then never found Cancel (system alert outside the app tree); sign-out confirm is now an in-drawer sheet with testIDs. 45 tapped Home tab while Needs you (stack) hides the tab bar — back twice instead. 11’s seedLetIn after test 9 found no pending phone; seed is idempotent: waiting → let in, else verify member row + keys_ready + wrap.
