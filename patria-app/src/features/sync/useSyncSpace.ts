@@ -12,6 +12,12 @@ import {
   pickActiveMeeting,
 } from './syncApi';
 import type { PersonLookup } from './syncLabels';
+import {
+  syncAgendaKey,
+  syncMeetingsKey,
+  syncScheduleKey,
+  syncTasksKey,
+} from './syncQueryKeys';
 
 /** Shared reads for every Sync screen. Standard tier: plain Postgres reads, no key needed (D35). */
 export function useSyncSpace(options: { pollMs?: number } = {}) {
@@ -21,12 +27,12 @@ export function useSyncSpace(options: { pollMs?: number } = {}) {
   const enabled = Boolean(spaceId && current);
 
   const scheduleQuery = useQuery({
-    queryKey: ['syncSchedule', spaceId],
+    queryKey: syncScheduleKey(spaceId),
     enabled,
     queryFn: () => fetchSyncSchedule(spaceId as string),
   });
   const meetingsQuery = useQuery({
-    queryKey: ['syncMeetings', spaceId],
+    queryKey: syncMeetingsKey(spaceId),
     enabled,
     refetchInterval: options.pollMs,
     queryFn: () => fetchSyncMeetings(spaceId as string),
@@ -58,11 +64,12 @@ export function useSyncSpace(options: { pollMs?: number } = {}) {
     if (!spaceId) {
       return;
     }
-    void queryClient.invalidateQueries({ queryKey: ['syncSchedule', spaceId] });
-    void queryClient.invalidateQueries({ queryKey: ['syncMeetings', spaceId] });
+    void queryClient.invalidateQueries({ queryKey: syncScheduleKey(spaceId) });
+    void queryClient.invalidateQueries({ queryKey: syncMeetingsKey(spaceId) });
     void queryClient.invalidateQueries({ queryKey: ['syncAgenda'] });
     void queryClient.invalidateQueries({ queryKey: ['syncNotes'] });
-    void queryClient.invalidateQueries({ queryKey: ['syncTasks', spaceId] });
+    void queryClient.invalidateQueries({ queryKey: syncTasksKey(spaceId) });
+    void queryClient.invalidateQueries({ queryKey: ['syncAnswers'] });
   }, [queryClient, spaceId]);
 
   return {
@@ -77,7 +84,6 @@ export function useSyncSpace(options: { pollMs?: number } = {}) {
     active,
     people,
     refresh,
-    refreshing: scheduleQuery.isRefetching || meetingsQuery.isRefetching,
     loading:
       !family.current ||
       scheduleQuery.isLoading ||
@@ -96,7 +102,7 @@ export function useSyncSpace(options: { pollMs?: number } = {}) {
 
 export function useAgendaItems(meetingId: string | undefined, pollMs?: number) {
   return useQuery({
-    queryKey: ['syncAgenda', meetingId],
+    queryKey: syncAgendaKey(meetingId),
     enabled: Boolean(meetingId),
     refetchInterval: pollMs,
     queryFn: () => fetchAgendaItems(meetingId as string),
@@ -105,7 +111,7 @@ export function useAgendaItems(meetingId: string | undefined, pollMs?: number) {
 
 export function useSyncTasks(spaceId: string | null) {
   return useQuery({
-    queryKey: ['syncTasks', spaceId],
+    queryKey: syncTasksKey(spaceId),
     enabled: Boolean(spaceId),
     queryFn: () => fetchSyncTasks(spaceId as string),
   });

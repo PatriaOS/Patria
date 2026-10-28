@@ -295,6 +295,29 @@ export function syncCountdown(
   return `IN ${dayDiff} DAYS`;
 }
 
+/** Flow card title using the same countdown words as the hub hero. */
+export function syncFlowTitle(
+  scheduledFor: Date,
+  timeZone: string,
+  nowUtc: Date = new Date(),
+): string {
+  const countdown = syncCountdown(scheduledFor, timeZone, nowUtc);
+  if (countdown === 'TONIGHT') {
+    return 'Tonight’s flow';
+  }
+  if (countdown === 'TODAY') {
+    return 'Today’s flow';
+  }
+  if (countdown === 'TOMORROW') {
+    return 'Tomorrow’s flow';
+  }
+  const weekday = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    weekday: 'long',
+  }).format(scheduledFor);
+  return `${weekday}’s flow`;
+}
+
 export function formatMeetingWhen(scheduledFor: Date, timeZone: string): string {
   return new Intl.DateTimeFormat(undefined, {
     timeZone,

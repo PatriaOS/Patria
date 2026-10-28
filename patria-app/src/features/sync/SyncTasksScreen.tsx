@@ -32,6 +32,7 @@ export function SyncTasksScreen() {
   const { userId, spaceId, admin, people } = sync;
   const tasksQuery = useSyncTasks(spaceId);
   const [error, setError] = useState<string | null>(null);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const screenProps = {
     withHeader: true,
     testID: 'screen-sync-tasks',
@@ -76,8 +77,11 @@ export function SyncTasksScreen() {
   return (
     <Screen
       {...screenProps}
-      refreshing={tasksQuery.isRefetching}
-      onRefresh={() => void tasksQuery.refetch()}
+      refreshing={pullRefreshing}
+      onRefresh={() => {
+        setPullRefreshing(true);
+        void tasksQuery.refetch().finally(() => setPullRefreshing(false));
+      }}
     >
       <Section>{copy.sync.thisWeek}</Section>
       {error ? <ErrorState message={error} /> : null}

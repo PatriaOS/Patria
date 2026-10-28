@@ -21,6 +21,14 @@ appId: app.patria.dev
     when:
       true: ${PHASE == 'cleared'}
     commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "needs-you-sync-rsvp"
+          timeout: 20000
       - tapOn:
           id: "needs-you-sync-rsvp"
       - extendedWaitUntil:
@@ -33,6 +41,12 @@ appId: app.patria.dev
           visible:
             id: "sync-whos-coming"
           timeout: 15000
+      - tapOn:
+          id: "home"
+      - extendedWaitUntil:
+          visible:
+            id: "home"
+          timeout: 20000
       - tapOn:
           id: "home-needs-you-bell"
       - extendedWaitUntil:

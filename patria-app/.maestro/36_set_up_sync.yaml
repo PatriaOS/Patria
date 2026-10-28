@@ -43,7 +43,8 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
-      - assertVisible: "Tonight’s flow"
+      - assertVisible:
+          id: "sync-tonight-flow"
       - assertVisible: "Wins"
       - assertVisible: "Look ahead"
       - assertVisible: "Decide"

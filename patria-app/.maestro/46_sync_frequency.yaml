@@ -53,7 +53,8 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
-      - assertVisible: "Tonight’s flow"
+      - assertVisible:
+          id: "sync-tonight-flow"
 - runFlow:
     when:
       true: ${PHASE == 'biweekly'}
@@ -120,7 +121,7 @@ appId: app.patria.dev
           id: "month-day"
       - eraseText: 4
       - inputText: "31"
-      - hideKeyboard
+      - pressKey: Enter
       - assertVisible: "In shorter months we use the last day of the month."
       - scrollUntilVisible:
           element:

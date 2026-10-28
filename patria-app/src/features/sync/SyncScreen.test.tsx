@@ -130,7 +130,9 @@ describe('Sync tab', () => {
     expect(await findByText('Soccer carpool on Thursday')).toBeTruthy();
     expect(getByText('Added by Marco')).toBeTruthy();
     expect(getByText(copy.sync.kinds.discuss)).toBeTruthy();
-    expect(getByText(copy.sync.tonightFlow)).toBeTruthy();
+    expect(getByTestId('sync-tonight-flow')).toBeTruthy();
+    expect(getByTestId('move-this-meeting')).toBeTruthy();
+    expect(getByTestId('schedule')).toBeTruthy();
     expect(getByText(/HOUSEHOLD/)).toBeTruthy();
     expect(getByTestId('continue')).toBeTruthy();
     expect(getByTestId('add-to-the-agenda')).toBeTruthy();

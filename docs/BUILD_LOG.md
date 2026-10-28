@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — GOV02 slice 2 refresh loop fix
+
+Sync hub focus effect depended on the whole `answersQuery` object, so every refetch re-fired refresh and the pull spinner. Fixed to stable deps; RefreshControl is user-pull only; flow card uses countdown words; Move / Change schedule sit above RSVP. Phone tests 46 / 36 / 47 / 50 adjusted to the flow card id and reachable Move control.
+
 ## 2026-10-28 — GOV02 slice 2 built (D37)
 
 Frequency on the schedule (weekly / every two weeks / monthly), Going/Can't make it, Sync hub + Needs you invite, move this meeting vs change schedule, Add to my calendar (30 min, `patria://sync` only). SQL owns next starts; `ensure_next` / upsert / finish no longer take a client time. Answers clear on move and on all-future. Phone tests 46–51. Branch `gov02-slice2`; no hosted push.

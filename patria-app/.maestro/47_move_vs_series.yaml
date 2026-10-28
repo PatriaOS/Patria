@@ -12,7 +12,12 @@ appId: app.patria.dev
           id: "sync"
       - extendedWaitUntil:
           visible:
+            id: "screen-sync"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
             id: "move-this-meeting"
+          direction: DOWN
           timeout: 20000
       - tapOn:
           id: "move-this-meeting"

@@ -85,6 +85,7 @@ export function RunSyncScreen() {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   /** Sync with Pressable: busy state alone can lag one frame behind a Maestro tap. */
   const opLock = useRef(false);
 
@@ -165,11 +166,13 @@ export function RunSyncScreen() {
     return (
       <Screen
         {...screenProps}
-        refreshing={agendaQuery.isRefetching || notesQuery.isRefetching}
+        refreshing={pullRefreshing}
         onRefresh={() => {
+          setPullRefreshing(true);
           sync.refresh();
-          void agendaQuery.refetch();
-          void notesQuery.refetch();
+          void Promise.all([agendaQuery.refetch(), notesQuery.refetch()]).finally(() => {
+            setPullRefreshing(false);
+          });
         }}
       >
         <Banner message={fillTemplate(copy.sync.runningOn, { name: runner })} />

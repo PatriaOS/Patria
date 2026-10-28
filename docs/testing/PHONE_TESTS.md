@@ -319,7 +319,7 @@ Slice 1 of the weekly Sync: a Sync tab, a schedule, an agenda anyone in the circ
 Areas: sync, navigation
 1. Sign in as Test 1. Tap **Sync**. Pass if you see **Family Sync** and a **Set up our Sync** button.
 2. Tap **Set up our Sync**. Pass if you see the days of the week, **Time**, **Time zone** and a choice of **Household** or **Extended Family**.
-3. Pick a day, type a time like 19:00, leave the time zone as it is, keep **Household**, and tap **Save schedule**. Pass if you return to Sync and see the day and time, **Household**, and the four steps of tonight's flow.
+3. Pick a day, type a time like 19:00, leave the time zone as it is, keep **Household**, and tap **Save schedule**. Pass if you return to Sync and see the day and time, **Household**, and the four steps of the flow card (Tonight’s / Today’s / Tomorrow’s / weekday’s flow).
 4. Sign in as Test 2 (not an admin). Open **Sync**. Pass if Test 2 sees the same meeting but no **Schedule** button.
 5. On a family with no schedule yet, pass if a member who is not an admin sees **Ask a Family admin to set up the weekly Sync.** instead of the button. (manual)
 
@@ -404,7 +404,7 @@ Frequency, Going / Can't make it, Needs you invite, move this meeting vs all fut
 ### 46. Sync frequency setup
 Areas: sync
 1. Sign in as Test 1. Open **Sync** and tap **Set up our Sync** (or **Change the schedule** if a schedule already exists). Pass if you see **How often** with **Weekly**, **Every two weeks** and **Monthly**.
-2. Keep **Weekly**, pick a day and time, save. Pass if Sync shows the next meeting and tonight’s flow.
+2. Keep **Weekly**, pick a day and time, save. Pass if Sync shows the next meeting and the flow card (Tonight’s / Today’s / Tomorrow’s / weekday’s flow).
 3. Open **Change the schedule**, choose **Every two weeks**, save. Pass if the next Sync preview updates and Sync still shows one upcoming meeting.
 4. Open **Change the schedule**, choose **Monthly** → **Same weekday** → **Last**, save. Pass if it saves without error.
 5. Open **Change the schedule**, choose **Monthly** → **Same date**, set day **31**. Pass if you see the shorter-months line. Save. Pass if Sync returns with a next meeting.

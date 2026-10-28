@@ -38,6 +38,8 @@ export type SyncHubViewProps = {
   circleName: string;
   whenLabel: string;
   countdown: string | null;
+  /** Same countdown words as the hero (Tonight’s flow, Sunday’s flow, …). */
+  flowTitle?: string;
   canContinue: boolean;
   missed: boolean;
   runnerName: string | null;
@@ -84,12 +86,18 @@ function stepState(
   return 'upcoming';
 }
 
-function FlowProgress({ flowStepIndex }: { flowStepIndex: number | null }) {
+function FlowProgress({
+  flowStepIndex,
+  flowTitle,
+}: {
+  flowStepIndex: number | null;
+  flowTitle: string;
+}) {
   const { colors } = useTheme();
   return (
     <Card testID="sync-tonight-flow">
       <View style={styles.flowHeader}>
-        <Section>{copy.sync.tonightFlow}</Section>
+        <Section accessibilityLabel={flowTitle}>{flowTitle}</Section>
         <Caption tone="muted">{copy.sync.flowTotal}</Caption>
       </View>
       <View style={styles.flowRow}>
@@ -324,6 +332,25 @@ export function SyncHubView(props: SyncHubViewProps) {
 
       {props.error ? <ErrorState message={props.error} /> : null}
 
+      {props.admin ? (
+        <ButtonStack>
+          {props.hasMeeting && props.onMoveMeeting ? (
+            <Button
+              label={copy.sync.moveThisMeeting}
+              testID="move-this-meeting"
+              variant="secondary"
+              onPress={props.onMoveMeeting}
+            />
+          ) : null}
+          <Button
+            label={copy.sync.changeSchedule}
+            testID="schedule"
+            variant="secondary"
+            onPress={props.onSchedule}
+          />
+        </ButtonStack>
+      ) : null}
+
       {props.hasMeeting && props.canReply ? (
         <Card testID="sync-rsvp">
           <Section>{copy.sync.rsvpYourReply}</Section>
@@ -382,7 +409,12 @@ export function SyncHubView(props: SyncHubViewProps) {
         </Card>
       ) : null}
 
-      {props.hasMeeting ? <FlowProgress flowStepIndex={props.flowStepIndex} /> : null}
+      {props.hasMeeting ? (
+        <FlowProgress
+          flowStepIndex={props.flowStepIndex}
+          flowTitle={props.flowTitle ?? copy.sync.tonightFlow}
+        />
+      ) : null}
 
       {props.hasMeeting ? (
         <AgendaCard
@@ -393,24 +425,6 @@ export function SyncHubView(props: SyncHubViewProps) {
         />
       ) : null}
 
-      {props.admin ? (
-        <ButtonStack>
-          {props.hasMeeting && props.onMoveMeeting ? (
-            <Button
-              label={copy.sync.moveThisMeeting}
-              testID="move-this-meeting"
-              variant="ghost"
-              onPress={props.onMoveMeeting}
-            />
-          ) : null}
-          <Button
-            label={copy.sync.changeSchedule}
-            testID="schedule"
-            variant="ghost"
-            onPress={props.onSchedule}
-          />
-        </ButtonStack>
-      ) : null}
       <Button label={copy.sync.tasks} variant="ghost" onPress={props.onTasks} />
       <Button label={copy.sync.pastMeetings} variant="ghost" onPress={props.onPast} />
     </>

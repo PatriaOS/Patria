@@ -24,7 +24,8 @@ import {
   kindLabel,
 } from './syncLabels';
 import { syncPersonLabel } from './syncAuthor';
-import { formatMeetingWhen, syncCountdown } from './syncSchedule';
+import { syncAnswersKey } from './syncQueryKeys';
+import { formatMeetingWhen, syncCountdown, syncFlowTitle } from './syncSchedule';
 import { SyncHubView } from './SyncHubView';
 import { useAgendaItems, useSyncSpace } from './useSyncSpace';
 
@@ -33,22 +34,36 @@ export function SyncScreen() {
   const sync = useSyncSpace();
   const { userId, spaceId, admin, schedule, active, people, circlesQuery, refresh } = sync;
   const agendaQuery = useAgendaItems(active?.id);
+  const activeMeetingId = active?.id;
   const answersQuery = useQuery({
-    queryKey: ['syncAnswers', active?.id ?? 'none'],
-    enabled: Boolean(active?.id && active.status === 'upcoming'),
-    queryFn: () => fetchSyncMeetingAnswers(active!.id),
+    queryKey: syncAnswersKey(activeMeetingId),
+    enabled: Boolean(activeMeetingId && active?.status === 'upcoming'),
+    queryFn: () => fetchSyncMeetingAnswers(activeMeetingId as string),
   });
   const circleMembersQuery = useQuery({
     queryKey: ['syncCircleMembers', active?.circleId ?? 'none'],
     enabled: Boolean(active?.circleId && admin),
     queryFn: () => fetchCircleMemberIds(active!.circleId),
   });
+  // Depend only on stable values. Never put a useQuery result object here — its
+  // identity changes on every fetch and re-fires focus refresh in a loop (D37).
   useFocusEffect(
     useCallback(() => {
       refresh();
-      void answersQuery.refetch();
-    }, [refresh, answersQuery]),
+    }, [refresh]),
   );
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const onPullRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    try {
+      refresh();
+      await Promise.all([agendaQuery.refetch(), answersQuery.refetch()]);
+    } finally {
+      setPullRefreshing(false);
+    }
+    // refetch functions are stable; the query objects are not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [refresh, agendaQuery.refetch, answersQuery.refetch]);
   const flowStepQuery = useQuery({
     queryKey: ['syncFlowStep', active?.id ?? 'none'],
     queryFn: async () => 0,
@@ -251,11 +266,9 @@ export function SyncScreen() {
       withTabBar
       testID="screen-sync"
       accessibilityLabel={copy.sync.title}
-      refreshing={sync.refreshing || agendaQuery.isRefetching || answersQuery.isRefetching}
+      refreshing={pullRefreshing}
       onRefresh={() => {
-        refresh();
-        void agendaQuery.refetch();
-        void answersQuery.refetch();
+        void onPullRefresh();
       }}
     >
       <SyncHubView
@@ -269,6 +282,7 @@ export function SyncScreen() {
             ? syncCountdown(scheduledFor, zone)
             : null
         }
+        flowTitle={scheduledFor ? syncFlowTitle(scheduledFor, zone) : copy.sync.tonightFlow}
         canContinue={admin && (!inProgress || active?.startedBy === userId)}
         missed={missed}
         runnerName={runningElsewhere ? syncPersonLabel(active?.startedBy, people.members) : null}

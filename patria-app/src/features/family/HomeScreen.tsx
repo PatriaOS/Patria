@@ -58,6 +58,7 @@ import { RecoveryReminderSheet } from './RecoveryReminderSheet';
 import { useCurrentFamily } from './useCurrentFamily';
 import { defaultTimezone } from '../sync/syncLabels';
 import { fetchSyncMeetingAnswers, fetchSyncTasks } from '../sync/syncApi';
+import { syncAnswersKey } from '../sync/syncQueryKeys';
 import { useSyncSpace } from '../sync/useSyncSpace';
 
 export function HomeScreen() {
@@ -121,11 +122,13 @@ export function HomeScreen() {
     queryFn: () => fetchSyncTasks(spaceId as string),
   });
   const syncAnswersQuery = useQuery({
-    queryKey: ['syncAnswers', sync.active?.id ?? 'none'],
+    queryKey: syncAnswersKey(sync.active?.id),
     enabled: Boolean(sync.active?.id && sync.active.status === 'upcoming'),
     queryFn: () => fetchSyncMeetingAnswers(sync.active!.id),
   });
-  const onRefresh = useCallback(() => {
+  // Focus / foreground: home data only. Memories stays on its own screen so
+  // thumbnails are not invalidated while the person is looking at them.
+  const refreshHomeData = useCallback(() => {
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
       void queryClient.invalidateQueries({ queryKey: ['memberships-gate', userId] });
@@ -139,29 +142,41 @@ export function HomeScreen() {
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
       void queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['deviceRemovedNotices', spaceId] });
-      void queryClient.invalidateQueries({ queryKey: ['memories', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['syncSchedule', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['syncMeetings', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['syncAgenda'] });
       void queryClient.invalidateQueries({ queryKey: ['syncTasks', spaceId] });
+      void queryClient.invalidateQueries({ queryKey: ['syncAnswers'] });
     }
   }, [queryClient, userId, spaceId]);
+
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setPullRefreshing(true);
+    refreshHomeData();
+    if (spaceId) {
+      void queryClient.invalidateQueries({ queryKey: ['memories', spaceId] });
+    }
+    // Spinner clears on next tick after invalidation is queued; isRefetching
+    // must not drive RefreshControl or focus reloads look like a pull loop.
+    requestAnimationFrame(() => setPullRefreshing(false));
+  }, [queryClient, refreshHomeData, spaceId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
-        onRefresh();
+        refreshHomeData();
       }
     });
     return () => sub.remove();
-  }, [onRefresh]);
+  }, [refreshHomeData]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      onRefresh();
+      refreshHomeData();
     });
     return unsubscribe;
-  }, [navigation, onRefresh]);
+  }, [navigation, refreshHomeData]);
 
   const cachedRotationQuery = useQuery({
     queryKey: homeRotationQueryKey(spaceId ?? ''),
@@ -290,14 +305,6 @@ export function HomeScreen() {
     recoveryQuery.data?.hasPaper,
   ]);
 
-  const refreshing =
-    membershipsQuery.isRefetching ||
-    membersQuery.isRefetching ||
-    noticesQuery.isRefetching ||
-    recoveryQuery.isRefetching ||
-    recoveryRequestsQuery.isRefetching ||
-    removedNoticesQuery.isRefetching;
-
   const onSignOut = async () => {
     setSigningOut(true);
     try {
@@ -352,7 +359,7 @@ export function HomeScreen() {
       <Screen
         withTabBar
         accessibilityLabel={copy.home.noFamilyTitle}
-        refreshing={refreshing}
+        refreshing={pullRefreshing}
         onRefresh={onRefresh}
       >
         <Title>{copy.home.noFamilyTitle}</Title>
@@ -437,7 +444,7 @@ export function HomeScreen() {
       withTabBar
       testID="home"
       accessibilityLabel={current.space.name}
-      refreshing={refreshing}
+      refreshing={pullRefreshing}
       onRefresh={onRefresh}
     >
       {shownRotation === 'updating' ? (

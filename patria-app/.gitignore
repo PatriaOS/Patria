@@ -39,6 +39,7 @@ yarn-error.*
 e2e-artifacts/
 e2e-recordings/
 .maestro/tests/
+.maestro/shots_home_tones.yaml
 
 # typescript
 *.tsbuildinfo

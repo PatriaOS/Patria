@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 
 import { Button, Card, EmptyState, LoadingState, Muted, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
@@ -7,6 +8,7 @@ import { fetchFirstDeviceNotices } from '../../lib/crypto/deviceAccess';
 import { supabaseRecoverFlowGateway } from '../../lib/crypto/recoverFlow';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { fetchSyncMeetingAnswers, fetchSyncTasks } from '../sync/syncApi';
+import { syncAnswersKey } from '../sync/syncQueryKeys';
 import { defaultTimezone } from '../sync/syncLabels';
 import { useSyncSpace } from '../sync/useSyncSpace';
 import { countDeviceOrJoinAttention } from './deviceAttention';
@@ -17,6 +19,8 @@ export function NeedsYouScreen() {
   const router = useRouter();
   const { userId, spaceId, current, admin, keyHolder } = useCurrentFamily();
   const sync = useSyncSpace();
+  const { refresh: refreshSync } = sync;
+  const activeMeetingId = sync.active?.id;
 
   const recoveryQuery = useQuery({
     queryKey: ['recoverySnapshot', spaceId, userId],
@@ -44,10 +48,11 @@ export function NeedsYouScreen() {
     queryFn: () => fetchSyncTasks(spaceId as string),
   });
   const syncAnswersQuery = useQuery({
-    queryKey: ['syncAnswers', sync.active?.id ?? 'none'],
-    enabled: Boolean(sync.active?.id && sync.active.status === 'upcoming'),
-    queryFn: () => fetchSyncMeetingAnswers(sync.active!.id),
+    queryKey: syncAnswersKey(activeMeetingId),
+    enabled: Boolean(activeMeetingId && sync.active?.status === 'upcoming'),
+    queryFn: () => fetchSyncMeetingAnswers(activeMeetingId as string),
   });
+  const refetchAnswers = syncAnswersQuery.refetch;
   const keyStatusQuery = useQuery({
     queryKey: ['familyKeyStatus', spaceId, userId, current?.role],
     enabled: Boolean(spaceId && userId && current),
@@ -60,6 +65,13 @@ export function NeedsYouScreen() {
       });
     },
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshSync();
+      void refetchAnswers();
+    }, [refreshSync, refetchAnswers]),
+  );
 
   if (
     !current ||

@@ -317,6 +317,18 @@ if (
 const syncNeedsSchedule = [37, 38, 39, 40, 42, 47, 48, 49, 50, 51].includes(testNumber);
 const syncNeedsAgenda = [38, 39].includes(testNumber);
 const syncNeedsFinished = testNumber === 40;
+// Test 36 must start with no schedule (Set up our Sync). Fresh family is empty;
+// clear Sync rows anyway so a reused space cannot leave a prior schedule.
+if (testNumber === 36 || testNumber === 46) {
+  sql(
+    dbUrl,
+    `DELETE FROM public.sync_tasks WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_notes WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_agenda_items WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_schedules WHERE family_space_id = '${spaceId}';`,
+  );
+}
 if (syncNeedsSchedule) {
   // Each Sync phone test owns a fresh family, then resets Sync rows and seeds the
   // same upcoming meeting SyncScreen.ensureNextMeeting would create — so order

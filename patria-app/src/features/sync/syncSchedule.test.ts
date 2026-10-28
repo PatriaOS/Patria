@@ -3,6 +3,7 @@ import {
   formatMeetingWhen,
   nextMeetingAt,
   syncCountdown,
+  syncFlowTitle,
   type SyncFrequency,
   type SyncMonthlyMode,
   zonedTimeToUtc,
@@ -96,6 +97,26 @@ describe('syncCountdown', () => {
     const meeting = new Date('2026-10-26T00:30:00.000Z');
     const now = new Date('2026-10-26T02:00:00.000Z'); // 21:00 Chicago on the 25th
     expect(syncCountdown(meeting, zone, now)).toBe('TONIGHT');
+  });
+});
+
+describe('syncFlowTitle', () => {
+  const zone = 'America/Chicago';
+
+  it('matches countdown words for tonight, today and tomorrow', () => {
+    const tonight = zonedTimeToUtc(zone, 2026, 10, 25, 19, 0);
+    const today = zonedTimeToUtc(zone, 2026, 10, 25, 14, 0);
+    const tomorrow = zonedTimeToUtc(zone, 2026, 10, 26, 19, 0);
+    const now = zonedTimeToUtc(zone, 2026, 10, 25, 10, 0);
+    expect(syncFlowTitle(tonight, zone, now)).toBe('Tonight’s flow');
+    expect(syncFlowTitle(today, zone, now)).toBe('Today’s flow');
+    expect(syncFlowTitle(tomorrow, zone, now)).toBe('Tomorrow’s flow');
+  });
+
+  it('uses the weekday name when the meeting is further out', () => {
+    const meeting = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0); // Sunday
+    const now = zonedTimeToUtc(zone, 2026, 10, 28, 12, 0);
+    expect(syncFlowTitle(meeting, zone, now)).toBe('Sunday’s flow');
   });
 });
 

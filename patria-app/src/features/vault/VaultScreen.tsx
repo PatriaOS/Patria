@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import {
   Banner,
@@ -135,12 +135,15 @@ export function VaultScreen() {
     },
   });
 
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
+    setPullRefreshing(true);
     if (spaceId) {
       void queryClient.invalidateQueries({ queryKey: ['vaultEntries', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId] });
     }
+    requestAnimationFrame(() => setPullRefreshing(false));
   }, [queryClient, spaceId]);
 
   const writer = canWriteVault({
@@ -205,7 +208,7 @@ export function VaultScreen() {
       withTabBar
       testID="screen-vault"
       accessibilityLabel={copy.vault.title}
-      refreshing={entriesQuery.isFetching}
+      refreshing={pullRefreshing}
       onRefresh={onRefresh}
     >
       <Caption>{copy.vault.lockNote}</Caption>

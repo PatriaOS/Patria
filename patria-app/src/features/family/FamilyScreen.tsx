@@ -73,7 +73,9 @@ export function FamilyScreen() {
     queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
   });
 
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
+    setPullRefreshing(true);
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
     }
@@ -84,6 +86,7 @@ export function FamilyScreen() {
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
     }
+    requestAnimationFrame(() => setPullRefreshing(false));
   }, [queryClient, spaceId, userId]);
 
   const onSignOut = async () => {
@@ -122,11 +125,6 @@ export function FamilyScreen() {
     </Pressable>
   );
 
-  const refreshing =
-    membershipsQuery.isRefetching ||
-    membersQuery.isRefetching ||
-    childrenQuery.isRefetching ||
-    invitesQuery.isRefetching;
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
 
   if (membershipsQuery.isLoading) {
@@ -159,7 +157,7 @@ export function FamilyScreen() {
         withTabBar
         testID="screen-family"
         accessibilityLabel={copy.tabs.family}
-        refreshing={refreshing}
+        refreshing={pullRefreshing}
         onRefresh={onRefresh}
       >
         <Title>{copy.tabs.family}</Title>
@@ -203,7 +201,7 @@ export function FamilyScreen() {
       withTabBar
       testID="screen-family"
       accessibilityLabel={copy.tabs.family}
-      refreshing={refreshing}
+      refreshing={pullRefreshing}
       onRefresh={onRefresh}
     >
       <Title>{copy.tabs.family}</Title>

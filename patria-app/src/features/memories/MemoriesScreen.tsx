@@ -158,10 +158,17 @@ export function MemoriesScreen() {
     });
   }, [memoriesQuery.data]);
 
-  const onRefresh = useCallback(() => {
-    void memoriesQuery.refetch();
-    void syncNow();
-  }, [memoriesQuery, syncNow]);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    try {
+      await memoriesQuery.refetch();
+      await syncNow();
+    } finally {
+      setPullRefreshing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch identity is stable
+  }, [memoriesQuery.refetch, syncNow]);
 
   const onPauseToggle = async () => {
     if (!userId || !spaceId) {
@@ -226,8 +233,10 @@ export function MemoriesScreen() {
       withTabBar
       testID="screen-memories"
       accessibilityLabel={copy.memories.title}
-      refreshing={memoriesQuery.isRefetching}
-      onRefresh={onRefresh}
+      refreshing={pullRefreshing}
+      onRefresh={() => {
+        void onRefresh();
+      }}
     >
       <Title>{copy.memories.title}</Title>
       {status ? <StatusPill testID="library-status" label={status} tone={libraryStatusTone(status)} /> : null}

@@ -1,1 +1,4 @@
 node_modules/
+
+# Local design scratch (not product docs)
+docs/design/.gov02-shots.txt
