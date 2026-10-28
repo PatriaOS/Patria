@@ -194,6 +194,11 @@ const schedule = {
   localTime: '19:00:00',
   timezone: TZ,
   circleId: 'c1',
+  frequency: 'weekly' as const,
+  monthlyMode: null,
+  monthlyOrdinal: null,
+  monthDay: null,
+  anchorLocalDate: '2026-10-26',
 };
 
 function meeting(overrides: Partial<SyncMeetingRow>): SyncMeetingRow {
@@ -208,6 +213,7 @@ function meeting(overrides: Partial<SyncMeetingRow>): SyncMeetingRow {
     finishedAt: null,
     priorityText: '',
     summary: {},
+    movedIndividually: false,
     ...overrides,
   };
 }

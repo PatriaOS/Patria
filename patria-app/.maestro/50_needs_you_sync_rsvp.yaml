@@ -1,0 +1,43 @@
+# PHONE_TESTS: 50
+# AREAS: sync, navigation
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'listed' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 20000
+      - assertVisible:
+          id: "needs-you-sync-rsvp"
+      - assertVisible: "Say if you can make the next Sync."
+- runFlow:
+    when:
+      true: ${PHASE == 'cleared'}
+    commands:
+      - tapOn:
+          id: "needs-you-sync-rsvp"
+      - extendedWaitUntil:
+          visible:
+            id: "rsvp-going"
+          timeout: 20000
+      - tapOn:
+          id: "rsvp-going"
+      - extendedWaitUntil:
+          visible:
+            id: "sync-whos-coming"
+          timeout: 15000
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 20000
+      - assertNotVisible:
+          id: "needs-you-sync-rsvp"

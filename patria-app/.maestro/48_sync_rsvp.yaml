@@ -1,0 +1,49 @@
+# PHONE_TESTS: 48
+# AREAS: sync
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'member_going' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "rsvp-going"
+          timeout: 20000
+      - assertVisible:
+          id: "rsvp-cant"
+      - tapOn:
+          id: "rsvp-going"
+      - extendedWaitUntil:
+          visible:
+            id: "sync-whos-coming"
+          timeout: 15000
+- runFlow:
+    when:
+      true: ${PHASE == 'member_cant'}
+    commands:
+      - tapOn:
+          id: "sync"
+      - tapOn:
+          id: "rsvp-cant"
+      - extendedWaitUntil:
+          visible:
+            id: "sync-whos-coming"
+          timeout: 15000
+- runFlow:
+    when:
+      true: ${PHASE == 'admin_tallies'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "sync-whos-coming"
+          timeout: 20000
+      - assertVisible: "Not answered yet"

@@ -1,0 +1,58 @@
+# PHONE_TESTS: 47
+# AREAS: sync
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'move' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "move-this-meeting"
+          timeout: 20000
+      - tapOn:
+          id: "move-this-meeting"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-move"
+          timeout: 15000
+      - assertVisible: "Only this meeting moves"
+      - tapOn:
+          id: "move-datetime"
+      - eraseText: 40
+      - inputText: ${MOVE_WHEN}
+      - hideKeyboard
+      - tapOn:
+          id: "move-confirm"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+- runFlow:
+    when:
+      true: ${PHASE == 'series'}
+    commands:
+      - tapOn:
+          id: "sync"
+      - tapOn:
+          id: "schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-schedule"
+          timeout: 15000
+      - tapOn:
+          id: "weekday-mon"
+      - scrollUntilVisible:
+          element:
+            id: "save-schedule"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "save-schedule"
+      - extendedWaitUntil:
+          visible: "Your moved meeting stays as you set it"
+          timeout: 20000

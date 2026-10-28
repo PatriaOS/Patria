@@ -1,7 +1,10 @@
+import { syncOccurrenceCases } from './fixtures/syncOccurrenceCases';
 import {
   formatMeetingWhen,
   nextMeetingAt,
   syncCountdown,
+  type SyncFrequency,
+  type SyncMonthlyMode,
   zonedTimeToUtc,
 } from './syncSchedule';
 
@@ -102,6 +105,25 @@ describe('formatMeetingWhen', () => {
     const label = formatMeetingWhen(meeting, 'America/Chicago');
     expect(label).toMatch(/Sun/i);
     expect(label).toMatch(/6:30/);
+  });
+});
+
+describe('nextMeetingAt frequency fixtures (D37)', () => {
+  it.each(syncOccurrenceCases)('$id matches shared fixture', (fixture) => {
+    const next = nextMeetingAt(
+      {
+        weekday: fixture.weekday,
+        localTime: fixture.localTime,
+        timezone: fixture.timezone,
+        frequency: fixture.frequency as SyncFrequency,
+        monthlyMode: (fixture.monthlyMode ?? null) as SyncMonthlyMode | null,
+        monthlyOrdinal: fixture.monthlyOrdinal ?? null,
+        monthDay: fixture.monthDay ?? null,
+        anchorLocalDate: fixture.anchorLocalDate ?? null,
+      },
+      new Date(fixture.after),
+    );
+    expect(next.toISOString()).toBe(fixture.expected);
   });
 });
 

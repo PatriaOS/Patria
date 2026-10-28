@@ -46,6 +46,12 @@ export type SyncHubViewProps = {
   agenda: SyncAgendaRowView[];
   busy: boolean;
   error: string | null;
+  canReply?: boolean;
+  myAnswer?: 'going' | 'cant' | null;
+  goingNames?: string[];
+  cantNames?: string[];
+  unansweredNames?: string[];
+  calendarNotice?: string | null;
   onSetUp: () => void;
   onContinue: () => void;
   onHoldNow: () => void;
@@ -53,9 +59,13 @@ export type SyncHubViewProps = {
   onFollow: () => void;
   onAddAgenda: () => void;
   onSchedule: () => void;
+  onMoveMeeting?: () => void;
   onPast: () => void;
   onTasks: () => void;
   onOpenItem: (id: string) => void;
+  onAnswerGoing?: () => void;
+  onAnswerCant?: () => void;
+  onAddToCalendar?: () => void;
 };
 
 function stepState(
@@ -314,6 +324,64 @@ export function SyncHubView(props: SyncHubViewProps) {
 
       {props.error ? <ErrorState message={props.error} /> : null}
 
+      {props.hasMeeting && props.canReply ? (
+        <Card testID="sync-rsvp">
+          <Section>{copy.sync.rsvpYourReply}</Section>
+          <ButtonStack>
+            <Button
+              label={copy.sync.rsvpGoing}
+              testID="rsvp-going"
+              variant={props.myAnswer === 'going' ? 'primary' : 'secondary'}
+              busy={props.busy}
+              onPress={props.onAnswerGoing ?? (() => undefined)}
+            />
+            <Button
+              label={copy.sync.rsvpCant}
+              testID="rsvp-cant"
+              variant={props.myAnswer === 'cant' ? 'primary' : 'secondary'}
+              busy={props.busy}
+              onPress={props.onAnswerCant ?? (() => undefined)}
+            />
+          </ButtonStack>
+          <Button
+            label={copy.sync.addToCalendar}
+            testID="add-to-calendar"
+            variant="ghost"
+            disabled={props.busy}
+            onPress={props.onAddToCalendar ?? (() => undefined)}
+          />
+          {props.calendarNotice ? <Caption tone="muted">{props.calendarNotice}</Caption> : null}
+        </Card>
+      ) : null}
+
+      {props.hasMeeting && !props.missed && !props.runnerName ? (
+        <Card testID="sync-whos-coming">
+          <Section>{copy.sync.whosComing}</Section>
+          <Caption tone="muted">
+            {fillTemplate(copy.sync.rsvpGoingCount, {
+              count: String(props.goingNames?.length ?? 0),
+            })}
+          </Caption>
+          {(props.goingNames ?? []).length > 0 ? (
+            <Body>{(props.goingNames ?? []).join(', ')}</Body>
+          ) : null}
+          <Caption tone="muted">
+            {fillTemplate(copy.sync.rsvpCantCount, {
+              count: String(props.cantNames?.length ?? 0),
+            })}
+          </Caption>
+          {(props.cantNames ?? []).length > 0 ? (
+            <Body>{(props.cantNames ?? []).join(', ')}</Body>
+          ) : null}
+          {props.admin && (props.unansweredNames?.length ?? 0) > 0 ? (
+            <>
+              <Caption tone="muted">{copy.sync.rsvpUnanswered}</Caption>
+              <Body>{(props.unansweredNames ?? []).join(', ')}</Body>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
+
       {props.hasMeeting ? <FlowProgress flowStepIndex={props.flowStepIndex} /> : null}
 
       {props.hasMeeting ? (
@@ -326,7 +394,22 @@ export function SyncHubView(props: SyncHubViewProps) {
       ) : null}
 
       {props.admin ? (
-        <Button label={copy.sync.schedule} variant="ghost" onPress={props.onSchedule} />
+        <ButtonStack>
+          {props.hasMeeting && props.onMoveMeeting ? (
+            <Button
+              label={copy.sync.moveThisMeeting}
+              testID="move-this-meeting"
+              variant="ghost"
+              onPress={props.onMoveMeeting}
+            />
+          ) : null}
+          <Button
+            label={copy.sync.changeSchedule}
+            testID="schedule"
+            variant="ghost"
+            onPress={props.onSchedule}
+          />
+        </ButtonStack>
       ) : null}
       <Button label={copy.sync.tasks} variant="ghost" onPress={props.onTasks} />
       <Button label={copy.sync.pastMeetings} variant="ghost" onPress={props.onPast} />

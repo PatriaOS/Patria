@@ -7,6 +7,16 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — GOV02 slice 2 built (D37)
+
+Frequency on the schedule (weekly / every two weeks / monthly), Going/Can't make it, Sync hub + Needs you invite, move this meeting vs change schedule, Add to my calendar (30 min, `patria://sync` only). SQL owns next starts; `ensure_next` / upsert / finish no longer take a client time. Answers clear on move and on all-future. Phone tests 46–51. Branch `gov02-slice2`; no hosted push.
+
+## 2026-10-27 — GOV02 slice 2 plan locked (D37)
+
+Frequency (weekly / every two weeks / monthly), Going/Can't make it, in-app invite + Needs you, Add to my calendar. SQL owns next starts (`AT TIME ZONE`); app previews only; move this meeting only is the client-time exception. Answers clear when an admin moves or changes all future. Circle read for answers; unanswered list admin-only in the app. expo-calendar write-only approved. Building on `gov02-slice2`; no hosted push in this stop.
+
+---
+
 ## 2026-10-27 — Home v2 polish (drawer, voice, memories, vault, This week)
 
 Drawer: Privacy Policy was clipped above Sign out on small phones — list scrolls with bottom padding; Sign out and version stay pinned under a divider. Voice card: drop the duplicate “Voice note · length” line (length stays under the title); Play uses the warm mustard CTA. Vault peek skips the entry the voice card already shows when another root exists. Memories thumbs are three equal columns across the card width. This week lists Sync tasks due this week (not agenda items); empty copy is “No tasks due this week.” / “Add a task” so it does not contradict the Sync agenda count. Phone tests 42–43 updated.

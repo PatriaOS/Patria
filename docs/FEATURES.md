@@ -1182,16 +1182,17 @@ flowchart TD
 
 **Slice 1 (D35) — in progress.** Manual weekly Sync on Standard-tier storage (not the family key). Admin sets weekday, time, time zone and circle (Household or Extended Family). Anyone in that circle with a login adds Win / Discuss / Decide / Plan items during the week; admins may attribute to a child profile. One phone runs the meeting: Wins → Look ahead → Decide → Gratitude, then one priority and tasks. Undiscussed items carry over when the next circle is the same or narrower. Missed times show no guilt—only Hold it now or the next date. No Fair Share, no auto agenda from calendars, no push. Home Today card and This week tasks ship in the same slice after Sync works. Phone tests 36–42.
 
-**Next Sync slice (P0).** Meeting frequency becomes **Weekly**, **Every two weeks** or **Monthly** (for example the first Sunday or the 15th) in the family time zone. Circle members get invites in the app, by push and as an email calendar invite; replies are **Going**, **Maybe** or **Can't make it**. Schedule changes and cancellations update everyone. Invites contain only the title, circle, time and a link — never agenda items or notes. Email addresses stay visible to admins only (D17). No guilt still applies when someone declines or a meeting is missed.
+**Slice 2 (D37) — in progress.** Meeting frequency is **Weekly**, **Every two weeks** or **Monthly** (same weekday with first–fourth/last, or same date; 29–31 use the last day of shorter months). The database computes the next start in the family time zone; the client never supplies it except when an admin moves **this meeting only**. Replies are **Going** or **Can't make it** (no Maybe). Invites are in-app (Sync hub + Needs you); push and email calendar invites wait. **Add to my calendar** writes a 30-minute “Family Sync” event with a `patria://sync` link only (device calendar id stays on the phone). Circle members see who is going and who can’t; only admins see who has not answered. Moving a meeting or changing all future clears answers on affected upcoming meetings. No guilt. Phone tests 46–51.
 
-**Acceptance criteria (next Sync slice)**
+**Acceptance criteria (slice 2)**
 
-* [ ] An admin can set frequency to Weekly, Every two weeks or Monthly (with a clear day or date rule) in the family’s time zone, and the next meeting date follows that rule.
-* [ ] Circle members receive an in-app notice, a push and an email calendar invite for the next meeting; replies Going / Maybe / Can't make it are visible to the family.
-* [ ] Changing the time or cancelling updates everyone who was invited; a cancelled meeting does not leave a stale invite.
-* [ ] Invite content is limited to title, circle, time and a link — no agenda items, notes or decisions.
-* [ ] Non-admin members never see another member’s email address (D17).
+* [ ] An admin can set Weekly, Every two weeks or Monthly (both monthly modes) in the family’s time zone, and the next meeting follows that rule from SQL.
+* [ ] Circle members can answer Going / Can't make it before start; everyone in the circle sees going and can’t; only admins see unanswered.
+* [ ] Needs you lists an unanswered invite at low priority; it clears after answering.
+* [ ] Move this meeting only vs change all future behave as D37; answers clear on affected upcoming meetings.
+* [ ] Add to my calendar asks permission only on tap; event has no agenda or names; id is local only.
 * [ ] Declining or missing a meeting never shows a guilt message.
+* [ ] Push and email calendar invites are still out of scope.
 
 ### GOV03 Kids Mode for the Sync
 

@@ -9,6 +9,7 @@ import { copy } from '../../lib/copy';
 import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import {
+  Banner,
   Body,
   Button,
   Caption,
@@ -31,19 +32,47 @@ import {
   normalizeLocalTime,
   SYNC_CIRCLE_KINDS,
 } from './syncLabels';
-import { formatMeetingWhen, nextMeetingAt } from './syncSchedule';
+import {
+  formatMeetingWhen,
+  nextMeetingAt,
+  type SyncFrequency,
+  type SyncMonthlyMode,
+} from './syncSchedule';
 import { useSyncSpace } from './useSyncSpace';
 
-const schema = z.object({
-  weekday: z.number().int().min(0).max(6),
-  localTime: z.string().refine(isValidLocalTime),
-  timezone: z.string().trim().refine(isValidTimezone),
-  circleId: z.string().min(1),
-});
+const schema = z
+  .object({
+    weekday: z.number().int().min(0).max(6),
+    localTime: z.string().refine(isValidLocalTime),
+    timezone: z.string().trim().refine(isValidTimezone),
+    circleId: z.string().min(1),
+    frequency: z.enum(['weekly', 'every_two_weeks', 'monthly']),
+    monthlyMode: z.enum(['same_weekday', 'same_date']).nullable(),
+    monthlyOrdinal: z.number().int().nullable(),
+    monthDay: z.number().int().min(1).max(31).nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.frequency !== 'monthly') {
+      return;
+    }
+    if (value.monthlyMode === 'same_weekday' && value.monthlyOrdinal == null) {
+      ctx.addIssue({ code: 'custom', path: ['monthlyOrdinal'], message: 'ordinal' });
+    }
+    if (value.monthlyMode === 'same_date' && value.monthDay == null) {
+      ctx.addIssue({ code: 'custom', path: ['monthDay'], message: 'day' });
+    }
+    if (value.monthlyMode == null) {
+      ctx.addIssue({ code: 'custom', path: ['monthlyMode'], message: 'mode' });
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
-function previewFor(values: FormValues): string | null {
+const FREQUENCIES: SyncFrequency[] = ['weekly', 'every_two_weeks', 'monthly'];
+const MONTHLY_MODES: SyncMonthlyMode[] = ['same_weekday', 'same_date'];
+const ORDINALS = [1, 2, 3, 4, -1] as const;
+
+function previewFor(values: FormValues, anchorLocalDate: string | null): string | null {
   if (!isValidLocalTime(values.localTime) || !isValidTimezone(values.timezone.trim())) {
     return null;
   }
@@ -53,6 +82,12 @@ function previewFor(values: FormValues): string | null {
       weekday: values.weekday,
       localTime: normalizeLocalTime(values.localTime),
       timezone,
+      frequency: values.frequency,
+      monthlyMode: values.monthlyMode,
+      monthlyOrdinal: values.monthlyOrdinal,
+      monthDay: values.monthDay,
+      anchorLocalDate:
+        values.frequency === 'every_two_weeks' ? (anchorLocalDate ?? undefined) : undefined,
     });
     return fillTemplate(copy.sync.nextMeetingPreview, { when: formatMeetingWhen(next, timezone) });
   } catch {
@@ -66,6 +101,7 @@ export function SyncScheduleScreen() {
   const { spaceId, admin, schedule, circlesQuery } = sync;
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [movedNotice, setMovedNotice] = useState(false);
   const timezoneRef = useRef<TextInputInstance>(null);
 
   const circles = (circlesQuery.data ?? []).filter((circle) =>
@@ -80,6 +116,10 @@ export function SyncScheduleScreen() {
       localTime: '19:00',
       timezone: defaultTimezone(),
       circleId: '',
+      frequency: 'weekly',
+      monthlyMode: 'same_weekday',
+      monthlyOrdinal: 1,
+      monthDay: 1,
     },
   });
 
@@ -94,6 +134,10 @@ export function SyncScheduleScreen() {
       localTime: schedule ? schedule.localTime.slice(0, 5) : '19:00',
       timezone: schedule?.timezone ?? defaultTimezone(),
       circleId: schedule?.circleId ?? householdId,
+      frequency: schedule?.frequency ?? 'weekly',
+      monthlyMode: schedule?.monthlyMode ?? 'same_weekday',
+      monthlyOrdinal: schedule?.monthlyOrdinal ?? 1,
+      monthDay: schedule?.monthDay ?? 1,
     });
   }, [scheduleLoaded, schedule, householdId, reset]);
 
@@ -117,6 +161,8 @@ export function SyncScheduleScreen() {
       <Screen withHeader testID="screen-sync-schedule" accessibilityLabel={copy.sync.scheduleTitle}>
         {schedule ? (
           <>
+            <Small tone="muted">{copy.sync.frequencyLabel}</Small>
+            <Body>{copy.sync.frequencies[schedule.frequency]}</Body>
             <Small tone="muted">{copy.sync.weekdayLabel}</Small>
             <Body>{copy.sync.weekdaysLong[schedule.weekday]}</Body>
             <Small tone="muted">{copy.sync.timeLabel}</Small>
@@ -141,8 +187,16 @@ export function SyncScheduleScreen() {
     localTime: watched.localTime ?? '',
     timezone: watched.timezone ?? '',
     circleId: watched.circleId ?? '',
+    frequency: watched.frequency ?? 'weekly',
+    monthlyMode: watched.monthlyMode ?? 'same_weekday',
+    monthlyOrdinal: watched.monthlyOrdinal ?? 1,
+    monthDay: watched.monthDay ?? 1,
   };
-  const preview = previewFor(values);
+  const preview = previewFor(values, schedule?.anchorLocalDate ?? null);
+  const showMonthDayHint =
+    values.frequency === 'monthly' &&
+    values.monthlyMode === 'same_date' &&
+    (values.monthDay ?? 0) >= 29;
 
   const onSave = handleSubmit(
     async (input) => {
@@ -150,19 +204,33 @@ export function SyncScheduleScreen() {
         return;
       }
       setFormError(null);
+      setMovedNotice(false);
       setSaving(true);
       try {
         const timezone = input.timezone.trim();
         const localTime = normalizeLocalTime(input.localTime);
-        await upsertSyncSchedule({
+        const result = await upsertSyncSchedule({
           spaceId,
           weekday: input.weekday,
           localTime,
           timezone,
           circleId: input.circleId,
-          nextScheduledFor: nextMeetingAt({ weekday: input.weekday, localTime, timezone }),
+          frequency: input.frequency,
+          monthlyMode: input.frequency === 'monthly' ? input.monthlyMode : null,
+          monthlyOrdinal:
+            input.frequency === 'monthly' && input.monthlyMode === 'same_weekday'
+              ? input.monthlyOrdinal
+              : null,
+          monthDay:
+            input.frequency === 'monthly' && input.monthlyMode === 'same_date'
+              ? input.monthDay
+              : null,
         });
         sync.refresh();
+        if (result.movedPreserved) {
+          setMovedNotice(true);
+          return;
+        }
         router.replace(routes.sync);
       } catch (caught) {
         logFailedAction(caught);
@@ -182,6 +250,70 @@ export function SyncScheduleScreen() {
       accessibilityLabel={copy.sync.scheduleTitle}
     >
       {formError ? <ErrorState message={formError} /> : null}
+      {movedNotice ? <Banner message={copy.sync.movedMeetingPreserved} /> : null}
+      <Small tone="muted">{copy.sync.frequencyLabel}</Small>
+      <View style={styles.chips}>
+        {FREQUENCIES.map((frequency) => (
+          <ChoiceChip
+            key={frequency}
+            label={copy.sync.frequencies[frequency]}
+            testID={`frequency-${frequency}`}
+            selected={values.frequency === frequency}
+            onPress={() => setValue('frequency', frequency, { shouldDirty: true })}
+          />
+        ))}
+      </View>
+      {values.frequency === 'monthly' ? (
+        <>
+          <Small tone="muted">{copy.sync.monthlyModeLabel}</Small>
+          <View style={styles.chips}>
+            {MONTHLY_MODES.map((mode) => (
+              <ChoiceChip
+                key={mode}
+                label={copy.sync.monthlyModes[mode]}
+                testID={`monthly-mode-${mode}`}
+                selected={values.monthlyMode === mode}
+                onPress={() => setValue('monthlyMode', mode, { shouldDirty: true })}
+              />
+            ))}
+          </View>
+          {values.monthlyMode === 'same_weekday' ? (
+            <>
+              <Small tone="muted">{copy.sync.monthlyOrdinalLabel}</Small>
+              <View style={styles.chips}>
+                {ORDINALS.map((ordinal) => (
+                  <ChoiceChip
+                    key={ordinal}
+                    label={copy.sync.monthlyOrdinals[String(ordinal) as '1' | '2' | '3' | '4' | '-1']}
+                    testID={`monthly-ordinal-${ordinal}`}
+                    selected={values.monthlyOrdinal === ordinal}
+                    onPress={() => setValue('monthlyOrdinal', ordinal, { shouldDirty: true })}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <Controller
+              control={control}
+              name="monthDay"
+              render={({ field }) => (
+                <Field
+                  label={copy.sync.monthDayLabel}
+                  placeholder="15"
+                  value={field.value != null ? String(field.value) : ''}
+                  onChangeText={(text) => {
+                    const parsed = Number.parseInt(text.replace(/\D/g, ''), 10);
+                    field.onChange(Number.isFinite(parsed) ? Math.min(31, Math.max(1, parsed)) : null);
+                  }}
+                  keyboardType="number-pad"
+                  testID="month-day"
+                />
+              )}
+            />
+          )}
+          {showMonthDayHint ? <Caption>{copy.sync.monthDayHint}</Caption> : null}
+        </>
+      ) : null}
       <Small tone="muted">{copy.sync.weekdayLabel}</Small>
       <View style={styles.chips}>
         {copy.sync.weekdaysShort.map((label, index) => (
@@ -244,6 +376,9 @@ export function SyncScheduleScreen() {
       </View>
       {preview ? <Body tone="muted">{preview}</Body> : null}
       <Button label={copy.sync.saveSchedule} onPress={() => void onSave()} busy={saving} />
+      {movedNotice ? (
+        <Button label={copy.sync.backToSync} variant="secondary" onPress={() => router.replace(routes.sync)} />
+      ) : null}
     </Screen>
   );
 }

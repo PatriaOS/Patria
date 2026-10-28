@@ -28,14 +28,20 @@ jest.mock('../../lib/family', () => ({
   fetchChildren: jest.fn(async () => []),
 }));
 
+jest.mock('../memories/memoryApi', () => ({
+  fetchCircleMemberIds: jest.fn(async () => ['u1', 'u2']),
+}));
+
 jest.mock('./syncApi', () => ({
   ...jest.requireActual('./syncApi'),
   fetchSyncSchedule: jest.fn(),
   fetchSyncMeetings: jest.fn(),
   fetchAgendaItems: jest.fn(),
+  fetchSyncMeetingAnswers: jest.fn(async () => []),
   ensureNextMeeting: jest.fn(async () => 'm-new'),
   startSyncMeeting: jest.fn(),
   upsertSyncSchedule: jest.fn(),
+  setSyncMeetingAnswer: jest.fn(),
 }));
 
 const admin = {
@@ -52,6 +58,11 @@ const schedule = {
   localTime: '19:00:00',
   timezone: 'America/New_York',
   circleId: 'c1',
+  frequency: 'weekly' as const,
+  monthlyMode: null,
+  monthlyOrdinal: null,
+  monthDay: null,
+  anchorLocalDate: '2026-10-26',
 };
 
 function meeting(overrides: Partial<SyncMeetingRow>): SyncMeetingRow {
@@ -66,6 +77,7 @@ function meeting(overrides: Partial<SyncMeetingRow>): SyncMeetingRow {
     finishedAt: null,
     priorityText: '',
     summary: {},
+    movedIndividually: false,
     ...overrides,
   };
 }

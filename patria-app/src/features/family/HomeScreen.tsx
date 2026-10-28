@@ -57,7 +57,7 @@ import {
 import { RecoveryReminderSheet } from './RecoveryReminderSheet';
 import { useCurrentFamily } from './useCurrentFamily';
 import { defaultTimezone } from '../sync/syncLabels';
-import { fetchSyncTasks } from '../sync/syncApi';
+import { fetchSyncMeetingAnswers, fetchSyncTasks } from '../sync/syncApi';
 import { useSyncSpace } from '../sync/useSyncSpace';
 
 export function HomeScreen() {
@@ -119,6 +119,11 @@ export function HomeScreen() {
     queryKey: ['syncTasks', spaceId],
     enabled: Boolean(spaceId),
     queryFn: () => fetchSyncTasks(spaceId as string),
+  });
+  const syncAnswersQuery = useQuery({
+    queryKey: ['syncAnswers', sync.active?.id ?? 'none'],
+    enabled: Boolean(sync.active?.id && sync.active.status === 'upcoming'),
+    queryFn: () => fetchSyncMeetingAnswers(sync.active!.id),
   });
   const onRefresh = useCallback(() => {
     if (userId) {
@@ -405,12 +410,18 @@ export function HomeScreen() {
     recovery: recoveryQuery.data,
     removedNoticeCount: (removedNoticesQuery.data ?? []).length,
   });
+  const syncRsvpNeeded = Boolean(
+    userId &&
+      sync.active?.status === 'upcoming' &&
+      !(syncAnswersQuery.data ?? []).some((row) => row.userId === userId),
+  );
   const needsYouCount = buildNeedsYouItems({
     keyHolder,
     recoveryAccepted: recoveryQuery.data?.accepted ?? 0,
     hasPaper: Boolean(recoveryQuery.data?.hasPaper),
     recoveryStatus: recoveryQuery.data?.status,
     syncMeeting: sync.active,
+    syncRsvpNeeded,
     timeZone: sync.schedule?.timezone ?? defaultTimezone(),
     userId,
     tasks: tasksQuery.data ?? [],

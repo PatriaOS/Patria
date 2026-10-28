@@ -396,3 +396,47 @@ Areas: navigation, recovery
 3. From **Needs you**, open recovery. Return to Home. Pass if the badge still reflects open items (count drops when an item is fully resolved).
 4. Sign out and sign in again as Test 1 without finishing recovery. Pass if the reminder sheet appears once. Tap **Remind me later**. Pass if opening Home again in the same session does not show the sheet again.
 5. Force-quit and reopen the app while still signed in. Pass if the reminder sheet does not appear, Home is usable, and the **Needs you** bell still shows the recovery item.
+
+## Weekly Family Sync slice 2 (D37)
+
+Frequency, Going / Can't make it, Needs you invite, move this meeting vs all future, Add to my calendar. Phone tests 46–51.
+
+### 46. Sync frequency setup
+Areas: sync
+1. Sign in as Test 1. Open **Sync** and tap **Set up our Sync** (or **Change the schedule** if a schedule already exists). Pass if you see **How often** with **Weekly**, **Every two weeks** and **Monthly**.
+2. Keep **Weekly**, pick a day and time, save. Pass if Sync shows the next meeting and tonight’s flow.
+3. Open **Change the schedule**, choose **Every two weeks**, save. Pass if the next Sync preview updates and Sync still shows one upcoming meeting.
+4. Open **Change the schedule**, choose **Monthly** → **Same weekday** → **Last**, save. Pass if it saves without error.
+5. Open **Change the schedule**, choose **Monthly** → **Same date**, set day **31**. Pass if you see the shorter-months line. Save. Pass if Sync returns with a next meeting.
+6. Sign in as Test 2. Open **Sync**. Pass if there is no **Change the schedule** control.
+
+### 47. Move one vs all future
+Areas: sync
+1. Sign in as Test 1 with a Sync schedule. Open **Sync** and tap **Move this meeting**. Pass if you see that only this meeting moves.
+2. Enter a new future date and time before the next usual Sync, and tap **Move meeting**. Pass if Sync shows the new time.
+3. Open **Change the schedule**, change the day or time, and save. Pass if you see that the moved meeting stays as you set it.
+4. Pass if a finished past Sync is still listed under **Past meetings** with its original date. (manual if none finished yet)
+
+### 48. Going / Can't make it
+Areas: sync
+1. Sign in as Test 2. Open **Sync**. Pass if you see **Your reply** with **Going** and **Can't make it**.
+2. Tap **Going**. Pass if **Who’s coming** lists Test 2 under Going.
+3. Tap **Can't make it**. Pass if Test 2 moves under Can't.
+4. Sign in as Test 1 (admin). Open **Sync**. Pass if you see Going and Can't, and **Not answered yet** for anyone in the circle who has not replied.
+5. Start the Sync (or wait until the start time). Pass if **Your reply** is gone. (manual for the wait path)
+
+### 49. Outside the circle
+Areas: sync
+1. With the Sync on **Household**, sign in as an extended-only member. Open **Sync**. Pass if that person does not see the Household meeting reply controls or answers.
+2. Pass if a Household member still sees the meeting and can reply.
+
+### 50. Needs you Sync invite
+Areas: sync, navigation
+1. Sign in as Test 2 with an upcoming Sync and no reply yet. Tap the **Needs you** bell. Pass if **Family Sync** appears with **Say if you can make the next Sync.** and **Open Sync**.
+2. Open Sync, tap **Going**, return to **Needs you**. Pass if the Family Sync invite is gone.
+
+### 51. Add to my calendar
+Areas: sync
+1. Sign in as Test 1. Open **Sync** and tap **Add to my calendar**. (manual) Pass if the system asks for calendar permission the first time.
+2. Allow access. Pass if the app says the event was added, and the phone calendar shows **Family Sync** for the meeting time with no agenda text or names. (manual)
+3. After a schedule change, pass if the app offers to update the event Patria added, without writing agenda content. (manual)

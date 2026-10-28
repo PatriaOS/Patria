@@ -123,9 +123,17 @@ export function scenarioForTest(testNumber) {
     testNumber === 39 ||
     testNumber === 40 ||
     testNumber === 41 ||
-    testNumber === 42
+    testNumber === 42 ||
+    testNumber === 46 ||
+    testNumber === 47 ||
+    testNumber === 48 ||
+    testNumber === 50 ||
+    testNumber === 51
   ) {
     return 'admin-elder';
+  }
+  if (testNumber === 49) {
+    return 'admin-elder-extended';
   }
   return 'admin';
 }
