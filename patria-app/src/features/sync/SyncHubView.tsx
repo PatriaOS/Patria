@@ -125,11 +125,17 @@ function FlowProgress({
                 ? colors.onMustard
                 : colors.textMuted;
           return (
-            <View key={step} style={styles.flowStep} testID={`sync-flow-step-${step}`}>
+            <View
+              key={step}
+              style={styles.flowStep}
+              testID={`sync-flow-step-${step}`}
+              accessible
+              accessibilityLabel={info.title}
+              accessibilityHint={`${index + 1}${state === 'done' ? ', done' : state === 'current' ? ', current' : ''}`}
+            >
               <View
                 style={[styles.flowCircle, { backgroundColor: fill }]}
-                accessible
-                accessibilityLabel={`${index + 1}${state === 'done' ? ', done' : state === 'current' ? ', current' : ''}`}
+                importantForAccessibility="no-hide-descendants"
               >
                 {state === 'done' ? (
                   <Icon icon={Check} name="check" color={labelColor} size={16} decorative />
@@ -143,7 +149,7 @@ function FlowProgress({
                 color={state === 'upcoming' ? colors.textMuted : colors.text}
                 style={styles.flowLabel}
                 numberOfLines={2}
-                accessibilityLabel={info.title}
+                accessible={false}
               >
                 {info.title}
               </Caption>

@@ -316,7 +316,8 @@ if (
 
 const syncNeedsSchedule = [37, 38, 39, 40, 42, 47, 48, 49, 50, 51].includes(testNumber);
 const syncNeedsAgenda = [38, 39].includes(testNumber);
-const syncNeedsFinished = testNumber === 40;
+// 40 lists a finished Sync; 47 checks that move / all-future leave it alone.
+const syncNeedsFinished = testNumber === 40 || testNumber === 47;
 // Test 36 must start with no schedule (Set up our Sync). Fresh family is empty;
 // clear Sync rows anyway so a reused space cannot leave a prior schedule.
 if (testNumber === 36 || testNumber === 46) {
@@ -392,7 +393,8 @@ if (syncNeedsSchedule) {
     ]);
   }
   if (syncNeedsFinished) {
-    const pastFor = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Fixed Chicago evening so Past meetings day label is stable across runs (47 asserts it).
+    const pastFor = '2026-10-14T19:00:00-05:00';
     sql(
       dbUrl,
       `WITH meeting AS (
@@ -405,8 +407,8 @@ if (syncNeedsSchedule) {
            '${pastFor}',
            'finished',
            '${adminSession.userId}',
-           now() - interval '40 minutes',
-           now() - interval '10 minutes',
+           '${pastFor}'::timestamptz + interval '5 minutes',
+           '${pastFor}'::timestamptz + interval '35 minutes',
            'Practice together',
            '{"discussed":1,"total":2,"decisions":[{"title":"Carpool plan","decision":"Share the drive"}]}'::jsonb
          )

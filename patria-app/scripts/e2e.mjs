@@ -2269,9 +2269,25 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'series', E2E_STAY: '1' },
         });
       });
-      step(47, 4, 'Past finished meeting unchanged', () =>
-        result('skip', 'manual: needs a finished Sync from Test 38'),
-      );
+      step(47, 4, 'Past finished meeting unchanged', () => {
+        // Must match e2e-setup finished seed + PastMeetingsScreen formatMeetingDay.
+        const pastDay = new Intl.DateTimeFormat(undefined, {
+          timeZone: 'America/Chicago',
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        }).format(new Date('2026-10-14T19:00:00-05:00'));
+        maestro({
+          flow: flow('47_move_vs_series.yaml'),
+          device: deviceA,
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'past',
+            PAST_DAY: pastDay,
+            E2E_STAY: '1',
+          },
+        });
+      });
     }
 
     if (test.number === 48) {

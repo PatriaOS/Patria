@@ -72,7 +72,8 @@ appId: app.patria.dev
       - tapOn:
           id: "notes"
       - inputText: "Hike felt great"
-      - hideKeyboard
+      # Multiline notes — Enter inserts a newline; tap the step title to dismiss the keyboard.
+      - tapOn: "Wins"
       - tapOn:
           id: "next"
       - extendedWaitUntil:

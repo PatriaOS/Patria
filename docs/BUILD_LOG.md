@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — Phone tests 36 / 38 / 39 / 47 after slice 2 hub
+
+36 failed on Maestro `hideKeyboard` (schedule form was open; family had no schedule — e2e-setup clears Sync for 36 and does not seed finished meetings). Flow steps under RSVP needed scroll plus step `accessibilityLabel` so “Wins” is findable. 38 not_yet was already correct when signed in (Start early + sheet + Not yet); sign-in `eraseText` without a count hung. 39 notes used Enter on a multiline field. 47 step 4 now seeds a finished meeting and asserts Past meetings. Branch `gov02-slice2`.
+
 ## 2026-10-28 — Sync start labels: Start early / Start the Sync
 
 Admin hub chip is Start early (days before, with confirm sheet), Start the Sync (on the day), Continue (in progress), Hold it now (missed). Phone test 38 adds Not yet; 39 uses the same start path.

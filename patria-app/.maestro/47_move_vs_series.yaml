@@ -78,3 +78,29 @@ appId: app.patria.dev
       - extendedWaitUntil:
           visible: "Your moved meeting stays as you set it. Later Syncs will follow the new schedule."
           timeout: 20000
+- runFlow:
+    when:
+      true: ${PHASE == 'past'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "past-meetings"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "past-meetings"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-past"
+          timeout: 15000
+      # Seeded finished meeting (e2e-setup); day label from formatMeetingDay in America/Chicago.
+      - assertVisible: ${PAST_DAY}
+      - assertVisible: "Practice together"

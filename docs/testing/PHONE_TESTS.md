@@ -416,7 +416,7 @@ Areas: sync
 1. Sign in as Test 1 with a Sync schedule. Open **Sync** and tap **Move this meeting**. Pass if you see that only this meeting moves.
 2. Enter a new future date and time before the next usual Sync, and tap **Move meeting**. Pass if Sync shows the new time.
 3. Open **Change the schedule**, change the day or time, and save. Pass if you see that the moved meeting stays as you set it.
-4. Pass if a finished past Sync is still listed under **Past meetings** with its original date. (manual if none finished yet)
+4. Open **Past meetings**. Pass if a finished Sync from before the move is still listed with its original date (not the moved time) and the same priority. e2e seeds one dated **Wed, Oct 14** with priority **Practice together**; for a hand run, finish a Sync first (Test 38), note its date and priority, then do steps 1–3 before checking here.
 
 ### 48. Going / Can't make it
 Areas: sync

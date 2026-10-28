@@ -31,7 +31,7 @@ appId: app.patria.dev
           id: "time"
       - eraseText: 20
       - inputText: "19:00"
-      - hideKeyboard
+      - pressKey: Enter
       - scrollUntilVisible:
           element:
             id: "save-schedule"
@@ -43,8 +43,16 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
-      - assertVisible:
-          id: "sync-tonight-flow"
+      - extendedWaitUntil:
+          visible:
+            id: "sync-tonight-flow"
+          timeout: 15000
+      # Flow sits below RSVP on the hub; scroll until the Wins step is on screen.
+      - scrollUntilVisible:
+          element:
+            id: "sync-flow-step-wins"
+          direction: DOWN
+          timeout: 20000
       - assertVisible: "Wins"
       - assertVisible: "Look ahead"
       - assertVisible: "Decide"

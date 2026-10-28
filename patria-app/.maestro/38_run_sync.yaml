@@ -40,6 +40,11 @@ appId: app.patria.dev
           id: "sync"
       - extendedWaitUntil:
           visible:
+            id: "screen-sync"
+          timeout: 20000
+      # Needs an upcoming meeting on a later day (e2e.mjs pins scheduled_for +2 days).
+      - extendedWaitUntil:
+          visible:
             id: "start-early"
           timeout: 20000
       - tapOn:
