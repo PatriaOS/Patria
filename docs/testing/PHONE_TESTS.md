@@ -83,7 +83,7 @@ Areas: keys, devices, membership, invites
 One device is enough: each account on the same device counts as its own device. With two devices, keep Test 1 on device A and Test 2 on device B and skip the sign outs.
 1. As Test 1 in the family with keys, invite Test 2 as **Elder** if not already a member.
 2. As Test 2, accept the invite if needed. Pass if Home says this phone is waiting for a family admin.
-3. As Test 1. Pass if a notice shows that Test 2 wants this phone let in, with name, role and when the phone was set up.
+3. As Test 1, open **Family**. Pass if a notice shows that Test 2 **added a new phone**, with name, role and when the phone was set up (date and time without seconds).
 4. Tap **Let in**. Pass if the notice disappears and a new row for Test 2 appears in `family_key_wraps`.
 5. As Test 2. Open **Family**. Pass if it now says family keys are set up on this phone.
 6. Repeat with Test 3 invited as **Extended relative**. Pass if no notice ever appears for Test 3.
@@ -102,11 +102,11 @@ Needs a second device for the same account (device B). Device A is where Test 1 
 ### 11. Set up recovery contacts and printed code (Step 6)
 Areas: recovery, keys
 Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already let in. After D27 (Oct 13), run this fresh for each account before test 12.
-1. On A as Test 1, open the family. Pass if Home shows a calm **Set up recovery** card that blocks nothing else.
-2. Tap it and choose Test 2 as the first contact. Pass if only adult family members whose phones are let in can be chosen.
-3. On B as Test 2, pull to refresh. Pass if a notice explains what being a recovery contact means, with **Accept** and **Decline**. Tap **Accept**.
-4. Back on A, add a second contact the same way (make Test 3 an Elder, let them in, have them accept). Pass if the card says recovery is set up with two contacts.
-5. On A, after two contacts have accepted, Home (and Recovery contacts) shows **Write down a printed code**. Tap it. Pass if 24 words appear once with a clear "write this down" warning, and the app asks you to type a few back before finishing. (Automation: read the words from the screen and keep them in memory for test 12; never write them to a file or log.)
+1. On A as Test 1, open Home. Pass if the **Needs you** bell shows a count, and **Needs you** lists **Set up recovery**. Open it through Privacy and Security → Recovery contacts. Pass if that blocks nothing on Home.
+2. Choose Test 2 as the first contact. Pass if only adult family members whose phones are let in can be chosen.
+3. On B as Test 2, open **Family** and pull to refresh. Pass if a notice explains what being a recovery contact means, with **Accept** and **Decline**. Tap **Accept**.
+4. Back on A, add a second contact the same way (make Test 3 an Elder, let them in, have them accept). Pass if Family shows recovery is set up with two contacts.
+5. On A, after two contacts have accepted, Privacy and Security shows **Write down a printed code**. Tap it. Pass if 24 words appear once with a clear "write this down" warning, and the app asks you to type a few back before finishing. (Automation: read the words from the screen and keep them in memory for test 12; never write them to a file or log.)
 6. Database: locked boxes, contact rows, one row per member in `recovery_public_keys` (a public key only), no `recovery_key_wraps` table, and nothing that looks like the 24 words or a readable key.
 7. Remove Test 3 as a contact. Pass if that member sees **Recovery needs attention** and is asked to choose a new contact. Remaining contact and paper stay valid until they redo (D27). Redo offers a new printed code; the old code then no longer works.
 8. On B as Test 2 (Elder), open **Set up recovery** and choose Test 1. On A, Test 1 accepts. Pass if Test 2 can finish asking that contact (holder secrets wrap to Test 1’s let-in phone without Test 2 listing wraps).
@@ -360,19 +360,39 @@ Areas: sync, navigation
 3. Tap **Family**, then **Sync** again. Pass if Sync shows the same screen without a back arrow.
 4. Use the largest text size. Pass if Sync scrolls and nothing is cut off. (manual)
 
-## Home Today (GOV02, D35)
+## Home v2 (design)
 
-Home becomes a quiet daily view: security notices only when something needs a tap, then the greeting, the Family Sync card, On this day and This week. Keys and recovery status moved to Family. Test 42. Run after Test 36 so the family has a Sync schedule.
+Home starts with the header (greeting, avatars, Needs you bell, menu), then five body cards with the D36 tone rhythm. Urgent items live under the bell and on Family / Privacy and Security. Tests 42–45.
 
 ### 42. Home Today
 Areas: sync, navigation
-1. Sign in as Test 1 in a family that has a Sync schedule (Test 36). Pass if Home shows the date, **Good morning, / afternoon, / evening,** and the family name on a second line in italics, with the member avatars at the top right.
-2. Pass if the Sync card shows a line like **SUNDAY FAMILY SYNC · IN 4 DAYS** (or **TONIGHT**, **TODAY**, **TOMORROW**), the title **Household meeting**, a line about the agenda, and **Review agenda** and **Add an item**.
+1. Sign in as Test 1 in a family that has a Sync schedule (Test 36). Pass if Home shows the date, **Good morning, / afternoon, / evening,** and the family name on a second line in italics (with **The** only when the stored name does not already start with it), with the member avatars, **Needs you** bell and **Open menu** clearly visible under the avatars.
+2. Pass if the Sync card is the green hero with a mustard CTA: a line like **SUNDAY FAMILY SYNC · IN 4 DAYS** (or **TONIGHT**, **TODAY**, **TOMORROW**), the title **Household meeting**, a line about the agenda, and **Review agenda** and **Add an item**.
 3. Tap **Review agenda**. Pass if the Sync tab opens. Go back to Home and tap **Add an item**. Pass if the add-to-agenda screen opens.
-4. Pass if **Recent memories** and the Vault card are no longer on Home, and no keys or recovery status pills show while keys are set up.
-5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or one quiet line when there are none. Tap a task's checkbox. Pass if it stays visible with **Done today**.
+4. Pass if no attention cards sit above the greeting, and no keys or recovery status pills show while keys are set up. Pass if the five body cards are present in tone order: Sync (hero), This week (surface), voice (warm), Memories (surface), Vault (hero).
+5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or the empty card with a green **Add to agenda** when there are none. Tap a task's checkbox when a task is shown. Pass if it stays visible with **Done today**.
 6. Tap **See all** beside **This week**. Pass if the Sync tasks screen opens.
 7. Tap the avatars at the top right. Pass if the Family tab opens and shows the keys status and the recovery status below **Your phones**.
 8. On a family with no Sync schedule, pass if the Sync card invites a Family admin to **Set up our Sync**, and tells anyone else to ask a Family admin.
-9. On a day when a photo or video from an earlier year was taken on this month and day, pass if an **On this day** card shows it and tapping opens the memory; on other days pass if there is no card.
+9. On a day when a photo or video from an earlier year was taken on this month and day, pass if **On this day** appears as a line inside the Memories card and tapping it opens the memory; on other days pass if that line is absent.
 10. Use the largest text size. Pass if Home scrolls and nothing is cut off. (manual)
+
+### 43. Home empty body cards
+Areas: navigation
+1. Sign in as Test 1 in a brand-new family with no Sync schedule, no tasks, no Vault entries and no Memories. Pass if Home shows five empty body cards: Sync (**Set up our Sync** for an admin), This week (**Add to agenda** or the ask-admin line), voice (**Record a voice note** or ask-admin / locked), Memories (**Add photos and videos**), and Vault (**Add a decision** or ask-admin / locked).
+2. Pass if each empty card has a short overline, a serif headline and one explanation line. Pass if no card shows a dead button for an action this role cannot take. Pass if a phone without Vault keys shows the calm locked copy on voice and Vault instead of a crash or blank card.
+
+### 44. Home menu drawer
+Areas: navigation
+1. Sign in as Test 1. Tap **Open menu**. Pass if the drawer slides in from the right over a dimmed backdrop, showing the person's name, family name, close control, group dividers, **Sign out** pinned above the app version without hunting.
+2. Double-tap **Settings** quickly. Pass if Appearance opens once and the drawer closes (only one screen).
+3. Open the menu again. Tap **Privacy and Security**. Pass if that screen opens with a Recovery section. Go back, open the menu, tap **Sign out**. Pass if an in-drawer confirmation appears (**Sign out?** with Cancel and Sign out). Cancel it. Pass if you stay signed in and the drawer menu returns.
+4. Open the menu, tap **Sign out**, confirm. Pass if you land on Welcome.
+
+### 45. Needs you bell and sign-in reminder
+Areas: navigation, recovery
+1. Sign in as Test 1 with recovery not set up. Pass if a bottom sheet explains why recovery matters, with **Set it up now** and **Remind me later**. Tap **Remind me later**. Pass if the sheet closes and Home stays usable.
+2. Pass if the **Needs you** bell shows a terracotta badge with the count. Tap the bell. Pass if **Needs you** lists recovery (and any other ranked items), most important first.
+3. From **Needs you**, open recovery. Return to Home. Pass if the badge still reflects open items (count drops when an item is fully resolved).
+4. Sign out and sign in again as Test 1 without finishing recovery. Pass if the reminder sheet appears once. Tap **Remind me later**. Pass if opening Home again in the same session does not show the sheet again.
+5. Force-quit and reopen the app while still signed in. Pass if the reminder sheet does not appear, Home is usable, and the **Needs you** bell still shows the recovery item.

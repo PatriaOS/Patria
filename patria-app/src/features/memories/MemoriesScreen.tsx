@@ -6,6 +6,7 @@ import { Alert, AppState, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   Button,
+  ButtonStack,
   Caption,
   EmptyState,
   ErrorState,
@@ -232,7 +233,7 @@ export function MemoriesScreen() {
       {status ? <StatusPill testID="library-status" label={status} tone={libraryStatusTone(status)} /> : null}
       <Button label={copy.memories.addPhotos} onPress={() => router.push(routes.memoriesAdd)} />
       {hasConnection ? (
-        <>
+        <ButtonStack>
           <Button
             label={paused ? copy.memories.resume : copy.memories.pause}
             variant="secondary"
@@ -245,7 +246,7 @@ export function MemoriesScreen() {
             onPress={() => router.push(routes.memoriesConnectSettings)}
           />
           <Button label={copy.memories.disconnect} variant="secondary" onPress={onDisconnect} />
-        </>
+        </ButtonStack>
       ) : (
         <Button
           label={copy.memories.connectPhotos}

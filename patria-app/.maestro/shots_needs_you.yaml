@@ -1,0 +1,62 @@
+# Manual screenshot helper for the Needs you / Home header round.
+# Not a PHONE_TESTS flow. Run with Maestro against a signed-in Test 1 family
+# that still needs recovery, then flip Appearance for dark captures.
+# Captures: reminder, Home with badge, Needs you, drawer, Privacy and Security.
+appId: app.patria.dev
+---
+- launchApp
+- runFlow:
+    file: subflows/dismiss_open_in.yaml
+- runFlow:
+    file: subflows/sign_in_form.yaml
+- extendedWaitUntil:
+    visible:
+      id: "recovery-reminder-sheet|home-greeting"
+    timeout: 45000
+- runFlow:
+    when:
+      visible:
+        id: "recovery-reminder-sheet"
+    commands:
+      - takeScreenshot: ../../docs/design/HOME-v2-reminder-light
+      - tapOn:
+          id: "recovery-reminder-later"
+      - extendedWaitUntil:
+          notVisible:
+            id: "recovery-reminder-sheet"
+          timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- takeScreenshot: ../../docs/design/HOME-v2-filled-light
+- assertVisible:
+    id: "home-needs-you-badge"
+- takeScreenshot: ../../docs/design/HOME-v2-bell-badge-light
+- tapOn:
+    id: "home-needs-you-bell"
+- extendedWaitUntil:
+    visible:
+      id: "screen-needs-you"
+    timeout: 15000
+- takeScreenshot: ../../docs/design/HOME-v2-needs-you-light
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "home-menu-drawer"
+    timeout: 10000
+- takeScreenshot: ../../docs/design/HOME-v2-drawer-light
+- tapOn:
+    id: "menu-privacy-security"
+- extendedWaitUntil:
+    visible:
+      id: "screen-privacy-security"
+    timeout: 15000
+- takeScreenshot: ../../docs/design/HOME-v2-privacy-light

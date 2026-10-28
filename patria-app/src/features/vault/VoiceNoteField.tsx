@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Caption, ErrorState } from '../../ui';
+import { Button, ButtonStack, Caption, ErrorState } from '../../ui';
 import { copy } from '../../lib/copy';
 import { wipe } from '../../lib/crypto/bytes';
 import { E2E_VOICE_DURATION_SECONDS, loadE2eVoiceBytes } from './e2eVoiceSample';
@@ -61,7 +61,7 @@ function VoiceNoteFieldE2e({ durationSeconds, onRecorded, onRemove }: VoiceNoteF
           busy={busy}
         />
       ) : (
-        <>
+        <ButtonStack>
           <Button label={copy.vault.play} variant="secondary" onPress={() => undefined} />
           <Button
             label={copy.vault.reRecord}
@@ -75,7 +75,7 @@ function VoiceNoteFieldE2e({ durationSeconds, onRecorded, onRemove }: VoiceNoteF
             }}
           />
           <Button label={copy.vault.removeVoice} variant="ghost" onPress={onRemove} />
-        </>
+        </ButtonStack>
       )}
     </View>
   );

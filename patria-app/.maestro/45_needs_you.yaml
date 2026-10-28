@@ -1,0 +1,161 @@
+# PHONE_TESTS: 45
+# AREAS: navigation, recovery
+# Reminder is not dismissed by sign_in for reminder/again — handle it here.
+# PHASE matches PHONE_TESTS steps so the runner names the step that failed.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'reminder' || PHASE == 'main' || PHASE == null || PHASE == ''}
+    commands:
+      - launchApp
+      - runFlow:
+          file: subflows/dismiss_open_in.yaml
+      # Clear a leftover reminder so sign_in_form can see Home and sign out.
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-later"
+          timeout: 3000
+          optional: true
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - runFlow:
+          file: subflows/sign_in_form.yaml
+      # This flow must see the post-sign-in reminder (do not use shared sign_in dismiss).
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet|home-greeting"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet"
+          timeout: 20000
+      - assertVisible:
+          id: "recovery-reminder-set-up"
+      - assertVisible:
+          id: "recovery-reminder-later"
+      - tapOn:
+          id: "recovery-reminder-later"
+      - extendedWaitUntil:
+          notVisible:
+            id: "recovery-reminder-sheet"
+          timeout: 10000
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - assertVisible:
+          id: "home-greeting"
+- runFlow:
+    when:
+      true: ${PHASE == 'bell'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
+          id: "home-needs-you-badge"
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - assertVisible:
+          id: "needs-you-recovery-setup"
+- runFlow:
+    when:
+      true: ${PHASE == 'recovery'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          when:
+            notVisible:
+              id: "screen-needs-you"
+          commands:
+            - tapOn:
+                id: "home-needs-you-bell"
+            - extendedWaitUntil:
+                visible:
+                  id: "screen-needs-you"
+                timeout: 15000
+      - tapOn:
+          id: "needs-you-recovery-setup"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
+      # Privacy sits on Needs you (stack, no tab bar). Back to Needs you, then Home.
+      - tapOn:
+          id: "BackButton"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - tapOn:
+          id: "BackButton"
+      - extendedWaitUntil:
+          visible:
+            id: "home-greeting"
+          timeout: 15000
+      - assertVisible:
+          id: "home-needs-you-badge"
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"
+- runFlow:
+    when:
+      true: ${PHASE == 'again'}
+    commands:
+      - launchApp
+      - runFlow:
+          file: subflows/dismiss_open_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-later"
+          timeout: 3000
+          optional: true
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - runFlow:
+          file: subflows/sign_in_form.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet|home-greeting"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet"
+          timeout: 20000
+      - tapOn:
+          id: "recovery-reminder-later"
+      - extendedWaitUntil:
+          notVisible:
+            id: "recovery-reminder-sheet"
+          timeout: 10000
+      - swipe:
+          direction: DOWN
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"
+# Cold start with the same session: no reminder sheet; Needs you bell still counts.
+- runFlow:
+    when:
+      true: ${PHASE == 'reopen_no_reminder'}
+    commands:
+      - stopApp
+      - launchApp
+      - extendedWaitUntil:
+          visible:
+            id: "home-greeting"
+          timeout: 30000
+      - assertNotVisible:
+          id: "recovery-reminder-sheet"
+      - assertVisible:
+          id: "home-needs-you-badge"
+      - tapOn:
+          id: "home-needs-you-bell"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-needs-you"
+          timeout: 15000
+      - assertVisible:
+          id: "needs-you-recovery-setup"

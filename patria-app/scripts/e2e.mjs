@@ -19,6 +19,7 @@ import {
   e2eDeviceCount,
   ensureJavaHome,
   loadLocalFiles,
+  firstFailureSummary,
   notReachedRows,
   parsePhoneTests,
   passwordFor,
@@ -568,21 +569,53 @@ function seedAdminKeys() {
 }
 
 function seedLetIn(memberN, device) {
-  maestro({
+  const waiting = tryMaestro({
     flow: flow('09_let_in.yaml'),
     device,
     env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
   });
+  if (waiting.ok) {
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: deviceA,
+      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+    });
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device,
+      env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+    });
+    return;
+  }
+  // Already let in (common when test 9 ran first): verify member + approved device.
   maestro({
     flow: flow('09_let_in.yaml'),
     device: deviceA,
-    env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'verify_member',
+      MEMBER_ID: `member-test-${memberN}`,
+    },
   });
   maestro({
     flow: flow('09_let_in.yaml'),
     device,
     env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
   });
+  const wraps = dbCheck([
+    'assert-wraps',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+    '--min',
+    '1',
+  ]);
+  if (!wraps.ok) {
+    throw new Error(
+      `Test ${memberN} is a member but has no approved device wrap: ${wraps.error ?? 'assert-wraps failed'}`,
+    );
+  }
 }
 
 function seedBeforeYouStart(testNumber) {
@@ -1018,9 +1051,13 @@ try {
         result('skip', 'needs a second family name on this account'),
       );
       step(8, 6, 'Test 2 waiting if not let in', () => {
+        // Never sign Test 2 onto device A — step 7 reopens A and must stay Test 1.
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators so Test 2 does not take over device A');
+        }
         const waiting = tryMaestro({
           flow: flow('08_family_key_created.yaml'),
-          device: args.devices >= 2 ? deviceB : deviceA,
+          device: deviceB,
           env: { ...signInEnv(secrets, 2), PHASE: 'member_waiting' },
         });
         if (!waiting.ok) {
@@ -2052,6 +2089,96 @@ try {
         result('skip', 'manual judgement'),
       );
     }
+
+    if (test.number === 43) {
+      step(43, 1, 'Five empty Home body cards with CTAs', () => {
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `DELETE FROM public.sync_tasks WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.sync_schedules WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.vault_entries WHERE family_space_id = '${spaceId}';
+           DELETE FROM public.memory_items WHERE family_space_id = '${spaceId}';`,
+        );
+        maestro({
+          flow: flow('43_home_empty_cards.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      step(43, 2, 'Empty cards have overline, headline and no dead buttons', () =>
+        result('pass'),
+      );
+    }
+
+    if (test.number === 44) {
+      step(44, 1, 'Menu drawer opens from Home', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'open' },
+        });
+      });
+      step(44, 2, 'Double-tap Settings opens Appearance once', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'settings', E2E_STAY: '1' },
+        });
+      });
+      step(44, 3, 'Privacy and Security and Sign out cancel', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'privacy_cancel', E2E_STAY: '1' },
+        });
+      });
+      step(44, 4, 'Confirm Sign out lands on Welcome', () => {
+        maestro({
+          flow: flow('44_home_menu.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'sign_out', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 45) {
+      step(45, 1, 'Sign-in recovery reminder once, dismiss with Remind me later', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'reminder', E2E_STAY: '1' },
+        });
+      });
+      step(45, 2, 'Needs you bell badge and ranked list', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'bell', E2E_STAY: '1' },
+        });
+      });
+      step(45, 3, 'Open recovery from Needs you; badge reflects open items', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'recovery', E2E_STAY: '1' },
+        });
+      });
+      step(45, 4, 'Reminder returns next sign in, not again after Remind me later', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'again' },
+        });
+      });
+      step(45, 5, 'Cold reopen keeps reminder away; Needs you still lists recovery', () => {
+        maestro({
+          flow: flow('45_needs_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'reopen_no_reminder', E2E_STAY: '1' },
+        });
+      });
+    }
     } catch (error) {
       const failed = reports
         .filter((row) => row.testNumber === test.number && row.status === 'fail')
@@ -2115,9 +2242,9 @@ for (const [number, rows] of byTest) {
   } else {
     passed += 1;
   }
-  const failedStep = rows.find((row) => row.status === 'fail');
-  const first = failedStep
-    ? `step ${failedStep.stepNumber}: ${failedStep.label}${failedStep.detail ? ` — ${failedStep.detail}` : ''}`
+  const failure = firstFailureSummary(rows);
+  const first = failure
+    ? failure
     : overall === 'SKIP'
       ? rows[0]?.detail || 'skipped'
       : '';

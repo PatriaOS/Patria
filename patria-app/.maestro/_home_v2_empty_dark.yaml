@@ -1,0 +1,17 @@
+appId: app.patria.dev
+---
+- tapOn:
+    id: "^home$"
+    optional: true
+- swipe:
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "home-sync-set-up"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "home-vault-empty"
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: "HOME-v2-empty-dark"

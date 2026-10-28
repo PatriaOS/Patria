@@ -23,6 +23,7 @@ Name each file with the feature ID and screen name, so Cursor can find the right
 * `GOV02-members-avatars-light.png` / `GOV02-members-avatars-dark.png` (D35 avatar tones)
 * `GOV02-home-today-light.png` / `GOV02-home-today-dark.png` (D35 Home Today)
 * `GOV02-home-real-light.png` / `GOV02-home-real-dark.png` / `GOV02-home-real-notice.png` / `GOV02-home-real-large.png` (D35 Home tab chrome)
+* `HOME-v2-filled-light.png` / `HOME-v2-filled-dark.png` / `HOME-v2-empty-light.png` / `HOME-v2-empty-dark.png` / `HOME-v2-drawer-light.png` / `HOME-v2-drawer-dark.png` (Home v2)
 * `LEG01-01-new-decision.png`
 
 ## Design tokens

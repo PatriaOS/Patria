@@ -1,0 +1,144 @@
+# PHONE_TESTS: 44
+# AREAS: navigation
+# Drawer uses shared Pressable — double tap must open Settings only once.
+# PHASE matches PHONE_TESTS steps so the runner names the step that failed.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'open' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
+          id: "^home$"
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "home-menu-drawer"
+          timeout: 10000
+      - assertVisible:
+          id: "menu-settings"
+      - assertVisible:
+          id: "menu-privacy-security"
+      - assertVisible:
+          id: "home-menu-close"
+      - assertVisible:
+          id: "menu-sign-out"
+      - assertVisible:
+          id: "patria-version"
+- runFlow:
+    when:
+      true: ${PHASE == 'settings'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-settings"
+          timeout: 10000
+      # Double-tap Settings: second tap only while the drawer row is still up
+      # (shared Pressable should swallow a fast second hit; slow Maestro must not fail).
+      - tapOn:
+          id: "menu-settings"
+      - runFlow:
+          when:
+            visible:
+              id: "menu-settings"
+          commands:
+            - tapOn:
+                id: "menu-settings"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-appearance"
+          timeout: 15000
+      - assertVisible:
+          id: "appearance-system"
+      - tapOn:
+          point: 8%, 12%
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - assertNotVisible:
+          id: "home-menu-drawer"
+- runFlow:
+    when:
+      true: ${PHASE == 'privacy_cancel'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-privacy-security"
+          timeout: 10000
+      - tapOn:
+          id: "menu-privacy-security"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
+      - assertVisible:
+          id: "privacy-security-recovery"
+      - tapOn:
+          point: 8%, 12%
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 15000
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-sign-out"
+          timeout: 10000
+      - tapOn:
+          id: "menu-sign-out"
+      - extendedWaitUntil:
+          visible:
+            id: "sign-out-confirm"
+          timeout: 10000
+      - assertVisible: "Cancel"
+      - tapOn:
+          id: "sign-out-cancel"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-sign-out"
+          timeout: 10000
+      - assertVisible:
+          id: "home-menu-drawer"
+      - tapOn:
+          id: "home-menu-close"
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 10000
+- runFlow:
+    when:
+      true: ${PHASE == 'sign_out'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-sign-out"
+          timeout: 10000
+      - tapOn:
+          id: "menu-sign-out"
+      - extendedWaitUntil:
+          visible:
+            id: "sign-out-confirm"
+          timeout: 10000
+      - tapOn:
+          id: "sign-out-confirm-yes"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-welcome"
+          timeout: 20000

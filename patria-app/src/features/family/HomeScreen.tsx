@@ -1,34 +1,28 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRouter } from 'expo-router';
+import { Menu } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
 
 import {
   AvatarStack,
   Body,
   Button,
-  Card,
   Display,
   DisplayItalic,
   ErrorState,
+  IconButton,
   LoadingState,
   Muted,
   Overline,
+  Pressable,
   Screen,
   Title,
 } from '../../ui';
 import { copy } from '../../lib/copy';
 import { fetchMembers } from '../../lib/family';
 import { signOutAndGoWelcome } from '../../lib/authSession';
-import {
-  approveFirstDevice,
-  approveOwnExtraDevice,
-  declineFirstDevice,
-  fetchFirstDeviceNotices,
-  rejectOwnExtraDevice,
-  type FirstDeviceNotice,
-} from '../../lib/crypto/deviceAccess';
-import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
+import { fetchFirstDeviceNotices } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import {
   homeRotationQueryKey,
@@ -37,39 +31,45 @@ import {
   type HomeRotationUi,
   type RotationOutcome,
 } from '../../lib/crypto/rotateFamilyKey';
-import {
-  approveRecoveryAsContact,
-  cancelledCopyKind,
-  cancelRecoveryRequest,
-  requestCanFinish,
-  supabaseRecoverFlowGateway,
-  type RecoveryRequestRow,
-} from '../../lib/crypto/recoverFlow';
+import { supabaseRecoverFlowGateway } from '../../lib/crypto/recoverFlow';
 import {
   fulfillAcceptedContacts,
   loadRecoverySnapshot,
-  respondRecoveryInvite,
 } from '../../lib/crypto/recoverySetup';
-import { ApproveMyDeviceCard, formatDeviceWhen } from '../keys/ApproveMyDeviceScreen';
 import { memberDisplayName } from '../../lib/displayName';
-import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
+import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
+import { countDeviceOrJoinAttention } from './deviceAttention';
 import { homeDateOverline, homeFamilyLine, homeGreeting } from './homeGreeting';
+import { HomeMenuDrawer } from './HomeMenuDrawer';
 import { HomeToday } from './HomeToday';
+import { NeedsYouBell } from './NeedsYouBell';
+import { buildNeedsYouItems } from './needsYou';
 import { SecurityStatusCard } from './SecurityStatusCard';
+import {
+  hydrateRecoveryReminderShown,
+  markRecoveryReminderShown,
+  shouldOfferRecoveryReminder,
+} from './recoveryReminderSession';
+import { RecoveryReminderSheet } from './RecoveryReminderSheet';
 import { useCurrentFamily } from './useCurrentFamily';
+import { defaultTimezone } from '../sync/syncLabels';
+import { fetchSyncTasks } from '../sync/syncApi';
+import { useSyncSpace } from '../sync/useSyncSpace';
 
 export function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const { userId, spaceId, membershipsQuery, current, admin, keyHolder } = useCurrentFamily();
+  const sync = useSyncSpace();
   const [signingOut, setSigningOut] = useState(false);
-  const [busyNoticeId, setBusyNoticeId] = useState<string | null>(null);
-  const [noticeError, setNoticeError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderHydrated, setReminderHydrated] = useState(false);
   const [rotationUi, setRotationUi] = useState<HomeRotationUi>('hidden');
   const [rotationAttempt, setRotationAttempt] = useState(0);
 
@@ -114,6 +114,11 @@ export function HomeScreen() {
     enabled: Boolean(spaceId && admin),
     refetchOnMount: 'always',
     queryFn: () => supabaseRecoverFlowGateway.listRemovedNotices(spaceId as string),
+  });
+  const tasksQuery = useQuery({
+    queryKey: ['syncTasks', spaceId],
+    enabled: Boolean(spaceId),
+    queryFn: () => fetchSyncTasks(spaceId as string),
   });
   const onRefresh = useCallback(() => {
     if (userId) {
@@ -209,6 +214,77 @@ export function HomeScreen() {
     queryClient,
   ]);
 
+  useEffect(() => {
+    if (keyHolder && spaceId && userId && keyStatusQuery.data === 'ready') {
+      if ((recoveryQuery.data?.accepted ?? 0) === 0) {
+        return;
+      }
+      void fulfillAcceptedContacts({
+        spaceId,
+        memberUserId: userId,
+      }).catch((caught: unknown) => {
+        logFailedAction(caught);
+      });
+    }
+  }, [keyHolder, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted]);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+    let cancelled = false;
+    void hydrateRecoveryReminderShown(userId).then(() => {
+      if (!cancelled) {
+        setReminderHydrated(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (
+      !userId ||
+      !reminderHydrated ||
+      !current ||
+      menuOpen ||
+      recoveryQuery.isLoading ||
+      keyStatusQuery.isLoading
+    ) {
+      return;
+    }
+    const keysReady = keyStatusQuery.data === 'ready';
+    if (
+      !shouldOfferRecoveryReminder({
+        userId,
+        keyHolder,
+        recoveryAccepted: recoveryQuery.data?.accepted ?? 0,
+        hasPaper: Boolean(recoveryQuery.data?.hasPaper),
+        onboarding: !keysReady,
+      })
+    ) {
+      return;
+    }
+    const open = () => {
+      setReminderOpen(true);
+      void markRecoveryReminderShown(userId);
+    };
+    const handle = setTimeout(open, 0);
+    return () => clearTimeout(handle);
+  }, [
+    userId,
+    reminderHydrated,
+    current,
+    menuOpen,
+    keyHolder,
+    keyStatusQuery.isLoading,
+    keyStatusQuery.data,
+    recoveryQuery.isLoading,
+    recoveryQuery.data?.accepted,
+    recoveryQuery.data?.hasPaper,
+  ]);
+
   const refreshing =
     membershipsQuery.isRefetching ||
     membersQuery.isRefetching ||
@@ -221,172 +297,12 @@ export function HomeScreen() {
     setSigningOut(true);
     try {
       await signOutAndGoWelcome({
+        userId,
         signOut: () => supabase.auth.signOut(),
         replace: (href) => router.replace(href),
       });
     } finally {
       setSigningOut(false);
-    }
-  };
-
-  const onLetIn = async (notice: FirstDeviceNotice) => {
-    if (!userId || !spaceId) {
-      return;
-    }
-    setNoticeError(null);
-    setBusyNoticeId(notice.id);
-    try {
-      const device = await ensureDeviceIdentity(userId);
-      const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
-      await approveFirstDevice({
-        spaceId,
-        adminUserId: userId,
-        adminDeviceId: device.deviceId,
-        adminPrivateKey: device.privateKey,
-        notice,
-        memberRole: member?.role,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
-      await queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
-    } catch (error) {
-      const info = describeCaughtError(error);
-      logFailedAction(error);
-      logKeyStep('let_in_failed', `${info.code} ${info.message}`);
-      setNoticeError(copy.home.letInFailed);
-    } finally {
-      setBusyNoticeId(null);
-    }
-  };
-
-  const onDecline = async (noticeId: string) => {
-    setNoticeError(null);
-    setBusyNoticeId(noticeId);
-    try {
-      await declineFirstDevice(noticeId);
-      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
-    } catch (error) {
-      logFailedAction(error);
-      setNoticeError(copy.home.declineFailed);
-    } finally {
-      setBusyNoticeId(null);
-    }
-  };
-
-  const onApproveMyPhone = async (notice: FirstDeviceNotice) => {
-    if (!userId || !spaceId || !current) {
-      return;
-    }
-    setNoticeError(null);
-    setBusyNoticeId(notice.id);
-    try {
-      const device = await ensureDeviceIdentity(userId);
-      await approveOwnExtraDevice({
-        spaceId,
-        userId,
-        approverDeviceId: device.deviceId,
-        approverPrivateKey: device.privateKey,
-        notice,
-        role: current.role,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
-      await queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
-    } catch (error) {
-      const info = describeCaughtError(error);
-      logFailedAction(error);
-      logKeyStep('approve_own_phone_failed', `${info.code} ${info.message}`);
-      setNoticeError(copy.home.approvePhoneFailed);
-    } finally {
-      setBusyNoticeId(null);
-    }
-  };
-
-  const onRejectMyPhone = async (notice: FirstDeviceNotice) => {
-    if (!userId || !spaceId) {
-      return;
-    }
-    setNoticeError(null);
-    setBusyNoticeId(notice.id);
-    try {
-      await rejectOwnExtraDevice({ spaceId, userId, notice });
-      await queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
-    } catch (error) {
-      logFailedAction(error);
-      setNoticeError(copy.home.rejectPhoneFailed);
-    } finally {
-      setBusyNoticeId(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!keyHolder || !spaceId || !userId || keyStatusQuery.data !== 'ready') {
-      return;
-    }
-    if ((recoveryQuery.data?.accepted ?? 0) === 0) {
-      return;
-    }
-    void fulfillAcceptedContacts({
-      spaceId,
-      memberUserId: userId,
-    }).catch((caught: unknown) => {
-      logFailedAction(caught);
-    });
-  }, [keyHolder, spaceId, userId, keyStatusQuery.data, recoveryQuery.data?.accepted]);
-
-  const onCancelRecovery = async (requestId: string) => {
-    setNoticeError(null);
-    setBusyNoticeId(requestId);
-    try {
-      await cancelRecoveryRequest(requestId);
-      await queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
-    } catch (caught) {
-      logFailedAction(caught);
-      setNoticeError(copy.home.recoveryCancelFailed);
-    } finally {
-      setBusyNoticeId(null);
-    }
-  };
-
-  const onApproveRecoveryHelp = async (request: RecoveryRequestRow) => {
-    if (!userId || !spaceId) {
-      return;
-    }
-    const slot = recoveryQuery.data?.contacts.find(
-      (row) => row.userId === userId && row.status === 'accepted',
-    )?.slot;
-    if (!slot) {
-      return;
-    }
-    setNoticeError(null);
-    setBusyNoticeId(request.id);
-    try {
-      const device = await ensureDeviceIdentity(userId);
-      await approveRecoveryAsContact({
-        spaceId,
-        request,
-        slot,
-        contactUserId: userId,
-        contactDeviceId: device.deviceId,
-        contactPrivateKey: device.privateKey,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
-    } catch (caught) {
-      logFailedAction(caught);
-      setNoticeError(copy.home.recoveryApproveFailed);
-    } finally {
-      setBusyNoticeId(null);
-    }
-  };
-
-  const onRecoveryRespond = async (accept: boolean) => {
-    if (!spaceId || !userId) {
-      return;
-    }
-    try {
-      await respondRecoveryInvite({ spaceId, userId, accept });
-      await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
-    } catch (caught) {
-      logFailedAction(caught);
-      setNoticeError(copy.common.error);
     }
   };
 
@@ -401,6 +317,7 @@ export function HomeScreen() {
       <Muted tone="primary">{copy.home.joinFamily}</Muted>
     </Pressable>
   );
+
   if (membershipsQuery.isLoading) {
     return (
       <Screen withTabBar>
@@ -476,6 +393,34 @@ export function HomeScreen() {
     id: row.userId,
     name: memberDisplayName(row.displayName),
   }));
+  const selfName =
+    (membersQuery.data ?? []).find((row) => row.userId === userId)?.displayName ?? '';
+
+  const deviceOrJoinCount = countDeviceOrJoinAttention({
+    userId,
+    admin,
+    keyStatus: keyStatusQuery.data,
+    notices: noticesQuery.data ?? [],
+    recoveryRequests: recoveryRequestsQuery.data ?? [],
+    recovery: recoveryQuery.data,
+    removedNoticeCount: (removedNoticesQuery.data ?? []).length,
+  });
+  const needsYouCount = buildNeedsYouItems({
+    keyHolder,
+    recoveryAccepted: recoveryQuery.data?.accepted ?? 0,
+    hasPaper: Boolean(recoveryQuery.data?.hasPaper),
+    recoveryStatus: recoveryQuery.data?.status,
+    syncMeeting: sync.active,
+    timeZone: sync.schedule?.timezone ?? defaultTimezone(),
+    userId,
+    tasks: tasksQuery.data ?? [],
+    deviceOrJoinCount,
+  }).length;
+  const recoveryNeedsDot =
+    keyHolder &&
+    ((recoveryQuery.data?.accepted ?? 0) < 2 ||
+      ((recoveryQuery.data?.accepted ?? 0) >= 2 && !recoveryQuery.data?.hasPaper));
+
   return (
     <Screen
       withTabBar
@@ -484,19 +429,6 @@ export function HomeScreen() {
       refreshing={refreshing}
       onRefresh={onRefresh}
     >
-      <SecurityStatusCard
-        attentionOnly
-        keyStatus={keyStatusQuery.data}
-        recoveryStatus={recoveryQuery.data?.status}
-        keyHolder={keyHolder}
-        admin={admin}
-        familyName={current.space.name}
-        keysTestID="home-keys-status"
-        recoveryTestID="home-recovery-status"
-        rowTestID={
-          keyStatusQuery.data === 'waitingOwnPhone' ? 'screen-waiting-own-phone' : undefined
-        }
-      />
       {shownRotation === 'updating' ? (
         <Muted testID="home-rotation-status">{copy.home.rotationUpdating}</Muted>
       ) : null}
@@ -513,219 +445,6 @@ export function HomeScreen() {
           />
         </View>
       ) : null}
-      {keyHolder && keyStatusQuery.data === 'ready' && (recoveryQuery.data?.accepted ?? 0) < 2 ? (
-        <Card>
-          <Title>{copy.home.recoveryCardTitle}</Title>
-          <Muted>{copy.home.recoveryCardBody}</Muted>
-          <Button
-            label={copy.home.recoveryCardAction}
-            onPress={() => router.push(routes.recoverySetup)}
-          />
-        </Card>
-      ) : null}
-      {keyHolder &&
-      recoveryQuery.data &&
-      recoveryQuery.data.accepted >= 2 &&
-      !recoveryQuery.data.hasPaper ? (
-        <Button
-          label={copy.home.recoveryPrintedAction}
-          variant="secondary"
-          testID="create-printed-code"
-          onPress={() => router.push(routes.printedCode)}
-        />
-      ) : null}
-      {(recoveryQuery.data?.pending ?? [])
-        .filter((row) => row.userId === userId)
-        .map((row) => (
-          <Card key={row.id}>
-            <Title>{copy.home.recoveryInviteTitle}</Title>
-            <Muted>{copy.home.recoveryInviteBody}</Muted>
-            <Button
-              label={copy.home.recoveryAccept}
-              onPress={() => void onRecoveryRespond(true)}
-            />
-            <Button
-              label={copy.home.recoveryDecline}
-              variant="secondary"
-              onPress={() => void onRecoveryRespond(false)}
-            />
-          </Card>
-        ))}
-      {keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
-        <Button
-          label={copy.home.lostPhone}
-          testID="i-lost-my-phone"
-          variant="secondary"
-          onPress={() => router.push(routes.recoverLostPhone)}
-        />
-      ) : null}
-      {(recoveryRequestsQuery.data ?? []).map((request) => {
-        const member = (membersQuery.data ?? []).find((row) => row.userId === request.userId);
-        const name = memberDisplayName(member?.displayName);
-        const when = formatDeviceWhen(request.newDeviceCreatedAt ?? request.startedAt);
-        const open = request.cancelledAt == null && request.completedAt == null;
-        const own = request.userId === userId;
-        if (own && request.cancelledAt) {
-          return (
-            <Card key={request.id}>
-              <Title>
-                {cancelledCopyKind(request.cancelledBy, userId) === 'you'
-                  ? copy.home.recoveryCancelledByYou
-                  : copy.home.recoveryCancelledByAdmin}
-              </Title>
-            </Card>
-          );
-        }
-        if (own && open) {
-          return (
-            <Card key={request.id}>
-              <Title>{copy.home.recoveryWaiting}</Title>
-              <Muted>{when}</Muted>
-              <Button
-                label={copy.home.notMyPhone}
-                variant="secondary"
-                busy={busyNoticeId === request.id}
-                disabled={busyNoticeId !== null && busyNoticeId !== request.id}
-                onPress={() => void onCancelRecovery(request.id)}
-              />
-              <Button
-                label={copy.recovery.lostTitle}
-                variant="secondary"
-                onPress={() => router.push(routes.recoverLostPhone)}
-              />
-            </Card>
-          );
-        }
-        if (open && !own) {
-          const myContact = recoveryQuery.data?.contacts.find(
-            (row) => row.userId === userId && row.status === 'accepted',
-          );
-          if (!admin && !myContact) {
-            return null;
-          }
-          return (
-            <Card key={request.id}>
-              <Title>
-                {admin
-                  ? copy.home.recoveryAdminNotice.replace('{name}', name)
-                  : copy.home.recoveryContactNotice.replace('{name}', name)}
-              </Title>
-              {myContact ? (
-                <Muted>{copy.home.recoveryContactNotice.replace('{name}', name)}</Muted>
-              ) : null}
-              <Muted>{when}</Muted>
-              {myContact && requestCanFinish(request) ? (
-                <Button
-                  label={copy.home.recoveryApproveHelp}
-                  busy={busyNoticeId === request.id}
-                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
-                  onPress={() => void onApproveRecoveryHelp(request)}
-                />
-              ) : null}
-              {admin ? (
-                <Button
-                  label={copy.home.stopThisRecovery}
-                  variant="secondary"
-                  busy={busyNoticeId === request.id}
-                  disabled={busyNoticeId !== null && busyNoticeId !== request.id}
-                  onPress={() => void onCancelRecovery(request.id)}
-                />
-              ) : null}
-            </Card>
-          );
-        }
-        return null;
-      })}
-      {(removedNoticesQuery.data ?? []).map((notice) => {
-        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
-        const name = memberDisplayName(member?.displayName);
-        return (
-          <Card key={notice.id}>
-            <Title>{copy.home.deviceRemovedNotice.replace('{name}', name)}</Title>
-          </Card>
-        );
-      })}
-      {noticeError ? <ErrorState message={noticeError} /> : null}
-      {(noticesQuery.data ?? []).map((notice) => {
-        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.userId);
-        const name = memberDisplayName(member?.displayName);
-        const own = notice.userId === userId;
-        const whenLabel = formatDeviceWhen(notice.deviceCreatedAt);
-        const setUp = copy.home.deviceSetUp.replace('{when}', whenLabel);
-
-        if (notice.kind === 'extra_device') {
-          if (own && keyStatusQuery.data === 'ready') {
-            return (
-              <ApproveMyDeviceCard
-                key={notice.id}
-                notice={notice}
-                name={name}
-                canApprove
-                busy={busyNoticeId === notice.id}
-                disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-                onApprove={() => void onApproveMyPhone(notice)}
-                onReject={() => void onRejectMyPhone(notice)}
-              />
-            );
-          }
-          if (admin && !own) {
-            return (
-              <ApproveMyDeviceCard
-                key={notice.id}
-                notice={notice}
-                name={name}
-                canApprove={false}
-                busy={false}
-                disabled
-                onApprove={() => undefined}
-                onReject={() => undefined}
-              />
-            );
-          }
-          return null;
-        }
-
-        if (notice.kind === 'rejected_device') {
-          if (!admin) {
-            return null;
-          }
-          return (
-            <Card key={notice.id}>
-              <Title>{copy.home.extraDeviceRejectedNotice.replace('{name}', name)}</Title>
-              <Muted>{setUp}</Muted>
-            </Card>
-          );
-        }
-
-        if (!admin || own) {
-          return null;
-        }
-        const title = copy.home.letInNotice.replace('{name}', name);
-        return (
-          <Card key={notice.id}>
-            <Title testID="let-in-notice">{title}</Title>
-            <Muted>
-              {member ? copy.roles[member.role] : ''}
-              {member ? ' · ' : ''}
-              {setUp}
-            </Muted>
-            <Button
-              label={copy.home.letIn}
-              busy={busyNoticeId === notice.id}
-              disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-              onPress={() => void onLetIn(notice)}
-              accessibilityHint={title}
-            />
-            <Button
-              label={copy.home.declineDevice}
-              variant="secondary"
-              busy={busyNoticeId === notice.id}
-              disabled={busyNoticeId !== null && busyNoticeId !== notice.id}
-              onPress={() => void onDecline(notice.id)}
-            />
-          </Card>
-        );
-      })}
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Overline tone="terracotta">{homeDateOverline()}</Overline>
@@ -734,17 +453,55 @@ export function HomeScreen() {
             {homeFamilyLine(current.space.name)}
           </DisplayItalic>
         </View>
-        <Pressable
-          testID="home-avatars"
-          accessibilityRole="button"
-          accessibilityLabel={copy.home.avatarsLabel}
-          onPress={() => router.push(routes.family)}
-          style={styles.avatars}
-        >
-          <AvatarStack people={memberPeople} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            testID="home-avatars"
+            accessibilityRole="button"
+            accessibilityLabel={copy.home.avatarsLabel}
+            onPress={() => router.push(routes.family)}
+            style={styles.avatars}
+          >
+            <AvatarStack people={memberPeople} />
+          </Pressable>
+          <View style={styles.iconRow}>
+            <NeedsYouBell count={needsYouCount} onPress={() => router.push(routes.needsYou)} />
+            <IconButton
+              icon={Menu}
+              name="menu"
+              accessibilityLabel={copy.home.openMenu}
+              testID="home-menu"
+              onPress={() => setMenuOpen(true)}
+            />
+          </View>
+        </View>
       </View>
+      <SecurityStatusCard
+        attentionOnly
+        keyStatus={keyStatusQuery.data}
+        recoveryStatus={undefined}
+        keyHolder={keyHolder}
+        admin={admin}
+        familyName={current.space.name}
+        keysTestID="home-keys-status"
+        recoveryTestID="home-recovery-status"
+      />
       <HomeToday />
+      <HomeMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        displayName={selfName}
+        familyName={current.space.name}
+        privacyNeedsAttention={recoveryNeedsDot}
+        onSignOut={() => void onSignOut()}
+      />
+      <RecoveryReminderSheet
+        visible={reminderOpen && !menuOpen}
+        onSetUp={() => {
+          setReminderOpen(false);
+          router.push(routes.privacySecurity);
+        }}
+        onLater={() => setReminderOpen(false)}
+      />
     </Screen>
   );
 }
@@ -760,9 +517,19 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: space.xxs,
   },
+  headerActions: {
+    alignItems: 'flex-end',
+    gap: space.xs,
+  },
   avatars: {
     minHeight: 44,
     justifyContent: 'center',
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xxs,
+    minHeight: 44,
   },
   joinLink: {
     alignSelf: 'center',

@@ -52,9 +52,14 @@ Stored as `system` | `light` | `dark` in expo-secure-store under `patria.appeara
 
 ## Components (`patria-app/src/ui`)
 
-Screen, Display, DisplayItalic, Title, Section, Body, Small, Caption, Overline, Button (primary, accent, ghost, secondary, danger, loading), Card (default, hero, soft), ChoiceChip, UnderlineTabs, StatusPill, Avatar, AvatarStack, PhotoTile, Icon, IconButton, IconCircle, ListRow, TextField, EmptyState, Skeleton, Banner, Divider, TabBar, LoadingState, ErrorState.
+Screen, Display, DisplayItalic, Title, Section, Body, Small, Caption, Overline, Button (primary, accent, ghost, secondary, danger, loading), ButtonStack, Card (default, hero, soft; optional `tone`), ChoiceChip, UnderlineTabs, StatusPill, Avatar, AvatarStack, PhotoTile, Icon, IconButton, IconCircle, ListRow, TextField, EmptyState, Skeleton, Banner, Divider, TabBar, LoadingState, ErrorState.
 
 Cards always use `theme.surface` / `theme.softSurface` / `theme.heroCard`. A Jest check fails if a Card in dark mode still has the light cream surface.
+
+### Additions (D36 — D32 unchanged)
+
+* **ButtonStack:** full-width vertical stack for CTAs. Default gap is `space.sm`. Use it for stacked Vault / Sync / Memories / voice / drawer confirm actions instead of one-off margins.
+* **Card `tone`:** optional `hero` | `surface` | `warm`. Sets background, border, title/body/overline ink and the default filled button (mustard on hero/warm, primary green on surface) through `CardTone` context. Home Sync and Vault use `hero`; This week and Memories use `surface`; the voice card uses `warm`. Soft / default Card without `tone` keeps the D32 behaviour.
 
 ### Accessibility
 
@@ -71,17 +76,18 @@ Development only: `/design-gallery`. Redirects away in production builds. Use Li
 
 Tabs: Home, Memories, **Sync**, Vault, Family (D35). Appearance lives on Family (`Match my phone` / `Light` / `Dark`). Headers, the tab bar and the status bar follow the theme. A screen with a header does not add a second top safe-area inset; a tab screen does not add a second bottom inset.
 
-## Home Today layout (D35)
+## Home Today layout (D35 layout; D36 behaviour)
 
 Top to bottom on Home:
 
-1. Security notices only when action is needed (same wording and prominence as before). Home tab notice dot unchanged.
-2. Overline date in small capitals; Display greeting on two lines (“Good evening,” + italic primary family name); `AvatarStack` top right opens Family.
-3. Family Sync hero card (`heroCard`): mustard overline countdown (TONIGHT / TODAY / TOMORROW / IN N DAYS), title from the meeting circle, body from agenda counts, Review agenda (accent) and Add an item (ghost). No schedule: set-up invitation for admins, ask-admin copy for others.
-4. On this day soft card only when a circle-visible memory exists for this month and day in an earlier year (family time zone); otherwise omitted.
-5. This week section with See all: up to four Sync tasks, checkbox, owner/backup, day chip, Done today/yesterday.
+1. Overline date in small capitals; Display greeting on two lines (“Good evening,” + italic primary family name); avatars, Needs you bell and Open menu top right (avatars open Family).
+2. Sync card (`tone="hero"`): mustard overline countdown (TONIGHT / TODAY / TOMORROW / IN N DAYS), title from the meeting circle, body from agenda counts, Review agenda and Add an item in a ButtonStack. No schedule: set-up invitation for admins, ask-admin copy for others.
+3. This week (`tone="surface"`) with See all: up to four Sync tasks, checkbox, owner/backup, day chip, Done today/yesterday; empty card uses Add to agenda (primary).
+4. Latest voice note (`tone="warm"`): peek from memory-only decrypt, or empty / locked / ask-admin.
+5. Memories (`tone="surface"`): recent tiles or empty add; On this day is a line inside this card when a circle-visible memory matches this month and day in an earlier year.
+6. From the Vault (`tone="hero"`): peek from memory-only decrypt, or empty / locked / ask-admin.
 
-Keys and recovery status pills live on Family, not Home. Vault teaser and Recent memories leave Home.
+Urgent items live under the Needs you bell and on Family / Privacy and Security (D36). Keys and recovery status pills stay on Family. A one-shot recovery reminder may appear after sign-in only (D36).
 
 ## Screens (Layer 3)
 

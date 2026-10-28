@@ -27,6 +27,7 @@ import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
+import { FamilyDeviceNotices } from './FamilyDeviceNotices';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
 
@@ -89,6 +90,7 @@ export function FamilyScreen() {
     setSigningOut(true);
     try {
       await signOutAndGoWelcome({
+        userId,
         signOut: () => supabase.auth.signOut(),
         replace: (href) => router.replace(href),
       });
@@ -206,6 +208,7 @@ export function FamilyScreen() {
     >
       <Title>{copy.tabs.family}</Title>
       <Title testID="family-name">{current.space.name}</Title>
+      <FamilyDeviceNotices />
 
       {(membershipsQuery.data ?? []).length > 1 ? (
         <View>

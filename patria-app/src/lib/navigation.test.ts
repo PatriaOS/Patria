@@ -51,6 +51,8 @@ describe('navigation headers', () => {
     expect(routes.memoriesConnectSettings).toBe('/(signed-in)/memories-connect-settings');
     expect(routes.memoryItem('abc')).toBe('/(signed-in)/memory/abc');
     expect(routes.appearance).toBe('/(signed-in)/appearance');
+    expect(routes.needsYou).toBe('/(signed-in)/needs-you');
+    expect(routes.privacySecurity).toBe('/(signed-in)/privacy-security');
     expect(routes.family).toBe('/(signed-in)/family');
     expect(routes.sync).toBe('/(signed-in)/sync');
     expect(routes.syncSchedule).toBe('/(signed-in)/sync-schedule');

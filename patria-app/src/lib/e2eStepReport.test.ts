@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * Keep aligned with scripts/e2e-lib.mjs notReachedRows.
+ * Keep aligned with scripts/e2e-lib.mjs notReachedRows + firstFailureSummary.
  */
 function notReachedRows(input: {
   testNumber: number;
@@ -23,6 +23,17 @@ function notReachedRows(input: {
     });
   }
   return rows;
+}
+
+function firstFailureSummary(
+  rows: { stepNumber: number; label: string; status: string; detail?: string }[],
+) {
+  const failedStep = rows.find((row) => row.status === 'fail');
+  if (!failedStep) {
+    return '';
+  }
+  const detail = failedStep.detail ? ` — ${failedStep.detail}` : '';
+  return `step ${failedStep.stepNumber}: ${failedStep.label}${detail}`;
 }
 
 describe('e2e step reporter', () => {
@@ -74,5 +85,32 @@ describe('e2e step reporter', () => {
         failedStepNumber: 1,
       }),
     ).toEqual([]);
+  });
+
+  it('names the step that actually failed, not an earlier pass', () => {
+    expect(
+      firstFailureSummary([
+        { stepNumber: 1, label: 'Menu drawer opens from Home', status: 'pass' },
+        { stepNumber: 2, label: 'Double-tap Settings opens Appearance once', status: 'pass' },
+        {
+          stepNumber: 3,
+          label: 'Privacy and Security and Sign out cancel',
+          status: 'fail',
+          detail: 'Assertion is false: id: sign-out-confirm is visible',
+        },
+        { stepNumber: 4, label: 'Confirm Sign out lands on Welcome', status: 'skip', detail: 'not reached' },
+      ]),
+    ).toBe(
+      'step 3: Privacy and Security and Sign out cancel — Assertion is false: id: sign-out-confirm is visible',
+    );
+  });
+
+  it('returns empty when nothing failed', () => {
+    expect(
+      firstFailureSummary([
+        { stepNumber: 1, label: 'Open', status: 'pass' },
+        { stepNumber: 2, label: 'Done', status: 'pass' },
+      ]),
+    ).toBe('');
   });
 });

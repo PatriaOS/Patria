@@ -19,6 +19,15 @@ appId: app.patria.dev
       - extendedWaitUntil:
           notVisible: "Loading from Metro..."
           timeout: 120000
+# If a prior session left Home under the reminder Modal, Maestro cannot see
+# id home and sign_in_form never signs out. Brief optional dismiss first.
+- extendedWaitUntil:
+    visible:
+      id: "recovery-reminder-later"
+    timeout: 3000
+    optional: true
+- runFlow:
+    file: dismiss_recovery_reminder.yaml
 - runFlow:
     when:
       visible:
@@ -39,6 +48,7 @@ appId: app.patria.dev
     when:
       true: ${EXPECT_HOME == '0'}
     commands:
+      # Create / join paths: never wait for the recovery reminder after sign-in.
       - extendedWaitUntil:
           visible:
             id: "^screen-create-family$|^home$"
@@ -56,6 +66,14 @@ appId: app.patria.dev
     when:
       true: ${EXPECT_HOME != '0'}
     commands:
+      # Reminder after this sign-in: short optional wait (waiting phones never see it).
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-later"
+          timeout: 8000
+          optional: true
+      - runFlow:
+          file: dismiss_recovery_reminder.yaml
       - extendedWaitUntil:
           visible:
             id: "^home$|^screen-waiting-own-phone$"

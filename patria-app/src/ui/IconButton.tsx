@@ -8,13 +8,22 @@ import { Pressable } from './Pressable';
 
 type Props = {
   icon: LucideIcon;
+  /** Must match a key in ui/Icon ICONS (e.g. menu, x). Tab bar uses the same map. */
+  name?: string;
   accessibilityLabel: string;
   onPress: () => void;
   testID?: string;
   disabled?: boolean;
 };
 
-export function IconButton({ icon, accessibilityLabel, onPress, testID, disabled = false }: Props) {
+export function IconButton({
+  icon,
+  name,
+  accessibilityLabel,
+  onPress,
+  testID,
+  disabled = false,
+}: Props) {
   const { colors } = useTheme();
   return (
     <Pressable
@@ -30,7 +39,7 @@ export function IconButton({ icon, accessibilityLabel, onPress, testID, disabled
         { opacity: disabled ? 0.5 : pressed ? 0.7 : 1 },
       ]}
     >
-      <Icon icon={icon} color={colors.text} decorative />
+      <Icon icon={icon} name={name} color={colors.text} decorative />
     </Pressable>
   );
 }

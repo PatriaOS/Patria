@@ -78,6 +78,19 @@ export function notReachedRows({ testNumber, phoneSteps, reportsForTest, failedS
   }
   return rows;
 }
+
+/**
+ * Summary cell for Femi's tables: the phone-test step that actually failed,
+ * not whatever step happened to wrap a multi-step Maestro flow.
+ */
+export function firstFailureSummary(rows) {
+  const failedStep = rows.find((row) => row.status === 'fail');
+  if (!failedStep) {
+    return '';
+  }
+  const detail = failedStep.detail ? ` — ${failedStep.detail}` : '';
+  return `step ${failedStep.stepNumber}: ${failedStep.label}${detail}`;
+}
 export const APP_BUNDLE_ID = 'app.patria.dev';
 export const LARGE_TEXT_CATEGORY = 'UIContentSizeCategoryAccessibilityXXL';
 

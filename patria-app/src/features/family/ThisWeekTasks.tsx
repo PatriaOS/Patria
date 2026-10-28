@@ -2,7 +2,7 @@ import { Check } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { copy } from '../../lib/copy';
-import { Body, Caption, Card, ErrorState, Icon, Muted, Pressable, Section } from '../../ui';
+import { Body, Button, Caption, Card, ErrorState, Icon, Muted, Pressable, Section } from '../../ui';
 import { radius, space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
 import type { SyncTaskRow } from '../sync/syncApi';
@@ -19,8 +19,10 @@ type Props = {
   failed: boolean;
   toggleError: string | null;
   now?: Date;
+  canAdd?: boolean;
   onToggle: (task: SyncTaskRow) => void;
   onSeeAll: () => void;
+  onAdd?: () => void;
 };
 
 function TaskRow({
@@ -115,10 +117,22 @@ export function ThisWeekTasks(props: Props) {
       {props.toggleError ? <ErrorState message={props.toggleError} /> : null}
       {!props.failed && props.loading ? <Muted>{copy.common.loading}</Muted> : null}
       {!props.failed && !props.loading && shown.length === 0 ? (
-        <Muted testID="home-this-week-empty">{copy.home.thisWeekEmpty}</Muted>
+        <Card tone="surface" testID="home-this-week-empty">
+          <Muted>{copy.home.thisWeekEmpty}</Muted>
+          <Body>{copy.home.thisWeekEmptyBody}</Body>
+          {props.canAdd && props.onAdd ? (
+            <Button
+              label={copy.home.thisWeekAdd}
+              testID="home-this-week-add"
+              onPress={props.onAdd}
+            />
+          ) : (
+            <Muted>{copy.home.thisWeekAskAdmin}</Muted>
+          )}
+        </Card>
       ) : null}
       {!props.failed && !props.loading && shown.length > 0 ? (
-        <Card>
+        <Card tone="surface">
           {shown.map((task) => (
             <TaskRow
               key={task.id}

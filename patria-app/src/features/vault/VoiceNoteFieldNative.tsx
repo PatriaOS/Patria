@@ -10,7 +10,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, View } from 'react-native';
 
-import { Button, Caption, ErrorState } from '../../ui';
+import { Button, ButtonStack, Caption, ErrorState } from '../../ui';
 import { copy } from '../../lib/copy';
 import { wipe } from '../../lib/crypto/bytes';
 import { VAULT_AUDIO_MAX_SECONDS } from '../../lib/crypto/vaultAudio';
@@ -138,7 +138,7 @@ export function VoiceNoteFieldNative({
         />
       ) : null}
       {hasNote ? (
-        <>
+        <ButtonStack>
           <Button
             label={copy.vault.play}
             variant="secondary"
@@ -161,7 +161,7 @@ export function VoiceNoteFieldNative({
             }}
           />
           <Button label={copy.vault.removeVoice} variant="ghost" onPress={onRemove} />
-        </>
+        </ButtonStack>
       ) : null}
     </View>
   );

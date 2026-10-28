@@ -6,6 +6,7 @@ import {
   Banner,
   Body,
   Button,
+  ButtonStack,
   Caption,
   Card,
   Display,
@@ -289,7 +290,7 @@ export function SyncHubView(props: SyncHubViewProps) {
             {copy.sync.missedNoGuilt}
           </Body>
           {props.admin ? (
-            <>
+            <ButtonStack>
               <Button
                 label={copy.sync.holdItNow}
                 variant="accent"
@@ -302,7 +303,7 @@ export function SyncHubView(props: SyncHubViewProps) {
                 disabled={props.busy}
                 onPress={props.onNextDate}
               />
-            </>
+            </ButtonStack>
           ) : null}
         </>
       ) : null}

@@ -58,6 +58,8 @@ export const screenTitles = {
   vaultEntry: copy.vault.title,
   family: copy.tabs.family,
   appearance: copy.appearance.title,
+  needsYou: copy.home.needsYouTitle,
+  privacySecurity: copy.home.privacySecurityTitle,
 } as const;
 
 export const routes = {
@@ -98,6 +100,8 @@ export const routes = {
   vaultEntry: (entryId: string) => `/(signed-in)/vault/${entryId}` as const,
   family: '/(signed-in)/family',
   appearance: '/(signed-in)/appearance',
+  needsYou: '/(signed-in)/needs-you',
+  privacySecurity: '/(signed-in)/privacy-security',
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {

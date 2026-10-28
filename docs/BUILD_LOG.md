@@ -7,6 +7,55 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — D36 Home v2 recorded
+
+Recorded D36 in DECISIONS.md (ButtonStack, Needs you off Home, once-per-sign-in reminder with AsyncStorage marker, card tones, empty/locked states, memory-only peeks, in-drawer sign-out confirm, icon map). DESIGN_SYSTEM.md lists ButtonStack and Card `tone` as additions; D32 freeze unchanged. PHONE_TESTS 42–45 match the shipped behaviour.
+
+---
+
+## 2026-10-27 — Recovery reminder once per sign-in (persisted)
+
+The reminder’s “shown” flag lived only in memory, so every cold start offered the sheet again and covered Home (smoke test 8 reopen). Persist a non-sensitive AsyncStorage marker `patria.recoveryReminder.shown.<userId>` = `1` when the sheet is shown; hydrate before offering; clear on sign out. Cold start with the same session stays quiet; Needs you still lists recovery. Phone test 45 step 5 covers reopen; 08 reopen scrolls to keys status (not lost — reminder required keys ready).
+
+---
+
+## 2026-10-27 — Drawer Sign out pin + honest e2e step labels
+
+Sign out sat in the drawer ScrollView under a pinned version line, so Maestro “tapped” a clipped row and the in-drawer confirm never opened. Sign out is pinned above the version. Phone tests 44 and 45 run one Maestro PHASE per PHONE_TESTS step; `firstFailureSummary` names that step in the table (with a unit test). Family-tab sign-out now clears the recovery reminder session via `signOutAndGoWelcome`, so the next sign-in can show the sheet again.
+
+
+---
+
+## 2026-10-27 — Maestro 42/44/45/11 from debug evidence
+
+42 scrolled Sync off screen before tapping Review — scroll Review back into view. 44 matched native `Alert` title `Sign out?` as regex against the menu label `Sign out`, then never found Cancel (system alert outside the app tree); sign-out confirm is now an in-drawer sheet with testIDs. 45 tapped Home tab while Needs you (stack) hides the tab bar — back twice instead. 11’s seedLetIn after test 9 found no pending phone; seed is idempotent: waiting → let in, else verify member row + keys_ready + wrap.
+
+---
+
+## 2026-10-27 — Home card tones + waiting keys on Home
+
+Card `tone` (hero / surface / warm) sets box, text and default CTA together via context — Sync and Vault hero+mustard, This week and Memories surface+green, voice warm+mustard. Restored calm keys-waiting status on Home (attention-only SecurityStatusCard) so Test 2 still sees “Waiting for a family admin…”. Sign-in: brief optional reminder dismiss before the form (Modal hid Home and blocked sign-out) and again after sign-in with a short timeout so waiting phones are not stuck.
+
+---
+
+## 2026-10-27 — Home header icons + reminder Maestro visibility
+
+Bell and menu were empty circles: `Icon` only draws paths from its local SVG map (same as the tab bar), and Menu/Bell/X were never added, so the SVG had no strokes. Added Lucide menu/bell/x paths; transparent 44 pt hits; badge on the bell’s top-right. This week “Add to agenda” uses primary green (mustard stays on Sync only). Sign-in reminder Modal covers Home so Maestro never saw `id: home` — shared sign_in waits for the reminder, dismisses it, then asserts Home; test 45 waits for the sheet itself.
+
+---
+
+## 2026-10-26 — Needs you off Home (bell, reminder, Privacy and Security)
+
+Urgent items leave Home. Home starts at the greeting; a Needs you bell (badge count, 9+) opens a ranked list that only navigates (recovery → Privacy and Security, devices → Family with Let in unchanged, Sync / overdue tasks, Memories only when failed uploads already exist — none yet). Sign-in shows a one-shot in-memory recovery reminder (Set it up now / Remind me later); shared Maestro sign_in taps later when present. Drawer: Privacy and Security is real (Recovery section), group dividers, pinned version + close. Soft-surface chips behind bell and menu so they read under the avatars. Phone tests 9/11/42–44 updated; 45 added. No RLS or hosted push.
+
+---
+
+## 2026-10-26 — Home v2 + ButtonStack
+
+Home is rebuilt to the Figma Today order: Needs attention (≤2 + See all), greeting with Open menu, then Sync / This week / voice / Memories / Vault. On this day stays as a line inside Memories. Family name gets “The ” only when missing, casing preserved. Voice and Vault peeks decrypt at most ten recent sealed rows in memory only (no has_audio column, no AsyncStorage/SecureStore for titles); locked phones show a calm state. Drawer uses the shared Pressable (300 ms re-entry) so a double tap opens one screen. Shared `ButtonStack` spaces stacked Vault / Sync / Memories / voice actions with `space.sm`. Phone tests 42–44.
+
+---
+
 ## 2026-10-26 — Sync 38 step 7 missed a11y exact match
 
 PHASE=missed already showed the no-guilt copy and Hold it now; Maestro failed because assertVisible used a prefix of missedNoGuilt and iOS matches a11y text exactly. Flow now asserts `sync-missed`, the full copy string, and that Hold it now opens Wins. Seed SQL that pushes upcoming `scheduled_for` into the past was already correct.

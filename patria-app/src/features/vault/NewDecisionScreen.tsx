@@ -6,7 +6,17 @@ import { Controller, useForm } from 'react-hook-form';
 import { Alert, Keyboard, View, type TextInputInstance } from 'react-native';
 import { z } from 'zod';
 
-import { Button, Caption, ChoiceChip, ErrorState, Field, LoadingState, Screen, Title } from '../../ui';
+import {
+  Button,
+  ButtonStack,
+  Caption,
+  ChoiceChip,
+  ErrorState,
+  Field,
+  LoadingState,
+  Screen,
+  Title,
+} from '../../ui';
 import { copy } from '../../lib/copy';
 import { wipe } from '../../lib/crypto/bytes';
 import { personalKeyNeedsOtherPhone } from '../../lib/crypto/keyStore';
@@ -494,14 +504,12 @@ export function NewDecisionScreen() {
         onRecorded={onRecorded}
         onRemove={onRemoveVoice}
       />
-      <Button
-        label={copy.vault.save}
-        onPress={() => void onSave()}
-        busy={saving}
-      />
-      {isRootDraft ? (
-        <Button label={copy.vault.discard} variant="ghost" onPress={() => void onDiscard()} />
-      ) : null}
+      <ButtonStack>
+        <Button label={copy.vault.save} onPress={() => void onSave()} busy={saving} />
+        {isRootDraft ? (
+          <Button label={copy.vault.discard} variant="ghost" onPress={() => void onDiscard()} />
+        ) : null}
+      </ButtonStack>
       <View style={{ height: 80 }} />
     </Screen>
   );

@@ -17,6 +17,12 @@ appId: app.patria.dev
           id: "home-family-name"
       - assertVisible:
           id: "home-avatars"
+      - assertVisible:
+          id: "home-needs-you-bell"
+      - assertVisible:
+          id: "home-menu"
+      - assertNotVisible:
+          id: "home-needs-attention"
       - extendedWaitUntil:
           visible:
             id: "home-sync-card"
@@ -24,11 +30,33 @@ appId: app.patria.dev
       - assertVisible:
           id: "home-sync-overline"
       - assertVisible: "Household meeting"
-      - assertNotVisible: "Recent memories"
-      - assertNotVisible:
-          id: "home-vault-card"
       - assertNotVisible:
           id: "home-keys-status"
+      - scrollUntilVisible:
+          element:
+            id: "home-this-week"
+          direction: DOWN
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "home-memories-empty"
+          direction: DOWN
+          timeout: 20000
+          optional: true
+      - scrollUntilVisible:
+          element:
+            id: "home-vault-empty"
+          direction: DOWN
+          timeout: 20000
+          optional: true
+      - assertVisible:
+          id: "home-this-week"
+      # Scrolling for This week / Memories / Vault moves Sync off screen.
+      - scrollUntilVisible:
+          element:
+            id: "home-sync-review"
+          direction: UP
+          timeout: 20000
       - tapOn:
           id: "home-sync-review"
       - extendedWaitUntil:
