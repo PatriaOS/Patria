@@ -260,4 +260,17 @@ GOV02 slice 1. Sync agenda and notes use the **Standard** tier (same idea as pho
 * Countdown (family time zone): TONIGHT if today and start ≥ 17:00; TODAY if today and earlier; TOMORROW; else IN N DAYS.
 * Attributed children must belong to the same family. Former members show as **A former family member**. Admins may edit notes after Finish. On this day uses the family time zone.
 * No Fair Share, no auto agenda, no push, no guilt when a meeting is missed.
-* Home Today layout (same slice, after Sync; Needs-you round 26 Oct): Home starts at the greeting (no attention cards). Urgent items live under a Needs you bell and on Family / Privacy and Security. Sign-in may show a one-shot in-memory recovery reminder. Sync hero card; On this day inside Memories; This week tasks. Keys and recovery status stay on Family.
+* Home Today layout (same slice, after Sync): Sync hero card; On this day inside Memories; This week tasks. The Needs-you and reminder behaviour is D36.
+
+## D36. Home v2 (27 October 2026)
+
+Home is rebuilt to the Today design. D32 tokens stay frozen; this decision adds shared UI pieces and product behaviour only.
+
+* **ButtonStack:** stacked full-width buttons share one vertical gap (`space.sm` by default). Prefer it over ad-hoc margins on Vault, Sync, Memories and voice actions.
+* **Urgent items leave Home:** Home starts at the greeting. A Needs you bell (badge count) opens a ranked list that only navigates — recovery to Privacy and Security, device notices to Family (Let in unchanged), Sync / overdue tasks, and failed Memories uploads when they exist. Keys and recovery status pills stay on Family (and on Privacy and Security for recovery setup).
+* **Recovery reminder once per sign-in:** after sign-in, if the person is a key holder and recovery still needs setup (or a printed code), a bottom sheet offers Set it up now / Remind me later. Showing it writes a non-sensitive AsyncStorage marker `patria.recoveryReminder.shown.<userId>` = `1` (no tokens, keys or names). A cold start with the same session does not show the sheet again. Sign out clears the marker so the next sign-in can offer it. The Needs you bell still lists recovery the whole time.
+* **Card tone rhythm:** Home body cards use `Card` `tone` — `hero` (green + mustard CTA) for Sync and Vault, `surface` (white + green CTA) for This week and Memories, `warm` (sand + mustard CTA) for the voice card. Tone sets box, text and default button together through context.
+* **Empty, locked and permission states:** every Home card has a calm empty, loading, error, locked (no Vault key yet) or ask-admin path. No dead buttons for actions the role cannot take.
+* **Memory-only Home peeks:** the voice and Vault cards decrypt at most ten recent sealed rows in memory to show title, date and visibility only. Nothing from those peeks is written to AsyncStorage or SecureStore. A locked phone shows a calm locked state instead.
+* **Side drawer:** Open menu slides a drawer from the right (name, family, close, group dividers, pinned version and Sign out). Sign out uses an in-drawer confirmation (Cancel / Sign out), not a system alert, so it stays reachable and testable. Shared `Pressable` swallows a fast second tap so double-tap Settings opens Appearance once.
+* **Icon map:** `Icon` only draws strokes from its local Lucide path map (same idea as the tab bar). New icons (menu, bell, x, and any later ones) must be added to that map or they render as empty circles.

@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — D36 Home v2 recorded
+
+Recorded D36 in DECISIONS.md (ButtonStack, Needs you off Home, once-per-sign-in reminder with AsyncStorage marker, card tones, empty/locked states, memory-only peeks, in-drawer sign-out confirm, icon map). DESIGN_SYSTEM.md lists ButtonStack and Card `tone` as additions; D32 freeze unchanged. PHONE_TESTS 42–45 match the shipped behaviour.
+
+---
+
 ## 2026-10-27 — Recovery reminder once per sign-in (persisted)
 
 The reminder’s “shown” flag lived only in memory, so every cold start offered the sheet again and covered Home (smoke test 8 reopen). Persist a non-sensitive AsyncStorage marker `patria.recoveryReminder.shown.<userId>` = `1` when the sheet is shown; hydrate before offering; clear on sign out. Cold start with the same session stays quiet; Needs you still lists recovery. Phone test 45 step 5 covers reopen; 08 reopen scrolls to keys status (not lost — reminder required keys ready).
