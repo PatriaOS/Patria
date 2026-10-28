@@ -9,6 +9,23 @@ jest.mock('../vault/vaultPlayback', () => ({
 }));
 
 describe('HomeMenuDrawer', () => {
+  it('keeps Sign out and version pinned under a divider while the list scrolls', async () => {
+    const { findByTestId } = await renderScreen(
+      <HomeMenuDrawer
+        open
+        onClose={jest.fn()}
+        displayName="Test 1"
+        familyName="The E2E Family"
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(await findByTestId('home-menu-scroll')).toBeTruthy();
+    expect(await findByTestId('home-menu-footer')).toBeTruthy();
+    expect(await findByTestId('menu-privacy-policy')).toBeTruthy();
+    expect(await findByTestId('menu-sign-out')).toBeTruthy();
+  });
+
   it('shows an in-app sign-out confirm that Cancel dismisses', async () => {
     const onSignOut = jest.fn();
     const { findByTestId, queryByTestId, getByText } = await renderScreen(

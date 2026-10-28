@@ -93,7 +93,7 @@ function TaskRow({
   );
 }
 
-/** "This week" on Home Today: up to four Sync tasks with a checkbox, people and a day chip. */
+/** "This week" on Home: up to four Sync tasks due this week (not agenda items). */
 export function ThisWeekTasks(props: Props) {
   const { colors } = useTheme();
   const now = props.now ?? new Date();

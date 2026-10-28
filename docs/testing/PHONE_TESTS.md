@@ -370,7 +370,7 @@ Areas: sync, navigation
 2. Pass if the Sync card is the green hero with a mustard CTA: a line like **SUNDAY FAMILY SYNC · IN 4 DAYS** (or **TONIGHT**, **TODAY**, **TOMORROW**), the title **Household meeting**, a line about the agenda, and **Review agenda** and **Add an item**.
 3. Tap **Review agenda**. Pass if the Sync tab opens. Go back to Home and tap **Add an item**. Pass if the add-to-agenda screen opens.
 4. Pass if no attention cards sit above the greeting, and no keys or recovery status pills show while keys are set up. Pass if the five body cards are present in tone order: Sync (hero), This week (surface), voice (warm), Memories (surface), Vault (hero).
-5. Scroll to **This week**. Pass if it lists up to four open Sync tasks (see Test 38) with a day chip, or the empty card with a green **Add to agenda** when there are none. Tap a task's checkbox when a task is shown. Pass if it stays visible with **Done today**.
+5. Scroll to **This week**. Pass if it lists up to four open Sync tasks due this week (see Test 38) with a day chip, or the empty card with **No tasks due this week.** and a green **Add a task** when there are none. Tap a task's checkbox when a task is shown. Pass if it stays visible with **Done today**.
 6. Tap **See all** beside **This week**. Pass if the Sync tasks screen opens.
 7. Tap the avatars at the top right. Pass if the Family tab opens and shows the keys status and the recovery status below **Your phones**.
 8. On a family with no Sync schedule, pass if the Sync card invites a Family admin to **Set up our Sync**, and tells anyone else to ask a Family admin.
@@ -379,7 +379,7 @@ Areas: sync, navigation
 
 ### 43. Home empty body cards
 Areas: navigation
-1. Sign in as Test 1 in a brand-new family with no Sync schedule, no tasks, no Vault entries and no Memories. Pass if Home shows five empty body cards: Sync (**Set up our Sync** for an admin), This week (**Add to agenda** or the ask-admin line), voice (**Record a voice note** or ask-admin / locked), Memories (**Add photos and videos**), and Vault (**Add a decision** or ask-admin / locked).
+1. Sign in as Test 1 in a brand-new family with no Sync schedule, no tasks, no Vault entries and no Memories. Pass if Home shows five empty body cards: Sync (**Set up our Sync** for an admin), This week (**No tasks due this week.** with **Add a task**, or the ask-admin line), voice (**Record a voice note** or ask-admin / locked), Memories (**Add photos and videos**), and Vault (**Add a decision** or ask-admin / locked).
 2. Pass if each empty card has a short overline, a serif headline and one explanation line. Pass if no card shows a dead button for an action this role cannot take. Pass if a phone without Vault keys shows the calm locked copy on voice and Vault instead of a crash or blank card.
 
 ### 44. Home menu drawer

@@ -47,10 +47,27 @@ function openContent(
   return openVaultEntryContent(row, keys);
 }
 
+function vaultFromRow(
+  row: VaultEntryRow,
+  content: VaultDecisionContent,
+): Extract<HomeVaultHighlight, { state: 'entry' }> {
+  return {
+    state: 'entry',
+    entryId: row.id,
+    title: content.title,
+    whenLabel: formatVaultDate(row.createdAt),
+    visibility: row.visibility,
+  };
+}
+
 /**
  * Picks Home voice + vault card content from sealed rows. Decrypts only the
  * entries needed (at most 10 recent for voice, plus one for the vault highlight).
  * Callers must keep the result in memory only — never persist titles or audio.
+ *
+ * When the voice card shows an entry, the Vault card prefers the next most
+ * recent different entry so the two cards are not the same decision. If there
+ * is no other entry, the Vault card still shows that one.
  */
 export function peekHomeVault(input: {
   rows: VaultEntryRow[];
@@ -67,37 +84,46 @@ export function peekHomeVault(input: {
     return { voice: { state: 'empty' }, vault: { state: 'empty' } };
   }
 
-  const latest = roots[0];
-  const latestContent = openContent(latest, input.keys);
-  const vault: HomeVaultHighlight = latestContent
-    ? {
-        state: 'entry',
-        entryId: latest.id,
-        title: latestContent.title,
-        whenLabel: formatVaultDate(latest.createdAt),
-        visibility: latest.visibility,
-      }
-    : { state: 'empty' };
-
-  const window = roots.slice(0, HOME_VOICE_SCAN_LIMIT);
-  for (const row of window) {
+  let voice: HomeVoicePeek = { state: 'older' };
+  let voiceEntryId: string | null = null;
+  for (const row of roots.slice(0, HOME_VOICE_SCAN_LIMIT)) {
     const content = openContent(row, input.keys);
     if (content?.audio) {
-      return {
-        voice: {
-          state: 'note',
-          entryId: row.id,
-          title: content.title,
-          authorLabel: vaultAuthorLabel(row.authorId, input.members),
-          whenLabel: formatVaultDate(row.createdAt),
-          durationSeconds: content.audio.durationSeconds,
-          audio: content.audio,
-        },
-        vault,
+      voiceEntryId = row.id;
+      voice = {
+        state: 'note',
+        entryId: row.id,
+        title: content.title,
+        authorLabel: vaultAuthorLabel(row.authorId, input.members),
+        whenLabel: formatVaultDate(row.createdAt),
+        durationSeconds: content.audio.durationSeconds,
+        audio: content.audio,
       };
+      break;
     }
   }
 
-  // Entries exist but none of the recent window had audio — point to the Vault.
-  return { voice: { state: 'older' }, vault };
+  let vault: HomeVaultHighlight = { state: 'empty' };
+  for (const row of roots) {
+    if (voiceEntryId != null && row.id === voiceEntryId) {
+      continue;
+    }
+    const content = openContent(row, input.keys);
+    if (content) {
+      vault = vaultFromRow(row, content);
+      break;
+    }
+  }
+  if (vault.state === 'empty') {
+    // No other entry, or no voice skip — show the newest decryptable root.
+    for (const row of roots) {
+      const content = openContent(row, input.keys);
+      if (content) {
+        vault = vaultFromRow(row, content);
+        break;
+      }
+    }
+  }
+
+  return { voice, vault };
 }

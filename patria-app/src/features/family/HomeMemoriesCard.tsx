@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { Body, Button, Card, Muted, Overline, PhotoTile, Pressable, Title } from '../../ui';
 import { copy } from '../../lib/copy';
@@ -6,7 +7,8 @@ import { space } from '../../theme/tokens';
 import type { MemoryItem } from '../memories/memoryApi';
 import { yearsAgoLabel, type OnThisDayPick } from './onThisDay';
 
-const THUMB = 96;
+const COLS = 3;
+const GAP = space.xs;
 const MAX = 6;
 
 type Props = {
@@ -24,6 +26,8 @@ type Props = {
 
 /** Memories — tone surface (white box, green CTA). */
 export function HomeMemoriesCard(props: Props) {
+  const [gridWidth, setGridWidth] = useState(0);
+
   if (props.loading) {
     return (
       <Card tone="surface" testID="home-memories-loading">
@@ -62,6 +66,14 @@ export function HomeMemoriesCard(props: Props) {
 
   const shown = props.items.slice(0, MAX);
   const otd = props.onThisDay;
+  const onGridLayout = (event: LayoutChangeEvent) => {
+    const next = event.nativeEvent.layout.width;
+    if (next > 0 && Math.abs(next - gridWidth) > 0.5) {
+      setGridWidth(next);
+    }
+  };
+  const tileSize =
+    gridWidth > 0 ? Math.floor((gridWidth - GAP * (COLS - 1)) / COLS) : Math.floor(96);
 
   return (
     <Card tone="surface" testID="home-memories-card">
@@ -93,13 +105,13 @@ export function HomeMemoriesCard(props: Props) {
           </Body>
         </Pressable>
       ) : null}
-      <View style={styles.grid}>
+      <View style={styles.grid} onLayout={onGridLayout} testID="home-memories-grid">
         {shown.map((item) => (
           <PhotoTile
             key={item.id}
             testID={`home-memory-${item.id}`}
             uri={item.thumbUrl ?? undefined}
-            size={THUMB}
+            size={tileSize}
             accessibilityLabel={item.caption?.trim() || item.uploaderName}
             durationLabel={
               item.kind === 'video' && item.durationSeconds != null
@@ -132,6 +144,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: space.xs,
+    gap: GAP,
   },
 });

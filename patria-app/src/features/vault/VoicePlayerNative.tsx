@@ -8,7 +8,13 @@ import { formatVoiceLength } from './vaultOpen';
 import { decryptVaultAudioToCache, deleteVaultAudioCacheFile } from './vaultPlayback';
 import type { VoicePlayerProps } from './VoicePlayer';
 
-export function VoicePlayerNative({ spaceId, entryId, audio }: VoicePlayerProps) {
+export function VoicePlayerNative({
+  spaceId,
+  entryId,
+  audio,
+  showLengthLine,
+  playVariant,
+}: VoicePlayerProps) {
   const [uri, setUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,13 +46,25 @@ export function VoicePlayerNative({ spaceId, entryId, audio }: VoicePlayerProps)
     }
   };
 
+  const showLength = showLengthLine !== false;
+  // Omit variant on Home so CardTone supplies mustard; Vault keeps secondary.
+  const resolvedPlay = playVariant ?? (showLengthLine === false ? undefined : 'secondary');
+
   return (
     <View>
-      <Caption testID="voice-note">
-        {copy.vault.voiceNote} · {formatVoiceLength(audio.durationSeconds)}
-      </Caption>
+      {showLength ? (
+        <Caption testID="voice-note">
+          {copy.vault.voiceNote} · {formatVoiceLength(audio.durationSeconds)}
+        </Caption>
+      ) : null}
       {error ? <ErrorState message={error} /> : null}
-      <Button label={copy.vault.play} variant="secondary" onPress={() => void onPlay()} busy={busy} />
+      <Button
+        label={copy.vault.play}
+        variant={resolvedPlay}
+        testID={showLengthLine === false ? 'home-voice-play' : undefined}
+        onPress={() => void onPlay()}
+        busy={busy}
+      />
     </View>
   );
 }

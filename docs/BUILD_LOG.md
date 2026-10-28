@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-27 — Home v2 polish (drawer, voice, memories, vault, This week)
+
+Drawer: Privacy Policy was clipped above Sign out on small phones — list scrolls with bottom padding; Sign out and version stay pinned under a divider. Voice card: drop the duplicate “Voice note · length” line (length stays under the title); Play uses the warm mustard CTA. Vault peek skips the entry the voice card already shows when another root exists. Memories thumbs are three equal columns across the card width. This week lists Sync tasks due this week (not agenda items); empty copy is “No tasks due this week.” / “Add a task” so it does not contradict the Sync agenda count. Phone tests 42–43 updated.
+
+---
+
 ## 2026-10-27 — D36 Home v2 recorded
 
 Recorded D36 in DECISIONS.md (ButtonStack, Needs you off Home, once-per-sign-in reminder with AsyncStorage marker, card tones, empty/locked states, memory-only peeks, in-drawer sign-out confirm, icon map). DESIGN_SYSTEM.md lists ButtonStack and Card `tone` as additions; D32 freeze unchanged. PHONE_TESTS 42–45 match the shipped behaviour.
