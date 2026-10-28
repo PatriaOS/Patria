@@ -1,3 +1,5 @@
+import { act, waitFor } from '@testing-library/react-native';
+
 import { copy } from '../../lib/copy';
 import { renderScreen } from '../../test/renderScreen';
 import { useCurrentFamily } from '../family/useCurrentFamily';
@@ -5,10 +7,12 @@ import { SyncScreen } from './SyncScreen';
 import {
   ensureNextMeeting,
   fetchAgendaItems,
+  fetchSyncMeetingAnswers,
   fetchSyncMeetings,
   fetchSyncSchedule,
   type SyncMeetingRow,
 } from './syncApi';
+import { syncAnswersKey } from './syncQueryKeys';
 
 jest.mock('../family/useCurrentFamily', () => ({
   useCurrentFamily: jest.fn(),
@@ -101,7 +105,11 @@ describe('Sync tab', () => {
     (fetchSyncSchedule as jest.Mock).mockResolvedValue(null);
     (fetchSyncMeetings as jest.Mock).mockResolvedValue([]);
     (fetchAgendaItems as jest.Mock).mockResolvedValue([]);
+    (fetchSyncMeetingAnswers as jest.Mock).mockResolvedValue([]);
     (ensureNextMeeting as jest.Mock).mockClear();
+    (fetchSyncSchedule as jest.Mock).mockClear();
+    (fetchSyncMeetings as jest.Mock).mockClear();
+    (fetchSyncMeetingAnswers as jest.Mock).mockClear();
   });
 
   it('invites an admin to set up Sync when there is no schedule', async () => {
@@ -170,8 +178,57 @@ describe('Sync tab', () => {
   it('makes sure there is a next meeting when a schedule has none', async () => {
     (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
     await renderScreen(<SyncScreen />);
-    await jest.requireActual('@testing-library/react-native').waitFor(() => {
+    await waitFor(() => {
       expect(ensureNextMeeting).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('runs focus refresh once; answer refetches do not re-fire it', async () => {
+    // Guards the D37 loop: useFocusEffect must not depend on the answersQuery
+    // object. If it does, every answers update recreates the callback, the
+    // focus effect re-runs, and refresh() invalidates the schedule again.
+    (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
+    (fetchSyncMeetings as jest.Mock).mockResolvedValue([meeting({})]);
+    (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem]);
+
+    const { queryClient, findByTestId } = await renderScreen(<SyncScreen />);
+    await findByTestId('sync-tonight-flow');
+
+    await waitFor(() => {
+      expect(fetchSyncMeetingAnswers).toHaveBeenCalled();
+      expect(fetchSyncSchedule).toHaveBeenCalled();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+
+    const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
+    invalidate.mockClear();
+    (fetchSyncSchedule as jest.Mock).mockClear();
+
+    const answerRows = [
+      [{ meetingId: 'meet1', userId: 'u2', answer: 'going' as const }],
+      [{ meetingId: 'meet1', userId: 'u2', answer: 'cant' as const }],
+      [
+        { meetingId: 'meet1', userId: 'u2', answer: 'cant' as const },
+        { meetingId: 'meet1', userId: 'u1', answer: 'going' as const },
+      ],
+    ];
+    for (const rows of answerRows) {
+      await act(async () => {
+        queryClient.setQueryData(syncAnswersKey('meet1'), rows);
+      });
+    }
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+
+    const scheduleInvalidations = invalidate.mock.calls.filter((call) => {
+      const key = (call[0] as { queryKey?: unknown } | undefined)?.queryKey;
+      return Array.isArray(key) && key[0] === 'syncSchedule';
+    });
+    expect(scheduleInvalidations).toHaveLength(0);
+    expect(fetchSyncSchedule).not.toHaveBeenCalled();
   });
 });
