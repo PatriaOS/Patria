@@ -539,9 +539,12 @@ export const copy = {
     rsvpCantCount: "Can't · {count}",
     rsvpUnanswered: 'Not answered yet',
     addToCalendar: 'Add to my calendar',
+    calendarAddNewTime: 'Add the new time to my calendar',
     calendarPermissionBody:
       'Patria only adds a Family Sync event. It does not read your other calendar events.',
     calendarAdded: 'Added to your calendar.',
+    calendarAddedReplaceOld:
+      'Added to your calendar. Remove the old Family Sync event if it’s still there.',
     weekdayLabel: 'Day of the week',
     weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     weekdaysLong: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],

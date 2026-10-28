@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — Agenda scroll + system Add Event sheet
+
+Test 37 failed because Soccer carpool sat below the new RSVP block (saved correctly; assert without scroll). Add to my calendar now opens iOS’s system Add Event sheet (`createEventInCalendarAsync`) with no calendar list/read — write-only listing was empty on the Simulator. Cancel shows nothing; after a time change we offer Add the new time and ask to remove the old event. Phone test 51 updated.
+
 ## 2026-10-28 — Phone tests 36 / 38 / 39 / 47 after slice 2 hub
 
 36 failed on Maestro `hideKeyboard` (schedule form was open; family had no schedule — e2e-setup clears Sync for 36 and does not seed finished meetings). Flow steps under RSVP needed scroll plus step `accessibilityLabel` so “Wins” is findable. 38 not_yet was already correct when signed in (Start early + sheet + Not yet); sign-in `eraseText` without a count hung. 39 notes used Enter on a multiline field. 47 step 4 now seeds a finished meeting and asserts Past meetings. Branch `gov02-slice2`.

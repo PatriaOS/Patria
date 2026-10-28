@@ -68,7 +68,9 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar."
+          "calendarPermission": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar.",
+          "writeOnlyAccess": true,
+          "writeOnlyCalendarPermission": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar."
         }
       ]
     ]

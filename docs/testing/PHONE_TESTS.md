@@ -438,6 +438,6 @@ Areas: sync, navigation
 
 ### 51. Add to my calendar
 Areas: sync
-1. Sign in as Test 1. Open **Sync** and tap **Add to my calendar**. (manual) Pass if the system asks for calendar permission the first time.
-2. Allow access. Pass if the app says the event was added, and the phone calendar shows **Family Sync** for the meeting time with no agenda text or names. (manual)
-3. After a schedule change, pass if the app offers to update the event Patria added, without writing agenda content. (manual)
+1. Sign in as Test 1. Open **Sync** and tap **Add to my calendar**. (manual) Pass if the system **Add Event** sheet opens, pre-filled with **Family Sync**, the meeting start and end (30 minutes), a repeat that matches the schedule, and `patria://sync` — with no agenda text or names. Patria does not ask for calendar permission for this sheet.
+2. Tap **Add** (or **Done**) in the sheet. Pass if Sync shows **Added to your calendar.** Tap **Add to my calendar** again and **Cancel** the sheet. Pass if Sync shows no new notice. (manual)
+3. Change the Sync schedule (or move this meeting), then open Sync. Pass if the button says **Add the new time to my calendar**. Tap it, add the new event in the sheet. Pass if Sync says the event was added and to remove the old Family Sync if it is still there. (manual)

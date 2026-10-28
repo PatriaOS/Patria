@@ -35,7 +35,7 @@ appId: app.patria.dev
           id: "title"
       - eraseText: 40
       - inputText: "Soccer carpool"
-      - hideKeyboard
+      - pressKey: Enter
       - scrollUntilVisible:
           element:
             id: "add-to-agenda"
@@ -47,7 +47,12 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
-      - assertNotVisible: "We couldn’t save that"
+      - assertNotVisible: "We couldn’t save that. Please try again."
+      # Agenda sits below RSVP / Who’s coming after slice 2.
+      - scrollUntilVisible:
+          element: "Soccer carpool"
+          direction: DOWN
+          timeout: 20000
       - assertVisible: "Soccer carpool"
 - runFlow:
     when:
@@ -74,7 +79,7 @@ appId: app.patria.dev
           id: "title"
       - eraseText: 40
       - inputText: "Updated carpool"
-      - hideKeyboard
+      - pressKey: Enter
       - scrollUntilVisible:
           element:
             id: "save"
@@ -86,6 +91,10 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
+      - scrollUntilVisible:
+          element: "Updated carpool"
+          direction: DOWN
+          timeout: 20000
       - assertVisible: "Updated carpool"
 - runFlow:
     when:
@@ -115,7 +124,7 @@ appId: app.patria.dev
       - tapOn:
           id: "title"
       - inputText: "Park picnic"
-      - hideKeyboard
+      - pressKey: Enter
       - scrollUntilVisible:
           element:
             id: "add-to-agenda"
@@ -127,6 +136,10 @@ appId: app.patria.dev
           visible:
             id: "screen-sync"
           timeout: 30000
+      - scrollUntilVisible:
+          element: "Park picnic"
+          direction: DOWN
+          timeout: 20000
       - assertVisible: "Park picnic"
 - runFlow:
     when:

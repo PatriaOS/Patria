@@ -15,7 +15,10 @@ import {
   upsertSyncSchedule,
   type SyncRsvp,
 } from './syncApi';
-import { addOrUpdateSyncCalendarEvent } from './syncCalendar';
+import {
+  addOrUpdateSyncCalendarEvent,
+  calendarNeedsNewTimeLabel,
+} from './syncCalendar';
 import {
   agendaRowBody,
   canEditAgendaItem,
@@ -81,8 +84,37 @@ export function SyncScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
+  const [calendarNeedsNewTime, setCalendarNeedsNewTime] = useState(false);
   const [earlyConfirmOpen, setEarlyConfirmOpen] = useState(false);
   const ensureKey = useRef<string | null>(null);
+  const calendarMeetingKey = active?.id && active.scheduledFor ? `${active.id}:${active.scheduledFor}` : null;
+
+  useEffect(() => {
+    if (!active?.id || !userId || !spaceId || !active.scheduledFor) {
+      return;
+    }
+    const meetingId = active.id;
+    const when = new Date(active.scheduledFor);
+    let cancelled = false;
+    void calendarNeedsNewTimeLabel({
+      userId,
+      spaceId,
+      meetingId,
+      scheduledFor: when,
+    }).then((needsNew) => {
+      if (!cancelled) {
+        setCalendarNeedsNewTime(needsNew);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [calendarMeetingKey, userId, spaceId, calendarNotice, active?.id, active?.scheduledFor]);
+
+  const calendarButtonLabel =
+    Boolean(calendarMeetingKey) && calendarNeedsNewTime
+      ? copy.sync.calendarAddNewTime
+      : copy.sync.addToCalendar;
 
   const scheduleReady = Boolean(schedule);
   const meetingsLoaded = sync.meetingsQuery.isSuccess;
@@ -266,7 +298,7 @@ export function SyncScreen() {
   };
 
   const onAddToCalendar = async () => {
-    if (!active || !userId || !spaceId || !scheduledFor) {
+    if (!active || !userId || !spaceId || !scheduledFor || !schedule) {
       return;
     }
     setCalendarNotice(null);
@@ -277,11 +309,21 @@ export function SyncScreen() {
         spaceId,
         meetingId: active.id,
         scheduledFor,
+        schedule: {
+          frequency: schedule.frequency,
+          weekday: schedule.weekday,
+          monthlyMode: schedule.monthlyMode,
+          monthlyOrdinal: schedule.monthlyOrdinal,
+          monthDay: schedule.monthDay,
+        },
       });
       if (result.ok) {
-        setCalendarNotice(copy.sync.calendarAdded);
-      } else if (result.reason === 'denied') {
-        setCalendarNotice(copy.sync.calendarPermissionBody);
+        setCalendarNotice(
+          result.replacedPrior ? copy.sync.calendarAddedReplaceOld : copy.sync.calendarAdded,
+        );
+      } else if (result.reason === 'canceled') {
+        // Person closed the system sheet — show nothing.
+        setCalendarNotice(null);
       } else {
         setCalendarNotice(copy.sync.saveFailed);
       }
@@ -339,6 +381,7 @@ export function SyncScreen() {
         cantNames={cantNames}
         unansweredNames={unansweredNames}
         calendarNotice={calendarNotice}
+        calendarButtonLabel={calendarButtonLabel}
         onSetUp={() => router.push(routes.syncSchedule)}
         onStart={() => onStartOrResume()}
         onHoldNow={() => void onStartMeeting()}

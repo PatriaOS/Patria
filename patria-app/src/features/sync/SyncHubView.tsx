@@ -62,6 +62,8 @@ export type SyncHubViewProps = {
   cantNames?: string[];
   unansweredNames?: string[];
   calendarNotice?: string | null;
+  /** Add to my calendar, or Add the new time… after the meeting moved. */
+  calendarButtonLabel?: string;
   onSetUp: () => void;
   onStart: () => void;
   onHoldNow: () => void;
@@ -392,7 +394,7 @@ export function SyncHubView(props: SyncHubViewProps) {
             />
           </ButtonStack>
           <Button
-            label={copy.sync.addToCalendar}
+            label={props.calendarButtonLabel ?? copy.sync.addToCalendar}
             testID="add-to-calendar"
             variant="ghost"
             disabled={props.busy}
