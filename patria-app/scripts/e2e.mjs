@@ -2253,7 +2253,12 @@ try {
         maestro({
           flow: flow('47_move_vs_series.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'move', MOVE_WHEN: moveWhen },
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'move',
+            MOVE_WHEN: moveWhen,
+            E2E_STAY: '1',
+          },
         });
       });
       step(47, 2, 'Moved time shows on Sync', () => result('pass'));

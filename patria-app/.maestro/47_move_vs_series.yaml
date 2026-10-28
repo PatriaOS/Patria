@@ -25,12 +25,17 @@ appId: app.patria.dev
           visible:
             id: "screen-sync-move"
           timeout: 15000
-      - assertVisible: "Only this meeting moves"
+      # Form fields only exist once active; full Body label (Maestro textRegex is whole-string).
+      - extendedWaitUntil:
+          visible:
+            id: "move-datetime"
+          timeout: 15000
+      - assertVisible: "Only this meeting moves. The usual schedule stays."
       - tapOn:
           id: "move-datetime"
       - eraseText: 40
       - inputText: ${MOVE_WHEN}
-      - hideKeyboard
+      - pressKey: Enter
       - tapOn:
           id: "move-confirm"
       - extendedWaitUntil:
@@ -41,8 +46,19 @@ appId: app.patria.dev
     when:
       true: ${PHASE == 'series'}
     commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
       - tapOn:
           id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "schedule"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
           id: "schedule"
       - extendedWaitUntil:
@@ -50,7 +66,7 @@ appId: app.patria.dev
             id: "screen-sync-schedule"
           timeout: 15000
       - tapOn:
-          id: "weekday-mon"
+          id: "weekday-tue"
       - scrollUntilVisible:
           element:
             id: "save-schedule"
@@ -58,6 +74,7 @@ appId: app.patria.dev
           timeout: 20000
       - tapOn:
           id: "save-schedule"
+      # Full Banner accessibility text (Maestro textRegex matches the whole label).
       - extendedWaitUntil:
-          visible: "Your moved meeting stays as you set it"
+          visible: "Your moved meeting stays as you set it. Later Syncs will follow the new schedule."
           timeout: 20000
