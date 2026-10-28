@@ -9,6 +9,16 @@ export type VoicePlayerProps = {
   spaceId: string;
   entryId: string;
   audio: VaultAudioRef;
+  /**
+   * When false, skip the "Voice note · length" line (Home already shows length
+   * under the title). Default true for Vault entry.
+   */
+  showLengthLine?: boolean;
+  /**
+   * Play button style. Omit on Home so CardTone supplies mustard on warm.
+   * Vault entry keeps secondary.
+   */
+  playVariant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
 };
 
 export function VoicePlayer(props: VoicePlayerProps) {
@@ -24,9 +34,11 @@ export function VoicePlayer(props: VoicePlayerProps) {
   if (!Native) {
     return (
       <View>
-        <Caption testID="voice-note">
-          {copy.vault.voiceNote} · {formatVoiceLength(props.audio.durationSeconds)}
-        </Caption>
+        {props.showLengthLine === false ? null : (
+          <Caption testID="voice-note">
+            {copy.vault.voiceNote} · {formatVoiceLength(props.audio.durationSeconds)}
+          </Caption>
+        )}
         <ErrorState message={copy.vault.openFailed} />
       </View>
     );

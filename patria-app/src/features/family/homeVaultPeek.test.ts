@@ -111,4 +111,42 @@ describe('peekHomeVault', () => {
     });
     expect(peek.voice.state).toBe('older');
   });
+
+  it('skips the voice entry on the Vault card when another entry exists', () => {
+    const rows = [
+      makeRow('voice', familyKey, 'Voice decision', '2026-10-26T12:00:00Z', true),
+      makeRow('plain', familyKey, 'Plain decision', '2026-10-25T12:00:00Z', false),
+    ];
+    const peek = peekHomeVault({
+      rows,
+      members: [{ userId: 'u1', displayName: 'Elena' }],
+      keys: { familyKey, personalKey: null },
+      locked: false,
+    });
+    expect(peek.voice.state).toBe('note');
+    if (peek.voice.state === 'note') {
+      expect(peek.voice.entryId).toBe('voice');
+    }
+    expect(peek.vault.state).toBe('entry');
+    if (peek.vault.state === 'entry') {
+      expect(peek.vault.entryId).toBe('plain');
+      expect(peek.vault.title).toBe('Plain decision');
+    }
+  });
+
+  it('shows the voice entry on the Vault card when it is the only root', () => {
+    const rows = [makeRow('only', familyKey, 'Only voice', '2026-10-26T12:00:00Z', true)];
+    const peek = peekHomeVault({
+      rows,
+      members: [{ userId: 'u1', displayName: 'Elena' }],
+      keys: { familyKey, personalKey: null },
+      locked: false,
+    });
+    expect(peek.voice.state).toBe('note');
+    expect(peek.vault.state).toBe('entry');
+    if (peek.vault.state === 'entry') {
+      expect(peek.vault.entryId).toBe('only');
+      expect(peek.vault.title).toBe('Only voice');
+    }
+  });
 });

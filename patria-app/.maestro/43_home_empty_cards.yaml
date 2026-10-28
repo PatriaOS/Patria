@@ -18,8 +18,10 @@ appId: app.patria.dev
       id: "home-this-week-empty"
     direction: DOWN
     timeout: 20000
+- assertVisible: "No tasks due this week."
 - assertVisible:
     id: "home-this-week-add"
+- assertVisible: "Add a task"
 - scrollUntilVisible:
     element:
       id: "home-voice-empty"

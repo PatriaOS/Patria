@@ -89,7 +89,12 @@ export function HomeVoiceCard(props: Props) {
       <Title testID="home-voice-title">{note.title}</Title>
       <Caption tone="muted">{meta}</Caption>
       {props.spaceId ? (
-        <VoicePlayer spaceId={props.spaceId} entryId={note.entryId} audio={note.audio} />
+        <VoicePlayer
+          spaceId={props.spaceId}
+          entryId={note.entryId}
+          audio={note.audio}
+          showLengthLine={false}
+        />
       ) : null}
     </Card>
   );

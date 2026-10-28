@@ -252,6 +252,7 @@ export function HomeMenuDrawer(props: Props) {
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                testID="home-menu-scroll"
               >
                 {buildRows(Boolean(props.privacyNeedsAttention)).map((item, index) => {
                   if (item.kind === 'divider') {
@@ -292,19 +293,22 @@ export function HomeMenuDrawer(props: Props) {
                   );
                 })}
               </ScrollView>
-              {/* Pin Sign out above version so it is never clipped under the footer. */}
-              <Pressable
-                testID="menu-sign-out"
-                accessibilityRole="button"
-                accessibilityLabel={copy.auth.signOut}
-                onPress={onSignOutPress}
-                style={styles.item}
-              >
-                <Body tone="danger">{copy.auth.signOut}</Body>
-              </Pressable>
-              <Caption tone="muted" testID={testIdFromLabel(copy.home.menuVersion)}>
-                {copy.home.menuVersion.replace('{version}', version)}
-              </Caption>
+              {/* Pin Sign out + version under a divider so the list can scroll above them. */}
+              <View style={styles.footer} testID="home-menu-footer">
+                <Divider />
+                <Pressable
+                  testID="menu-sign-out"
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.auth.signOut}
+                  onPress={onSignOutPress}
+                  style={styles.item}
+                >
+                  <Body tone="danger">{copy.auth.signOut}</Body>
+                </Pressable>
+                <Caption tone="muted" testID={testIdFromLabel(copy.home.menuVersion)}>
+                  {copy.home.menuVersion.replace('{version}', version)}
+                </Caption>
+              </View>
             </>
           )}
         </Animated.View>
@@ -344,10 +348,16 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
     gap: space.xxs,
-    paddingBottom: space.md,
+    // Leave room so Privacy Policy clears the pinned footer on small phones.
+    paddingBottom: space.xl,
+  },
+  footer: {
+    flexShrink: 0,
+    gap: space.xxs,
   },
   confirm: {
     flex: 1,
