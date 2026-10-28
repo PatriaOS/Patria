@@ -332,18 +332,19 @@ Areas: sync
 
 ### 38. Run the Sync
 Areas: sync
-1. Sign in as Test 1 with at least one Win and one Decide item on the agenda. Open **Sync** and tap **Continue**. Pass if the **Wins** step opens with a note box.
-2. Tap **Mark discussed** on a Win, type a note, and tap **Next**. Pass if the **Look ahead** step opens.
-3. Tap **Next** to reach **Decide**. Type what the family decided, tap **Mark discussed**, then tap **Next**. Pass if **Gratitude** opens.
-4. Tap **Next**. Pass if you can write **One priority for the week** and add a task with an owner.
-5. Tap **Add a task**, then **Finish the Sync**. Pass if you return to Sync and the next meeting is a week away.
-6. Open **Tasks**. Pass if the task you added is listed and you can mark it done.
-7. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding. Tap **Hold it now**. Pass if the **Wins** step opens.
+1. Sign in as Test 1 with an upcoming Sync still days away. Open **Sync**, tap **Start early**, then **Not yet**. Pass if the sheet closes, Sync stays on the hub, and the meeting is still upcoming (**Start early** still shows).
+2. Tap **Start early**, then **Start now**. Pass if the **Wins** step opens with a note box. (On the meeting’s day the chip says **Start the Sync** and opens Wins with no sheet.)
+3. Tap **Mark discussed** on a Win, type a note, and tap **Next**. Pass if the **Look ahead** step opens.
+4. Tap **Next** to reach **Decide**. Type what the family decided, tap **Mark discussed**, then tap **Next**. Pass if **Gratitude** opens.
+5. Tap **Next**. Pass if you can write **One priority for the week** and add a task with an owner.
+6. Tap **Add a task**, then **Finish the Sync**. Pass if you return to Sync and the next meeting is a week away.
+7. Open **Tasks**. Pass if the task you added is listed and you can mark it done.
+8. If the meeting time has already passed and nobody started it, pass if Sync says the time has passed and offers **Hold it now** without any scolding. Tap **Hold it now**. Pass if the **Wins** step opens.
 
 ### 39. A second phone follows along (read only)
 Areas: sync
-1. Sign in as Test 1 on one phone. Open **Sync** and tap **Continue** so the Sync is running.
-2. Sign in as Test 2 on a second phone. Open **Sync**. Pass if Test 2 sees **The Sync is running on** Test 1's name **phone** and a **Follow along** button, and no **Continue**.
+1. Sign in as Test 1 on one phone. Open **Sync** and start the Sync (**Start early** → **Start now**, or **Start the Sync** on the day) so it is running.
+2. Sign in as Test 2 on a second phone. Open **Sync**. Pass if Test 2 sees **The Sync is running on** Test 1's name **phone** and a **Follow along** button, and no start chip (**Start early** / **Start the Sync** / **Continue**).
 3. Tap **Follow along**. Pass if Test 2 sees the steps and Test 1's notes, with no way to edit them.
 4. On Test 1's phone, add a note and tap **Next**. Pass if the note shows up on Test 2's phone after a pull to refresh.
 

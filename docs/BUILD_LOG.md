@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — Sync start labels: Start early / Start the Sync
+
+Admin hub chip is Start early (days before, with confirm sheet), Start the Sync (on the day), Continue (in progress), Hold it now (missed). Phone test 38 adds Not yet; 39 uses the same start path.
+
 ## 2026-10-28 — GOV02 slice 2 refresh loop fix
 
 Sync hub focus effect depended on the whole `answersQuery` object, so every refetch re-fired refresh and the pull spinner. Fixed to stable deps; RefreshControl is user-pull only; flow card uses countdown words; Move / Change schedule sit above RSVP. Phone tests 46 / 36 / 47 / 50 adjusted to the flow card id and reachable Move control.

@@ -25,8 +25,16 @@ import {
 } from './syncLabels';
 import { syncPersonLabel } from './syncAuthor';
 import { syncAnswersKey } from './syncQueryKeys';
-import { formatMeetingWhen, syncCountdown, syncFlowTitle } from './syncSchedule';
+import {
+  formatMeetingWhen,
+  syncCountdown,
+  syncFlowTitle,
+  syncStartKind,
+  syncStartTestId,
+  weekdayLong,
+} from './syncSchedule';
 import { SyncHubView } from './SyncHubView';
+import { SyncStartEarlySheet } from './SyncStartEarlySheet';
 import { useAgendaItems, useSyncSpace } from './useSyncSpace';
 
 export function SyncScreen() {
@@ -73,6 +81,7 @@ export function SyncScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
+  const [earlyConfirmOpen, setEarlyConfirmOpen] = useState(false);
   const ensureKey = useRef<string | null>(null);
 
   const scheduleReady = Boolean(schedule);
@@ -155,16 +164,32 @@ export function SyncScreen() {
   const missed = active ? isMissed(active, new Date()) : false;
   const canReply =
     Boolean(active && active.status === 'upcoming' && !missed && scheduledFor && scheduledFor > new Date());
+  const startKind =
+    active && admin && (!inProgress || active.startedBy === userId)
+      ? syncStartKind({
+          status: active.status,
+          scheduledFor: new Date(active.scheduledFor),
+          timeZone: zone,
+          missed,
+        })
+      : null;
+  const startLabel =
+    startKind === 'start_early'
+      ? copy.sync.startEarly
+      : startKind === 'start_today'
+        ? copy.sync.startTheSync
+        : startKind === 'continue'
+          ? copy.sync.continue
+          : startKind === 'hold_now'
+            ? copy.sync.holdItNow
+            : null;
 
-  const onStartOrResume = async () => {
+  const onStartMeeting = async () => {
     if (!active) {
       return;
     }
     setError(null);
-    if (active.status === 'in_progress') {
-      router.push(routes.syncRun);
-      return;
-    }
+    setEarlyConfirmOpen(false);
     setBusy(true);
     try {
       await startSyncMeeting(active.id);
@@ -177,6 +202,22 @@ export function SyncScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const onStartOrResume = () => {
+    if (!active) {
+      return;
+    }
+    setError(null);
+    if (active.status === 'in_progress') {
+      router.push(routes.syncRun);
+      return;
+    }
+    if (startKind === 'start_early') {
+      setEarlyConfirmOpen(true);
+      return;
+    }
+    void onStartMeeting();
   };
 
   const onNextDate = async () => {
@@ -283,7 +324,9 @@ export function SyncScreen() {
             : null
         }
         flowTitle={scheduledFor ? syncFlowTitle(scheduledFor, zone) : copy.sync.tonightFlow}
-        canContinue={admin && (!inProgress || active?.startedBy === userId)}
+        startKind={startKind}
+        startLabel={startLabel}
+        startTestId={startKind ? syncStartTestId(startKind) : null}
         missed={missed}
         runnerName={runningElsewhere ? syncPersonLabel(active?.startedBy, people.members) : null}
         flowStepIndex={inProgress ? (flowStepQuery.data ?? 0) : null}
@@ -297,8 +340,8 @@ export function SyncScreen() {
         unansweredNames={unansweredNames}
         calendarNotice={calendarNotice}
         onSetUp={() => router.push(routes.syncSchedule)}
-        onContinue={() => void onStartOrResume()}
-        onHoldNow={() => void onStartOrResume()}
+        onStart={() => onStartOrResume()}
+        onHoldNow={() => void onStartMeeting()}
         onNextDate={() => void onNextDate()}
         onFollow={() => router.push(routes.syncRun)}
         onAddAgenda={() => router.push(routes.syncAgenda())}
@@ -310,6 +353,14 @@ export function SyncScreen() {
         onAnswerGoing={() => void onAnswer('going')}
         onAnswerCant={() => void onAnswer('cant')}
         onAddToCalendar={() => void onAddToCalendar()}
+      />
+      <SyncStartEarlySheet
+        visible={earlyConfirmOpen}
+        weekday={scheduledFor ? weekdayLong(scheduledFor, zone) : ''}
+        whenLabel={scheduledFor ? formatMeetingWhen(scheduledFor, zone) : ''}
+        circleName={circleDisplayName(circle)}
+        onConfirm={() => void onStartMeeting()}
+        onCancel={() => setEarlyConfirmOpen(false)}
       />
     </Screen>
   );

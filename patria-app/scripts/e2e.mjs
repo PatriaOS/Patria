@@ -1928,19 +1928,38 @@ try {
     }
 
     if (test.number === 38) {
-      step(38, 1, 'Continue opens Wins', () => {
+      step(38, 1, 'Not yet leaves the meeting upcoming', () => {
+        const spaceId = e2eFamilySpaceId();
+        // Force a day-before start so Start early + Not yet is deterministic.
+        sqlOnE2eFamily(
+          `UPDATE public.sync_meetings
+             SET scheduled_for = now() + interval '2 days',
+                 status = 'upcoming',
+                 started_by = null,
+                 started_at = null,
+                 finished_at = null
+           WHERE family_space_id = '${spaceId}'
+             AND status IN ('upcoming', 'in_progress')`,
+        );
         maestro({
           flow: flow('38_run_sync.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'run' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'not_yet' },
         });
       });
-      step(38, 2, 'Look ahead after Wins', () => result('pass'));
-      step(38, 3, 'Decide then Gratitude', () => result('pass'));
-      step(38, 4, 'Priority and a task', () => result('pass'));
-      step(38, 5, 'Finish returns to Sync', () => result('pass'));
-      step(38, 6, 'Tasks list shows the new task', () => result('pass'));
-      step(38, 7, 'Missed meeting offers Hold it now without guilt', () => {
+      step(38, 2, 'Start early confirms and opens Wins', () => {
+        maestro({
+          flow: flow('38_run_sync.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'run', E2E_STAY: '1' },
+        });
+      });
+      step(38, 3, 'Look ahead after Wins', () => result('pass'));
+      step(38, 4, 'Decide then Gratitude', () => result('pass'));
+      step(38, 5, 'Priority and a task', () => result('pass'));
+      step(38, 6, 'Finish returns to Sync', () => result('pass'));
+      step(38, 7, 'Tasks list shows the new task', () => result('pass'));
+      step(38, 8, 'Missed meeting offers Hold it now without guilt', () => {
         const spaceId = e2eFamilySpaceId();
         sqlOnE2eFamily(
           `UPDATE public.sync_meetings

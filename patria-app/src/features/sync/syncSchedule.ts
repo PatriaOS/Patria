@@ -318,6 +318,62 @@ export function syncFlowTitle(
   return `${weekday}’s flow`;
 }
 
+export type SyncStartKind = 'start_early' | 'start_today' | 'continue' | 'hold_now';
+
+/**
+ * Admin start control on the Sync hub.
+ * Before the meeting’s local calendar day → Start early (confirm).
+ * On that day (and not yet missed) → Start the Sync (no confirm).
+ * In progress → Continue. Missed → Hold it now.
+ */
+export function syncStartKind(input: {
+  status: 'upcoming' | 'in_progress' | 'finished' | 'skipped';
+  scheduledFor: Date;
+  timeZone: string;
+  missed: boolean;
+  nowUtc?: Date;
+}): SyncStartKind | null {
+  if (input.status === 'in_progress') {
+    return 'continue';
+  }
+  if (input.status !== 'upcoming') {
+    return null;
+  }
+  if (input.missed) {
+    return 'hold_now';
+  }
+  const nowUtc = input.nowUtc ?? new Date();
+  const meeting = getZonedParts(input.scheduledFor, input.timeZone);
+  const now = getZonedParts(nowUtc, input.timeZone);
+  const meetingDay = Date.UTC(meeting.year, meeting.month - 1, meeting.day);
+  const nowDay = Date.UTC(now.year, now.month - 1, now.day);
+  const dayDiff = Math.round((meetingDay - nowDay) / 86_400_000);
+  if (dayDiff <= 0) {
+    return 'start_today';
+  }
+  return 'start_early';
+}
+
+export function syncStartTestId(kind: SyncStartKind): string {
+  if (kind === 'start_early') {
+    return 'start-early';
+  }
+  if (kind === 'start_today') {
+    return 'start-the-sync';
+  }
+  if (kind === 'hold_now') {
+    return 'hold-it-now';
+  }
+  return 'continue';
+}
+
+export function weekdayLong(scheduledFor: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    weekday: 'long',
+  }).format(scheduledFor);
+}
+
 export function formatMeetingWhen(scheduledFor: Date, timeZone: string): string {
   return new Intl.DateTimeFormat(undefined, {
     timeZone,

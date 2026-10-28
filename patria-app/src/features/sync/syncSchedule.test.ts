@@ -4,6 +4,7 @@ import {
   nextMeetingAt,
   syncCountdown,
   syncFlowTitle,
+  syncStartKind,
   type SyncFrequency,
   type SyncMonthlyMode,
   zonedTimeToUtc,
@@ -117,6 +118,76 @@ describe('syncFlowTitle', () => {
     const meeting = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0); // Sunday
     const now = zonedTimeToUtc(zone, 2026, 10, 28, 12, 0);
     expect(syncFlowTitle(meeting, zone, now)).toBe('Sunday’s flow');
+  });
+});
+
+describe('syncStartKind', () => {
+  const zone = 'America/Chicago';
+
+  it('returns start_early before the meeting’s local day', () => {
+    const scheduledFor = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0);
+    const nowUtc = zonedTimeToUtc(zone, 2026, 10, 28, 12, 0);
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor,
+        timeZone: zone,
+        missed: false,
+        nowUtc,
+      }),
+    ).toBe('start_early');
+  });
+
+  it('returns start_today on the meeting’s local day before it is missed', () => {
+    const scheduledFor = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0);
+    const nowUtc = zonedTimeToUtc(zone, 2026, 11, 1, 10, 0);
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor,
+        timeZone: zone,
+        missed: false,
+        nowUtc,
+      }),
+    ).toBe('start_today');
+  });
+
+  it('uses the family zone across a UTC midnight boundary', () => {
+    // 2026-11-02 04:00 UTC = 2026-11-01 23:00 Chicago — still Sunday in Chicago.
+    const scheduledFor = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0);
+    const nowUtc = new Date('2026-11-02T04:00:00.000Z');
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor,
+        timeZone: zone,
+        missed: false,
+        nowUtc,
+      }),
+    ).toBe('start_today');
+  });
+
+  it('returns continue while the meeting is in progress', () => {
+    expect(
+      syncStartKind({
+        status: 'in_progress',
+        scheduledFor: zonedTimeToUtc(zone, 2026, 11, 1, 19, 0),
+        timeZone: zone,
+        missed: false,
+      }),
+    ).toBe('continue');
+  });
+
+  it('returns hold_now when the upcoming meeting is missed', () => {
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor: zonedTimeToUtc(zone, 2026, 11, 1, 19, 0),
+        timeZone: zone,
+        missed: true,
+        nowUtc: zonedTimeToUtc(zone, 2026, 11, 1, 21, 0),
+      }),
+    ).toBe('hold_now');
   });
 });
 

@@ -122,11 +122,11 @@ describe('Sync tab', () => {
     expect(queryByTestId('set-up-our-sync')).toBeNull();
   });
 
-  it('shows the agenda, the flow and Continue for an admin', async () => {
+  it('shows the agenda, the flow and a start control for an admin', async () => {
     (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
     (fetchSyncMeetings as jest.Mock).mockResolvedValue([meeting({})]);
     (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem]);
-    const { findByText, getByText, getByTestId } = await renderScreen(<SyncScreen />);
+    const { findByText, getByText, getByTestId, queryByTestId } = await renderScreen(<SyncScreen />);
     expect(await findByText('Soccer carpool on Thursday')).toBeTruthy();
     expect(getByText('Added by Marco')).toBeTruthy();
     expect(getByText(copy.sync.kinds.discuss)).toBeTruthy();
@@ -134,7 +134,9 @@ describe('Sync tab', () => {
     expect(getByTestId('move-this-meeting')).toBeTruthy();
     expect(getByTestId('schedule')).toBeTruthy();
     expect(getByText(/HOUSEHOLD/)).toBeTruthy();
-    expect(getByTestId('continue')).toBeTruthy();
+    expect(
+      queryByTestId('start-early') ?? queryByTestId('start-the-sync') ?? queryByTestId('continue'),
+    ).toBeTruthy();
     expect(getByTestId('add-to-the-agenda')).toBeTruthy();
   });
 
@@ -147,6 +149,8 @@ describe('Sync tab', () => {
     expect(await findByText(copy.sync.missedNoGuilt)).toBeTruthy();
     expect(getByTestId('sync-missed')).toBeTruthy();
     expect(getByTestId('hold-it-now')).toBeTruthy();
+    expect(queryByTestId('start-early')).toBeNull();
+    expect(queryByTestId('start-the-sync')).toBeNull();
     expect(queryByTestId('continue')).toBeNull();
   });
 
@@ -158,6 +162,8 @@ describe('Sync tab', () => {
     const { findByText, getByTestId, queryByTestId } = await renderScreen(<SyncScreen />);
     expect(await findByText('The Sync is running on Marco’s phone')).toBeTruthy();
     expect(getByTestId('follow-along')).toBeTruthy();
+    expect(queryByTestId('start-early')).toBeNull();
+    expect(queryByTestId('start-the-sync')).toBeNull();
     expect(queryByTestId('continue')).toBeNull();
   });
 

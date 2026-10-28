@@ -32,6 +32,34 @@ appId: app.patria.dev
       - assertVisible: "Wins"
 - runFlow:
     when:
+      true: ${PHASE == 'not_yet'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "start-early"
+          timeout: 20000
+      - tapOn:
+          id: "start-early"
+      - extendedWaitUntil:
+          visible:
+            id: "start-early-sheet"
+          timeout: 15000
+      - tapOn:
+          id: "start-early-not-yet"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 15000
+      - assertVisible:
+          id: "start-early"
+      - assertNotVisible:
+          id: "screen-sync-run"
+- runFlow:
+    when:
       true: ${PHASE == null || PHASE == '' || PHASE == 'run'}
     commands:
       - runFlow:
@@ -43,19 +71,7 @@ appId: app.patria.dev
             id: "screen-sync"
           timeout: 20000
       - runFlow:
-          when:
-            visible:
-              id: "hold-it-now"
-          commands:
-            - tapOn:
-                id: "hold-it-now"
-      - runFlow:
-          when:
-            visible:
-              id: "continue"
-          commands:
-            - tapOn:
-                id: "continue"
+          file: subflows/start_sync_from_hub.yaml
       - extendedWaitUntil:
           visible:
             id: "screen-sync-run"

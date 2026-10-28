@@ -55,7 +55,9 @@ const hubBase: SyncHubViewProps = {
   circleName: 'Household',
   whenLabel: 'Sun 7:00 PM',
   countdown: 'TONIGHT',
-  canContinue: true,
+  startKind: 'start_today',
+  startLabel: 'Start the Sync',
+  startTestId: 'start-the-sync',
   missed: false,
   runnerName: null,
   flowStepIndex: null,
@@ -63,7 +65,7 @@ const hubBase: SyncHubViewProps = {
   busy: false,
   error: null,
   onSetUp: noop,
-  onContinue: noop,
+  onStart: noop,
   onHoldNow: noop,
   onNextDate: noop,
   onFollow: noop,
@@ -178,11 +180,29 @@ function PreviewBody() {
   } else if (view === 'empty') {
     body = <SyncHubView {...hubBase} hasSchedule={false} />;
   } else if (view === 'following') {
-    body = <SyncHubView {...hubBase} countdown={null} canContinue={false} runnerName="Marco" />;
+    body = (
+      <SyncHubView
+        {...hubBase}
+        countdown={null}
+        startKind={null}
+        startLabel={null}
+        startTestId={null}
+        runnerName="Marco"
+      />
+    );
   } else if (view === 'missed') {
     body = <SyncHubView {...hubBase} countdown={null} missed />;
   } else if (view === 'meeting') {
-    body = <SyncHubView {...hubBase} countdown={null} canContinue flowStepIndex={1} />;
+    body = (
+      <SyncHubView
+        {...hubBase}
+        countdown={null}
+        startKind="continue"
+        startLabel="Continue"
+        startTestId="continue"
+        flowStepIndex={1}
+      />
+    );
   } else {
     body = <SyncHubView {...hubBase} />;
   }

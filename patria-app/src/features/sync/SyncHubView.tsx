@@ -20,7 +20,12 @@ import {
 import { radius, space, stroke } from '../../theme/tokens';
 import { useTheme } from '../../theme';
 import { fillTemplate } from './syncLabels';
-import { SYNC_STEPS, type SyncAgendaKind, type SyncStep } from './syncSchedule';
+import {
+  SYNC_STEPS,
+  type SyncAgendaKind,
+  type SyncStartKind,
+  type SyncStep,
+} from './syncSchedule';
 
 export type SyncAgendaRowView = {
   id: string;
@@ -40,7 +45,10 @@ export type SyncHubViewProps = {
   countdown: string | null;
   /** Same countdown words as the hero (Tonight’s flow, Sunday’s flow, …). */
   flowTitle?: string;
-  canContinue: boolean;
+  /** Admin start chip: Start early / Start the Sync / Continue. Missed uses Hold it now below. */
+  startKind: SyncStartKind | null;
+  startLabel: string | null;
+  startTestId: string | null;
   missed: boolean;
   runnerName: string | null;
   /** 0-based current step while a meeting runs; null = all upcoming. */
@@ -55,7 +63,7 @@ export type SyncHubViewProps = {
   unansweredNames?: string[];
   calendarNotice?: string | null;
   onSetUp: () => void;
-  onContinue: () => void;
+  onStart: () => void;
   onHoldNow: () => void;
   onNextDate: () => void;
   onFollow: () => void;
@@ -278,15 +286,22 @@ export function SyncHubView(props: SyncHubViewProps) {
           ) : null}
           <Display>{copy.sync.title}</Display>
         </View>
-        {props.admin && props.hasMeeting && props.canContinue && !props.runnerName && !props.missed ? (
+        {props.admin &&
+        props.hasMeeting &&
+        props.startKind &&
+        props.startKind !== 'hold_now' &&
+        props.startLabel &&
+        props.startTestId &&
+        !props.runnerName &&
+        !props.missed ? (
           <Pressable
-            testID="continue"
+            testID={props.startTestId}
             accessibilityRole="button"
-            accessibilityLabel={copy.sync.continue}
-            onPress={props.onContinue}
+            accessibilityLabel={props.startLabel}
+            onPress={props.onStart}
             style={[styles.continueChip, { backgroundColor: colors.accentTerracotta }]}
           >
-            <Caption color={colors.onPrimary}>{copy.sync.continue}</Caption>
+            <Caption color={colors.onPrimary}>{props.startLabel}</Caption>
           </Pressable>
         ) : null}
       </View>
