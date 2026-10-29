@@ -58,23 +58,27 @@ export function SyncScreen() {
   });
   // Depend only on stable values. Never put a useQuery result object here — its
   // identity changes on every fetch and re-fires focus refresh in a loop (D37).
+  // refresh() invalidates agenda; refetch() pulls it now so a member's new item
+  // shows when someone opens Sync (same as pull to refresh).
+  const refetchAgenda = agendaQuery.refetch;
+  const refetchAnswers = answersQuery.refetch;
   useFocusEffect(
     useCallback(() => {
       refresh();
-    }, [refresh]),
+      void refetchAgenda();
+      void refetchAnswers();
+    }, [refresh, refetchAgenda, refetchAnswers]),
   );
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const onPullRefresh = useCallback(async () => {
     setPullRefreshing(true);
     try {
       refresh();
-      await Promise.all([agendaQuery.refetch(), answersQuery.refetch()]);
+      await Promise.all([refetchAgenda(), refetchAnswers()]);
     } finally {
       setPullRefreshing(false);
     }
-    // refetch functions are stable; the query objects are not.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
-  }, [refresh, agendaQuery.refetch, answersQuery.refetch]);
+  }, [refresh, refetchAgenda, refetchAnswers]);
   const flowStepQuery = useQuery({
     queryKey: ['syncFlowStep', active?.id ?? 'none'],
     queryFn: async () => 0,

@@ -1,4 +1,5 @@
-import { act, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
+import type { TestInstance } from 'test-renderer';
 
 import { copy } from '../../lib/copy';
 import { renderScreen } from '../../test/renderScreen';
@@ -13,6 +14,22 @@ import {
   type SyncMeetingRow,
 } from './syncApi';
 import { syncAnswersKey } from './syncQueryKeys';
+
+function hostByType(node: TestInstance, type: string): TestInstance {
+  if (node.type === type) {
+    return node;
+  }
+  for (const child of node.children) {
+    if (typeof child !== 'string') {
+      try {
+        return hostByType(child, type);
+      } catch {
+        continue;
+      }
+    }
+  }
+  throw new Error(`missing host ${type}`);
+}
 
 jest.mock('../family/useCurrentFamily', () => ({
   useCurrentFamily: jest.fn(),
@@ -230,5 +247,40 @@ describe('Sync tab', () => {
     });
     expect(scheduleInvalidations).toHaveLength(0);
     expect(fetchSyncSchedule).not.toHaveBeenCalled();
+  });
+
+  it('reloads agenda when Sync gains focus and on pull to refresh', async () => {
+    // Focus refresh (mount) and pull both must load agenda so a member's new
+    // item shows when someone opens Sync or pulls down.
+    (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
+    (fetchSyncMeetings as jest.Mock).mockResolvedValue([meeting({})]);
+    (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem]);
+
+    const { getByTestId, findByTestId, findByText } = await renderScreen(<SyncScreen />);
+    expect(await findByText('Soccer carpool on Thursday')).toBeTruthy();
+    await findByTestId('sync-tonight-flow');
+
+    await waitFor(() => {
+      expect(fetchAgendaItems).toHaveBeenCalled();
+    });
+
+    const winItem = {
+      ...agendaItem,
+      id: 'i-win',
+      kind: 'win' as const,
+      title: 'Park picnic',
+      authorUserId: 'u2',
+    };
+    (fetchAgendaItems as jest.Mock).mockClear();
+    (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem, winItem]);
+
+    await act(async () => {
+      await fireEvent(hostByType(getByTestId('screen-sync'), 'RCTRefreshControl'), 'refresh');
+    });
+
+    await waitFor(() => {
+      expect(fetchAgendaItems).toHaveBeenCalled();
+    });
+    expect(await findByText('Park picnic')).toBeTruthy();
   });
 });

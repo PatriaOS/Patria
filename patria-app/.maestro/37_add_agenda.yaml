@@ -147,14 +147,23 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      # Leave and reopen Sync so focus refresh reloads the agenda (person path).
+      - tapOn:
+          id: "home"
+      - extendedWaitUntil:
+          visible:
+            id: "home"
+          timeout: 15000
       - tapOn:
           id: "sync"
       - extendedWaitUntil:
           visible:
             id: "screen-sync"
           timeout: 20000
-      - swipe:
-          start: 50%, 25%
-          end: 50%, 80%
+      # Agenda sits below RSVP / Who’s coming after slice 2.
+      - scrollUntilVisible:
+          element: "Park picnic"
+          direction: DOWN
+          timeout: 20000
       - assertVisible: "Park picnic"
       - assertVisible: "Added by Test 2"

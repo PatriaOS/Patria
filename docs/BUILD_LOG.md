@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — Test 37 member Win after refresh
+
+Step 4 failed asserting Park picnic at the top of Sync after a mid-screen swipe; agenda still sat below RSVP. Focus refresh now also refetches agenda (not only invalidate), and the flow leaves Sync and opens it again, then scrolls to the item. Unit test covers focus invalidate and pull refetch.
+
 ## 2026-10-28 — Agenda scroll + system Add Event sheet
 
 Test 37 failed because Soccer carpool sat below the new RSVP block (saved correctly; assert without scroll). Add to my calendar now opens iOS’s system Add Event sheet (`createEventInCalendarAsync`) with no calendar list/read — write-only listing was empty on the Simulator. Cancel shows nothing; after a time change we offer Add the new time and ask to remove the old event. Phone test 51 updated.
