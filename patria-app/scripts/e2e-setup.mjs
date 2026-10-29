@@ -314,9 +314,22 @@ if (
   );
 }
 
-const syncNeedsSchedule = [37, 38, 39, 40, 42].includes(testNumber);
+const syncNeedsSchedule = [37, 38, 39, 40, 42, 47, 48, 49, 50, 51].includes(testNumber);
 const syncNeedsAgenda = [38, 39].includes(testNumber);
-const syncNeedsFinished = testNumber === 40;
+// 40 lists a finished Sync; 47 checks that move / all-future leave it alone.
+const syncNeedsFinished = testNumber === 40 || testNumber === 47;
+// Test 36 must start with no schedule (Set up our Sync). Fresh family is empty;
+// clear Sync rows anyway so a reused space cannot leave a prior schedule.
+if (testNumber === 36 || testNumber === 46) {
+  sql(
+    dbUrl,
+    `DELETE FROM public.sync_tasks WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_notes WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_agenda_items WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
+     DELETE FROM public.sync_schedules WHERE family_space_id = '${spaceId}';`,
+  );
+}
 if (syncNeedsSchedule) {
   // Each Sync phone test owns a fresh family, then resets Sync rows and seeds the
   // same upcoming meeting SyncScreen.ensureNextMeeting would create — so order
@@ -334,20 +347,28 @@ if (syncNeedsSchedule) {
     localTime: '19:00:00',
     timeZone: 'America/Chicago',
   });
-  const meetingId = await asUser(adminSession.accessToken, 'POST', '/rest/v1/rpc/upsert_sync_schedule', {
+  const upsertResult = await asUser(adminSession.accessToken, 'POST', '/rest/v1/rpc/upsert_sync_schedule', {
     p_space_id: spaceId,
     p_weekday: 0,
     p_local_time: '19:00:00',
     p_timezone: 'America/Chicago',
     p_circle_id: householdId,
-    p_next_scheduled_for: scheduledFor,
+    p_frequency: 'weekly',
   });
+  const meetingId =
+    upsertResult && typeof upsertResult === 'object'
+      ? upsertResult.meeting_id
+      : upsertResult;
   if (!meetingId) {
     throw new Error('upsert_sync_schedule did not return a meeting id.');
   }
+  // Pin the upcoming slot so Maestro seeds stay deterministic across time zones.
   sql(
     dbUrl,
-    `DELETE FROM public.sync_meetings
+    `UPDATE public.sync_meetings
+     SET scheduled_for = '${scheduledFor}'
+     WHERE id = '${meetingId}';
+     DELETE FROM public.sync_meetings
      WHERE family_space_id = '${spaceId}'
        AND id IS DISTINCT FROM '${meetingId}';`,
   );
@@ -372,7 +393,8 @@ if (syncNeedsSchedule) {
     ]);
   }
   if (syncNeedsFinished) {
-    const pastFor = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Fixed Chicago evening so Past meetings day label is stable across runs (47 asserts it).
+    const pastFor = '2026-10-14T19:00:00-05:00';
     sql(
       dbUrl,
       `WITH meeting AS (
@@ -385,8 +407,8 @@ if (syncNeedsSchedule) {
            '${pastFor}',
            'finished',
            '${adminSession.userId}',
-           now() - interval '40 minutes',
-           now() - interval '10 minutes',
+           '${pastFor}'::timestamptz + interval '5 minutes',
+           '${pastFor}'::timestamptz + interval '35 minutes',
            'Practice together',
            '{"discussed":1,"total":2,"decisions":[{"title":"Carpool plan","decision":"Share the drive"}]}'::jsonb
          )

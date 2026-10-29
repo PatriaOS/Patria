@@ -25,6 +25,8 @@ export type NeedsYouInput = {
   hasPaper: boolean;
   recoveryStatus: string | undefined;
   syncMeeting: { status: string; scheduledFor: string } | null | undefined;
+  /** True when the person can see the upcoming Sync and has not answered yet. */
+  syncRsvpNeeded?: boolean;
   timeZone: string;
   userId: string | undefined;
   tasks: { id: string; ownerUserId: string | null; dueOn: string | null; doneAt: string | null }[];
@@ -100,6 +102,18 @@ export function buildNeedsYouItems(input: NeedsYouInput): NeedsYouItem[] {
       actionLabel: copy.home.overdueAttentionAction,
       href: routes.syncTasks,
       testID: 'needs-you-overdue',
+    });
+  }
+
+  if (input.syncRsvpNeeded) {
+    raw.push({
+      id: 'sync-rsvp',
+      kind: 'sync_rsvp',
+      title: copy.home.needsYouSyncRsvpTitle,
+      body: copy.home.needsYouSyncRsvpBody,
+      actionLabel: copy.home.needsYouOpenSync,
+      href: routes.sync,
+      testID: 'needs-you-sync-rsvp',
     });
   }
 

@@ -1,0 +1,99 @@
+// Shared with pgTAP (D37). Keep in sync with supabase/tests/database/gov02_sync_d37.test.sql.
+export type SyncOccurrenceCase = {
+  id: string;
+  frequency: string;
+  monthlyMode?: string;
+  monthlyOrdinal?: number;
+  monthDay?: number;
+  timezone: string;
+  weekday: number;
+  localTime: string;
+  anchorLocalDate?: string;
+  after: string;
+  expected: string;
+};
+
+export const syncOccurrenceCases: SyncOccurrenceCase[] = [
+  {
+    "id": "weekly_chicago_spring_dst",
+    "frequency": "weekly",
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "18:30:00",
+    "after": "2026-03-07T12:00:00.000Z",
+    "expected": "2026-03-08T23:30:00.000Z"
+  },
+  {
+    "id": "weekly_chicago_fall_dst",
+    "frequency": "weekly",
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "18:30:00",
+    "after": "2026-10-31T12:00:00.000Z",
+    "expected": "2026-11-02T00:30:00.000Z"
+  },
+  {
+    "id": "biweekly_across_spring_dst",
+    "frequency": "every_two_weeks",
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "18:30:00",
+    "anchorLocalDate": "2026-03-01",
+    "after": "2026-03-01T12:00:00.000Z",
+    "expected": "2026-03-02T00:30:00.000Z"
+  },
+  {
+    "id": "biweekly_second_slot",
+    "frequency": "every_two_weeks",
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "18:30:00",
+    "anchorLocalDate": "2026-03-01",
+    "after": "2026-03-02T00:30:00.000Z",
+    "expected": "2026-03-15T23:30:00.000Z"
+  },
+  {
+    "id": "monthly_same_date_31_february",
+    "frequency": "monthly",
+    "monthlyMode": "same_date",
+    "monthDay": 31,
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "19:00:00",
+    "after": "2026-02-01T12:00:00.000Z",
+    "expected": "2026-03-01T01:00:00.000Z"
+  },
+  {
+    "id": "monthly_same_date_31_april",
+    "frequency": "monthly",
+    "monthlyMode": "same_date",
+    "monthDay": 31,
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "19:00:00",
+    "after": "2026-04-01T12:00:00.000Z",
+    "expected": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "monthly_first_sunday",
+    "frequency": "monthly",
+    "monthlyMode": "same_weekday",
+    "monthlyOrdinal": 1,
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "18:30:00",
+    "after": "2026-05-01T12:00:00.000Z",
+    "expected": "2026-05-03T23:30:00.000Z"
+  },
+  {
+    "id": "monthly_last_sunday",
+    "frequency": "monthly",
+    "monthlyMode": "same_weekday",
+    "monthlyOrdinal": -1,
+    "timezone": "America/Chicago",
+    "weekday": 0,
+    "localTime": "18:30:00",
+    "after": "2026-05-01T12:00:00.000Z",
+    "expected": "2026-05-31T23:30:00.000Z"
+  }
+] as const;

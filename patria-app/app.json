@@ -13,7 +13,9 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Patria can share new photos with your family while the app is open, if you turn that on.",
         "NSPhotoLibraryAddUsageDescription": "Patria does not save photos to your library.",
-        "NSMicrophoneUsageDescription": "Patria records a voice note only when you tap Record, and keeps it in the vault."
+        "NSMicrophoneUsageDescription": "Patria records a voice note only when you tap Record, and keeps it in the vault.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar.",
+        "NSCalendarsUsageDescription": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar."
       }
     },
     "android": {
@@ -24,6 +26,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": ["READ_CALENDAR", "WRITE_CALENDAR"],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -61,7 +64,15 @@
           "microphonePermission": "Patria records a voice note only when you tap Record, and keeps it in the vault."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar.",
+          "writeOnlyAccess": true,
+          "writeOnlyCalendarPermission": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar."
+        }
+      ]
     ]
   }
 }

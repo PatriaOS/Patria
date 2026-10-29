@@ -1,0 +1,37 @@
+# Start an upcoming Sync from the hub chip (Start early / Start the Sync / Continue / Hold it now).
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      visible:
+        id: "hold-it-now"
+    commands:
+      - tapOn:
+          id: "hold-it-now"
+- runFlow:
+    when:
+      visible:
+        id: "start-early"
+    commands:
+      - tapOn:
+          id: "start-early"
+      - extendedWaitUntil:
+          visible:
+            id: "start-early-sheet"
+          timeout: 15000
+      - tapOn:
+          id: "start-early-confirm"
+- runFlow:
+    when:
+      visible:
+        id: "start-the-sync"
+    commands:
+      - tapOn:
+          id: "start-the-sync"
+- runFlow:
+    when:
+      visible:
+        id: "continue"
+    commands:
+      - tapOn:
+          id: "continue"

@@ -1,7 +1,12 @@
+import { syncOccurrenceCases } from './fixtures/syncOccurrenceCases';
 import {
   formatMeetingWhen,
   nextMeetingAt,
   syncCountdown,
+  syncFlowTitle,
+  syncStartKind,
+  type SyncFrequency,
+  type SyncMonthlyMode,
   zonedTimeToUtc,
 } from './syncSchedule';
 
@@ -96,12 +101,121 @@ describe('syncCountdown', () => {
   });
 });
 
+describe('syncFlowTitle', () => {
+  const zone = 'America/Chicago';
+
+  it('matches countdown words for tonight, today and tomorrow', () => {
+    const tonight = zonedTimeToUtc(zone, 2026, 10, 25, 19, 0);
+    const today = zonedTimeToUtc(zone, 2026, 10, 25, 14, 0);
+    const tomorrow = zonedTimeToUtc(zone, 2026, 10, 26, 19, 0);
+    const now = zonedTimeToUtc(zone, 2026, 10, 25, 10, 0);
+    expect(syncFlowTitle(tonight, zone, now)).toBe('Tonight’s flow');
+    expect(syncFlowTitle(today, zone, now)).toBe('Today’s flow');
+    expect(syncFlowTitle(tomorrow, zone, now)).toBe('Tomorrow’s flow');
+  });
+
+  it('uses the weekday name when the meeting is further out', () => {
+    const meeting = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0); // Sunday
+    const now = zonedTimeToUtc(zone, 2026, 10, 28, 12, 0);
+    expect(syncFlowTitle(meeting, zone, now)).toBe('Sunday’s flow');
+  });
+});
+
+describe('syncStartKind', () => {
+  const zone = 'America/Chicago';
+
+  it('returns start_early before the meeting’s local day', () => {
+    const scheduledFor = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0);
+    const nowUtc = zonedTimeToUtc(zone, 2026, 10, 28, 12, 0);
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor,
+        timeZone: zone,
+        missed: false,
+        nowUtc,
+      }),
+    ).toBe('start_early');
+  });
+
+  it('returns start_today on the meeting’s local day before it is missed', () => {
+    const scheduledFor = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0);
+    const nowUtc = zonedTimeToUtc(zone, 2026, 11, 1, 10, 0);
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor,
+        timeZone: zone,
+        missed: false,
+        nowUtc,
+      }),
+    ).toBe('start_today');
+  });
+
+  it('uses the family zone across a UTC midnight boundary', () => {
+    // 2026-11-02 04:00 UTC = 2026-11-01 23:00 Chicago — still Sunday in Chicago.
+    const scheduledFor = zonedTimeToUtc(zone, 2026, 11, 1, 19, 0);
+    const nowUtc = new Date('2026-11-02T04:00:00.000Z');
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor,
+        timeZone: zone,
+        missed: false,
+        nowUtc,
+      }),
+    ).toBe('start_today');
+  });
+
+  it('returns continue while the meeting is in progress', () => {
+    expect(
+      syncStartKind({
+        status: 'in_progress',
+        scheduledFor: zonedTimeToUtc(zone, 2026, 11, 1, 19, 0),
+        timeZone: zone,
+        missed: false,
+      }),
+    ).toBe('continue');
+  });
+
+  it('returns hold_now when the upcoming meeting is missed', () => {
+    expect(
+      syncStartKind({
+        status: 'upcoming',
+        scheduledFor: zonedTimeToUtc(zone, 2026, 11, 1, 19, 0),
+        timeZone: zone,
+        missed: true,
+        nowUtc: zonedTimeToUtc(zone, 2026, 11, 1, 21, 0),
+      }),
+    ).toBe('hold_now');
+  });
+});
+
 describe('formatMeetingWhen', () => {
   it('formats weekday and time in the family zone', () => {
     const meeting = zonedTimeToUtc('America/Chicago', 2026, 10, 25, 18, 30);
     const label = formatMeetingWhen(meeting, 'America/Chicago');
     expect(label).toMatch(/Sun/i);
     expect(label).toMatch(/6:30/);
+  });
+});
+
+describe('nextMeetingAt frequency fixtures (D37)', () => {
+  it.each(syncOccurrenceCases)('$id matches shared fixture', (fixture) => {
+    const next = nextMeetingAt(
+      {
+        weekday: fixture.weekday,
+        localTime: fixture.localTime,
+        timezone: fixture.timezone,
+        frequency: fixture.frequency as SyncFrequency,
+        monthlyMode: (fixture.monthlyMode ?? null) as SyncMonthlyMode | null,
+        monthlyOrdinal: fixture.monthlyOrdinal ?? null,
+        monthDay: fixture.monthDay ?? null,
+        anchorLocalDate: fixture.anchorLocalDate ?? null,
+      },
+      new Date(fixture.after),
+    );
+    expect(next.toISOString()).toBe(fixture.expected);
   });
 });
 

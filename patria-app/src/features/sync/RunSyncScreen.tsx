@@ -39,7 +39,7 @@ import {
   stepTitle,
   taskBodyLine,
 } from './syncLabels';
-import { kindsForStep, nextMeetingAt, SYNC_STEPS, type SyncStep } from './syncSchedule';
+import { kindsForStep, SYNC_STEPS, type SyncStep } from './syncSchedule';
 import { useAgendaItems, useSyncNotes, useSyncSpace, useSyncTasks } from './useSyncSpace';
 
 const WRAP_UP = SYNC_STEPS.length;
@@ -61,7 +61,7 @@ export function RunSyncScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const sync = useSyncSpace();
-  const { userId, spaceId, schedule, active, people } = sync;
+  const { userId, spaceId, active, people } = sync;
   const readOnly = Boolean(active && active.startedBy !== userId);
   const poll = readOnly ? 15000 : undefined;
   const agendaQuery = useAgendaItems(active?.id, poll);
@@ -85,6 +85,7 @@ export function RunSyncScreen() {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   /** Sync with Pressable: busy state alone can lag one frame behind a Maestro tap. */
   const opLock = useRef(false);
 
@@ -165,11 +166,13 @@ export function RunSyncScreen() {
     return (
       <Screen
         {...screenProps}
-        refreshing={agendaQuery.isRefetching || notesQuery.isRefetching}
+        refreshing={pullRefreshing}
         onRefresh={() => {
+          setPullRefreshing(true);
           sync.refresh();
-          void agendaQuery.refetch();
-          void notesQuery.refetch();
+          void Promise.all([agendaQuery.refetch(), notesQuery.refetch()]).finally(() => {
+            setPullRefreshing(false);
+          });
         }}
       >
         <Banner message={fillTemplate(copy.sync.runningOn, { name: runner })} />
@@ -266,14 +269,10 @@ export function RunSyncScreen() {
 
   const onFinish = () =>
     guarded(async () => {
-      const fallback = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      // After this meeting's slot — not "from now", which is often the same Sunday.
-      const afterMeeting = new Date(new Date(meeting.scheduledFor).getTime() + 1000);
       await finishSyncMeeting({
         meetingId: meeting.id,
         priorityText: priority.trim(),
         summary: buildMeetingSummary(agenda),
-        nextScheduledFor: schedule ? nextMeetingAt(schedule, afterMeeting) : fallback,
       });
       sync.refresh();
       router.replace(routes.sync);

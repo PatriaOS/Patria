@@ -1,3 +1,6 @@
+import { act, fireEvent, waitFor } from '@testing-library/react-native';
+import type { TestInstance } from 'test-renderer';
+
 import { copy } from '../../lib/copy';
 import { renderScreen } from '../../test/renderScreen';
 import { useCurrentFamily } from '../family/useCurrentFamily';
@@ -5,10 +8,28 @@ import { SyncScreen } from './SyncScreen';
 import {
   ensureNextMeeting,
   fetchAgendaItems,
+  fetchSyncMeetingAnswers,
   fetchSyncMeetings,
   fetchSyncSchedule,
   type SyncMeetingRow,
 } from './syncApi';
+import { syncAnswersKey } from './syncQueryKeys';
+
+function hostByType(node: TestInstance, type: string): TestInstance {
+  if (node.type === type) {
+    return node;
+  }
+  for (const child of node.children) {
+    if (typeof child !== 'string') {
+      try {
+        return hostByType(child, type);
+      } catch {
+        continue;
+      }
+    }
+  }
+  throw new Error(`missing host ${type}`);
+}
 
 jest.mock('../family/useCurrentFamily', () => ({
   useCurrentFamily: jest.fn(),
@@ -28,14 +49,20 @@ jest.mock('../../lib/family', () => ({
   fetchChildren: jest.fn(async () => []),
 }));
 
+jest.mock('../memories/memoryApi', () => ({
+  fetchCircleMemberIds: jest.fn(async () => ['u1', 'u2']),
+}));
+
 jest.mock('./syncApi', () => ({
   ...jest.requireActual('./syncApi'),
   fetchSyncSchedule: jest.fn(),
   fetchSyncMeetings: jest.fn(),
   fetchAgendaItems: jest.fn(),
+  fetchSyncMeetingAnswers: jest.fn(async () => []),
   ensureNextMeeting: jest.fn(async () => 'm-new'),
   startSyncMeeting: jest.fn(),
   upsertSyncSchedule: jest.fn(),
+  setSyncMeetingAnswer: jest.fn(),
 }));
 
 const admin = {
@@ -52,6 +79,11 @@ const schedule = {
   localTime: '19:00:00',
   timezone: 'America/New_York',
   circleId: 'c1',
+  frequency: 'weekly' as const,
+  monthlyMode: null,
+  monthlyOrdinal: null,
+  monthDay: null,
+  anchorLocalDate: '2026-10-26',
 };
 
 function meeting(overrides: Partial<SyncMeetingRow>): SyncMeetingRow {
@@ -66,6 +98,7 @@ function meeting(overrides: Partial<SyncMeetingRow>): SyncMeetingRow {
     finishedAt: null,
     priorityText: '',
     summary: {},
+    movedIndividually: false,
     ...overrides,
   };
 }
@@ -89,7 +122,11 @@ describe('Sync tab', () => {
     (fetchSyncSchedule as jest.Mock).mockResolvedValue(null);
     (fetchSyncMeetings as jest.Mock).mockResolvedValue([]);
     (fetchAgendaItems as jest.Mock).mockResolvedValue([]);
+    (fetchSyncMeetingAnswers as jest.Mock).mockResolvedValue([]);
     (ensureNextMeeting as jest.Mock).mockClear();
+    (fetchSyncSchedule as jest.Mock).mockClear();
+    (fetchSyncMeetings as jest.Mock).mockClear();
+    (fetchSyncMeetingAnswers as jest.Mock).mockClear();
   });
 
   it('invites an admin to set up Sync when there is no schedule', async () => {
@@ -110,17 +147,21 @@ describe('Sync tab', () => {
     expect(queryByTestId('set-up-our-sync')).toBeNull();
   });
 
-  it('shows the agenda, the flow and Continue for an admin', async () => {
+  it('shows the agenda, the flow and a start control for an admin', async () => {
     (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
     (fetchSyncMeetings as jest.Mock).mockResolvedValue([meeting({})]);
     (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem]);
-    const { findByText, getByText, getByTestId } = await renderScreen(<SyncScreen />);
+    const { findByText, getByText, getByTestId, queryByTestId } = await renderScreen(<SyncScreen />);
     expect(await findByText('Soccer carpool on Thursday')).toBeTruthy();
     expect(getByText('Added by Marco')).toBeTruthy();
     expect(getByText(copy.sync.kinds.discuss)).toBeTruthy();
-    expect(getByText(copy.sync.tonightFlow)).toBeTruthy();
+    expect(getByTestId('sync-tonight-flow')).toBeTruthy();
+    expect(getByTestId('move-this-meeting')).toBeTruthy();
+    expect(getByTestId('schedule')).toBeTruthy();
     expect(getByText(/HOUSEHOLD/)).toBeTruthy();
-    expect(getByTestId('continue')).toBeTruthy();
+    expect(
+      queryByTestId('start-early') ?? queryByTestId('start-the-sync') ?? queryByTestId('continue'),
+    ).toBeTruthy();
     expect(getByTestId('add-to-the-agenda')).toBeTruthy();
   });
 
@@ -133,6 +174,8 @@ describe('Sync tab', () => {
     expect(await findByText(copy.sync.missedNoGuilt)).toBeTruthy();
     expect(getByTestId('sync-missed')).toBeTruthy();
     expect(getByTestId('hold-it-now')).toBeTruthy();
+    expect(queryByTestId('start-early')).toBeNull();
+    expect(queryByTestId('start-the-sync')).toBeNull();
     expect(queryByTestId('continue')).toBeNull();
   });
 
@@ -144,14 +187,100 @@ describe('Sync tab', () => {
     const { findByText, getByTestId, queryByTestId } = await renderScreen(<SyncScreen />);
     expect(await findByText('The Sync is running on Marco’s phone')).toBeTruthy();
     expect(getByTestId('follow-along')).toBeTruthy();
+    expect(queryByTestId('start-early')).toBeNull();
+    expect(queryByTestId('start-the-sync')).toBeNull();
     expect(queryByTestId('continue')).toBeNull();
   });
 
   it('makes sure there is a next meeting when a schedule has none', async () => {
     (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
     await renderScreen(<SyncScreen />);
-    await jest.requireActual('@testing-library/react-native').waitFor(() => {
+    await waitFor(() => {
       expect(ensureNextMeeting).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('runs focus refresh once; answer refetches do not re-fire it', async () => {
+    // Guards the D37 loop: useFocusEffect must not depend on the answersQuery
+    // object. If it does, every answers update recreates the callback, the
+    // focus effect re-runs, and refresh() invalidates the schedule again.
+    (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
+    (fetchSyncMeetings as jest.Mock).mockResolvedValue([meeting({})]);
+    (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem]);
+
+    const { queryClient, findByTestId } = await renderScreen(<SyncScreen />);
+    await findByTestId('sync-tonight-flow');
+
+    await waitFor(() => {
+      expect(fetchSyncMeetingAnswers).toHaveBeenCalled();
+      expect(fetchSyncSchedule).toHaveBeenCalled();
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+
+    const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
+    invalidate.mockClear();
+    (fetchSyncSchedule as jest.Mock).mockClear();
+
+    const answerRows = [
+      [{ meetingId: 'meet1', userId: 'u2', answer: 'going' as const }],
+      [{ meetingId: 'meet1', userId: 'u2', answer: 'cant' as const }],
+      [
+        { meetingId: 'meet1', userId: 'u2', answer: 'cant' as const },
+        { meetingId: 'meet1', userId: 'u1', answer: 'going' as const },
+      ],
+    ];
+    for (const rows of answerRows) {
+      await act(async () => {
+        queryClient.setQueryData(syncAnswersKey('meet1'), rows);
+      });
+    }
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+
+    const scheduleInvalidations = invalidate.mock.calls.filter((call) => {
+      const key = (call[0] as { queryKey?: unknown } | undefined)?.queryKey;
+      return Array.isArray(key) && key[0] === 'syncSchedule';
+    });
+    expect(scheduleInvalidations).toHaveLength(0);
+    expect(fetchSyncSchedule).not.toHaveBeenCalled();
+  });
+
+  it('reloads agenda when Sync gains focus and on pull to refresh', async () => {
+    // Focus refresh (mount) and pull both must load agenda so a member's new
+    // item shows when someone opens Sync or pulls down.
+    (fetchSyncSchedule as jest.Mock).mockResolvedValue(schedule);
+    (fetchSyncMeetings as jest.Mock).mockResolvedValue([meeting({})]);
+    (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem]);
+
+    const { getByTestId, findByTestId, findByText } = await renderScreen(<SyncScreen />);
+    expect(await findByText('Soccer carpool on Thursday')).toBeTruthy();
+    await findByTestId('sync-tonight-flow');
+
+    await waitFor(() => {
+      expect(fetchAgendaItems).toHaveBeenCalled();
+    });
+
+    const winItem = {
+      ...agendaItem,
+      id: 'i-win',
+      kind: 'win' as const,
+      title: 'Park picnic',
+      authorUserId: 'u2',
+    };
+    (fetchAgendaItems as jest.Mock).mockClear();
+    (fetchAgendaItems as jest.Mock).mockResolvedValue([agendaItem, winItem]);
+
+    await act(async () => {
+      await fireEvent(hostByType(getByTestId('screen-sync'), 'RCTRefreshControl'), 'refresh');
+    });
+
+    await waitFor(() => {
+      expect(fetchAgendaItems).toHaveBeenCalled();
+    });
+    expect(await findByText('Park picnic')).toBeTruthy();
   });
 });

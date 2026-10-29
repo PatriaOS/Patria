@@ -7,6 +7,36 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-28 — Test 37 member Win after refresh
+
+Step 4 failed asserting Park picnic at the top of Sync after a mid-screen swipe; agenda still sat below RSVP. Focus refresh now also refetches agenda (not only invalidate), and the flow leaves Sync and opens it again, then scrolls to the item. Unit test covers focus invalidate and pull refetch.
+
+## 2026-10-28 — Agenda scroll + system Add Event sheet
+
+Test 37 failed because Soccer carpool sat below the new RSVP block (saved correctly; assert without scroll). Add to my calendar now opens iOS’s system Add Event sheet (`createEventInCalendarAsync`) with no calendar list/read — write-only listing was empty on the Simulator. Cancel shows nothing; after a time change we offer Add the new time and ask to remove the old event. Phone test 51 updated.
+
+## 2026-10-28 — Phone tests 36 / 38 / 39 / 47 after slice 2 hub
+
+36 failed on Maestro `hideKeyboard` (schedule form was open; family had no schedule — e2e-setup clears Sync for 36 and does not seed finished meetings). Flow steps under RSVP needed scroll plus step `accessibilityLabel` so “Wins” is findable. 38 not_yet was already correct when signed in (Start early + sheet + Not yet); sign-in `eraseText` without a count hung. 39 notes used Enter on a multiline field. 47 step 4 now seeds a finished meeting and asserts Past meetings. Branch `gov02-slice2`.
+
+## 2026-10-28 — Sync start labels: Start early / Start the Sync
+
+Admin hub chip is Start early (days before, with confirm sheet), Start the Sync (on the day), Continue (in progress), Hold it now (missed). Phone test 38 adds Not yet; 39 uses the same start path.
+
+## 2026-10-28 — GOV02 slice 2 refresh loop fix
+
+Sync hub focus effect depended on the whole `answersQuery` object, so every refetch re-fired refresh and the pull spinner. Fixed to stable deps; RefreshControl is user-pull only; flow card uses countdown words; Move / Change schedule sit above RSVP. Phone tests 46 / 36 / 47 / 50 adjusted to the flow card id and reachable Move control.
+
+## 2026-10-28 — GOV02 slice 2 built (D37)
+
+Frequency on the schedule (weekly / every two weeks / monthly), Going/Can't make it, Sync hub + Needs you invite, move this meeting vs change schedule, Add to my calendar (30 min, `patria://sync` only). SQL owns next starts; `ensure_next` / upsert / finish no longer take a client time. Answers clear on move and on all-future. Phone tests 46–51. Branch `gov02-slice2`; no hosted push.
+
+## 2026-10-27 — GOV02 slice 2 plan locked (D37)
+
+Frequency (weekly / every two weeks / monthly), Going/Can't make it, in-app invite + Needs you, Add to my calendar. SQL owns next starts (`AT TIME ZONE`); app previews only; move this meeting only is the client-time exception. Answers clear when an admin moves or changes all future. Circle read for answers; unanswered list admin-only in the app. expo-calendar write-only approved. Building on `gov02-slice2`; no hosted push in this stop.
+
+---
+
 ## 2026-10-27 — Home v2 polish (drawer, voice, memories, vault, This week)
 
 Drawer: Privacy Policy was clipped above Sign out on small phones — list scrolls with bottom padding; Sign out and version stay pinned under a divider. Voice card: drop the duplicate “Voice note · length” line (length stays under the title); Play uses the warm mustard CTA. Vault peek skips the entry the voice card already shows when another root exists. Memories thumbs are three equal columns across the card width. This week lists Sync tasks due this week (not agenda items); empty copy is “No tasks due this week.” / “Add a task” so it does not contradict the Sync agenda count. Phone tests 42–43 updated.

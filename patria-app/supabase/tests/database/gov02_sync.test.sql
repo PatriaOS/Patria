@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(42);
+SELECT plan(43);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -87,8 +87,7 @@ SELECT public.upsert_sync_schedule(
   0::smallint,
   '18:30'::time,
   'America/Chicago',
-  (SELECT household FROM fx),
-  '2030-01-06 00:30:00+00'::timestamptz
+  (SELECT household FROM fx)
 );
 RESET ROLE;
 
@@ -114,15 +113,9 @@ SELECT is(
 SELECT tests_jwt('a0111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
 SELECT is(
-  public.ensure_next_meeting(
-    (SELECT space FROM fx),
-    '2030-01-06 00:30:00+00'::timestamptz
-  ),
-  public.ensure_next_meeting(
-    (SELECT space FROM fx),
-    '2030-01-06 00:30:00+00'::timestamptz
-  ),
-  'ensure_next_meeting is idempotent for the same scheduled_for'
+  public.ensure_next_meeting((SELECT space FROM fx)),
+  public.ensure_next_meeting((SELECT space FROM fx)),
+  'ensure_next_meeting is idempotent when an upcoming already exists'
 );
 RESET ROLE;
 
@@ -179,8 +172,7 @@ SELECT public.upsert_sync_schedule(
   0::smallint,
   '19:00'::time,
   'America/Chicago',
-  (SELECT extended FROM fx),
-  '2030-01-06 01:00:00+00'::timestamptz
+  (SELECT extended FROM fx)
 );
 RESET ROLE;
 
@@ -197,9 +189,13 @@ SELECT is(
 );
 
 SELECT is(
-  (SELECT scheduled_for FROM public.sync_meetings WHERE family_space_id = (SELECT space FROM fx)),
-  '2030-01-06 01:00:00+00'::timestamptz,
-  'changing day or time moves upcoming scheduled_for'
+  (SELECT scheduled_for FROM public.sync_meetings WHERE family_space_id = (SELECT space FROM fx) AND status = 'upcoming'),
+  (
+    SELECT public.next_sync_occurrence(s, now())
+    FROM public.sync_schedules AS s
+    WHERE s.family_space_id = (SELECT space FROM fx)
+  ),
+  'changing day or time moves upcoming scheduled_for to SQL next occurrence'
 );
 
 SELECT tests_jwt('a0333333-3333-3333-3333-333333333333');
@@ -268,8 +264,7 @@ SET LOCAL ROLE authenticated;
 SELECT public.finish_sync_meeting(
   (SELECT id FROM public.sync_meetings WHERE family_space_id = (SELECT space FROM fx) AND status = 'in_progress'),
   'One calm week',
-  '{"steps":4}'::jsonb,
-  '2030-01-13 01:00:00+00'::timestamptz
+  '{"steps":4}'::jsonb
 );
 RESET ROLE;
 
@@ -319,8 +314,7 @@ SELECT public.upsert_sync_schedule(
   0::smallint,
   '19:00'::time,
   'America/Chicago',
-  (SELECT household FROM fx),
-  '2030-01-20 01:00:00+00'::timestamptz
+  (SELECT household FROM fx)
 );
 -- Current upcoming is still Extended (frozen). Finish it after starting.
 SELECT public.start_sync_meeting(
@@ -341,8 +335,7 @@ WHERE m.family_space_id = (SELECT space FROM fx)
 SELECT public.finish_sync_meeting(
   (SELECT id FROM public.sync_meetings WHERE family_space_id = (SELECT space FROM fx) AND status = 'in_progress'),
   'Priority two',
-  '{}'::jsonb,
-  '2030-01-27 01:00:00+00'::timestamptz
+  '{}'::jsonb
 );
 RESET ROLE;
 
@@ -599,56 +592,65 @@ SELECT throws_ok(
 );
 RESET ROLE;
 
--- Finished row at scheduled_for must not be returned as the next meeting.
+-- Finished row at the next occurrence must not block ensure_next.
+-- Clear this family's Sync rows as table owner, then plant one finished slot.
+DELETE FROM public.sync_meeting_answers
+WHERE meeting_id IN (
+  SELECT id FROM public.sync_meetings WHERE family_space_id = (SELECT space FROM fx)
+);
+DELETE FROM public.sync_agenda_items
+WHERE family_space_id = (SELECT space FROM fx);
+DELETE FROM public.sync_notes
+WHERE family_space_id = (SELECT space FROM fx);
+DELETE FROM public.sync_tasks
+WHERE family_space_id = (SELECT space FROM fx);
+DELETE FROM public.sync_meetings
+WHERE family_space_id = (SELECT space FROM fx);
+
+CREATE TEMP TABLE slot AS
+SELECT
+  public.next_sync_occurrence(s, now()) AS first_at,
+  s.circle_id,
+  s.family_space_id AS space
+FROM public.sync_schedules AS s
+WHERE s.family_space_id = (SELECT space FROM fx);
+GRANT SELECT ON TABLE slot TO authenticated, anon;
+
+INSERT INTO public.sync_meetings (
+  family_space_id, circle_id, scheduled_for, status
+)
+SELECT space, circle_id, first_at, 'finished'
+FROM slot;
+
 SELECT tests_jwt('a0111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
-SELECT public.ensure_next_meeting(
-  (SELECT space FROM fx),
-  '2030-03-02 01:00:00+00'::timestamptz
+SELECT lives_ok(
+  $$SELECT public.ensure_next_meeting((SELECT space FROM fx))$$,
+  'ensure_next_meeting advances past a finished slot'
 );
-SELECT public.start_sync_meeting(
+SELECT is(
   (
-    SELECT id
+    SELECT scheduled_for
     FROM public.sync_meetings
     WHERE family_space_id = (SELECT space FROM fx)
-      AND scheduled_for = '2030-03-02 01:00:00+00'::timestamptz
       AND status = 'upcoming'
-  )
+  ),
+  (
+    SELECT public.next_sync_occurrence(s, (SELECT first_at FROM slot))
+    FROM public.sync_schedules AS s
+    WHERE s.family_space_id = (SELECT space FROM fx)
+  ),
+  'ensure_next_meeting uses the frequency rule past a finished slot'
 );
--- Ask for the same slot as the meeting being finished — must advance a week.
-SELECT public.finish_sync_meeting(
+SELECT is(
+  public.ensure_next_meeting((SELECT space FROM fx)),
   (
     SELECT id
     FROM public.sync_meetings
     WHERE family_space_id = (SELECT space FROM fx)
-      AND status = 'in_progress'
+      AND status = 'upcoming'
   ),
-  'After finish',
-  '{}'::jsonb,
-  '2030-03-02 01:00:00+00'::timestamptz
-);
-SELECT is(
-  (
-    SELECT status
-    FROM public.sync_meetings
-    WHERE family_space_id = (SELECT space FROM fx)
-      AND scheduled_for = '2030-03-09 01:00:00+00'::timestamptz
-  ),
-  'upcoming',
-  'ensure_next_meeting creates a later slot when the asked time is finished'
-);
-SELECT is(
-  public.ensure_next_meeting(
-    (SELECT space FROM fx),
-    '2030-03-02 01:00:00+00'::timestamptz
-  ),
-  (
-    SELECT id
-    FROM public.sync_meetings
-    WHERE family_space_id = (SELECT space FROM fx)
-      AND scheduled_for = '2030-03-09 01:00:00+00'::timestamptz
-  ),
-  'ensure_next_meeting advances one week past a finished slot'
+  'ensure_next_meeting is idempotent after advancing past finished'
 );
 RESET ROLE;
 

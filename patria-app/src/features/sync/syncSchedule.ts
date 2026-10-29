@@ -1,10 +1,19 @@
-/** Next Sync occurrence and countdown labels in the family IANA time zone (D35). */
+/** Next Sync occurrence and countdown labels in the family IANA time zone (D35 / D37). */
+
+export type SyncFrequency = 'weekly' | 'every_two_weeks' | 'monthly';
+export type SyncMonthlyMode = 'same_weekday' | 'same_date';
 
 export type SyncScheduleInput = {
   weekday: number;
   /** `HH:MM` or `HH:MM:SS` local wall time. */
   localTime: string;
   timezone: string;
+  frequency?: SyncFrequency;
+  monthlyMode?: SyncMonthlyMode | null;
+  monthlyOrdinal?: number | null;
+  monthDay?: number | null;
+  /** Civil date (YYYY-MM-DD) anchoring every-two-weeks series. */
+  anchorLocalDate?: string | null;
 };
 
 const WEEKDAY_SHORT: Record<string, number> = {
@@ -115,14 +124,41 @@ function addCalendarDays(
   };
 }
 
-/**
- * Next occurrence of weekday @ localTime in the schedule time zone.
- * If today is that weekday and local clock is still before localTime → today; else next week.
- */
-export function nextMeetingAt(schedule: SyncScheduleInput, nowUtc: Date = new Date()): Date {
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function nthWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+  ordinal: number,
+): { year: number; month: number; day: number } | null {
+  if (ordinal === -1) {
+    const last = lastDayOfMonth(year, month);
+    const lastParts = { year, month, day: last };
+    const lastDate = new Date(Date.UTC(year, month - 1, last));
+    const lastWd = lastDate.getUTCDay();
+    const delta = (lastWd - weekday + 7) % 7;
+    return addCalendarDays(lastParts.year, lastParts.month, lastParts.day, -delta);
+  }
+  const first = new Date(Date.UTC(year, month - 1, 1));
+  const firstWd = first.getUTCDay();
+  const delta = (weekday - firstWd + 7) % 7;
+  const day = 1 + delta + (ordinal - 1) * 7;
+  if (day > lastDayOfMonth(year, month)) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+function nextWeekdayOccurrence(
+  schedule: SyncScheduleInput,
+  nowUtc: Date,
+): Date {
   const { hour, minute, second } = parseLocalTime(schedule.localTime);
   const now = getZonedParts(nowUtc, schedule.timezone);
-  let delta = (schedule.weekday - now.weekday + 7) % 7;
+  const delta = (schedule.weekday - now.weekday + 7) % 7;
   const candidateDay = addCalendarDays(now.year, now.month, now.day, delta);
   let candidate = zonedTimeToUtc(
     schedule.timezone,
@@ -146,6 +182,88 @@ export function nextMeetingAt(schedule: SyncScheduleInput, nowUtc: Date = new Da
     );
   }
   return candidate;
+}
+
+/**
+ * Preview next Sync start in the family time zone (D37).
+ * SQL `next_sync_occurrence` is authoritative on save; this mirrors it for the schedule form.
+ */
+export function nextMeetingAt(schedule: SyncScheduleInput, nowUtc: Date = new Date()): Date {
+  const frequency = schedule.frequency ?? 'weekly';
+  const { hour, minute, second } = parseLocalTime(schedule.localTime);
+
+  if (frequency === 'weekly') {
+    return nextWeekdayOccurrence(schedule, nowUtc);
+  }
+
+  if (frequency === 'every_two_weeks') {
+    if (!schedule.anchorLocalDate) {
+      return nextWeekdayOccurrence(schedule, nowUtc);
+    }
+    const [y, m, d] = schedule.anchorLocalDate.split('-').map(Number);
+    let day = { year: y, month: m, day: d };
+    const anchorWd = new Date(Date.UTC(day.year, day.month - 1, day.day)).getUTCDay();
+    if (anchorWd !== schedule.weekday) {
+      day = addCalendarDays(day.year, day.month, day.day, (schedule.weekday - anchorWd + 7) % 7);
+    }
+    let candidate = zonedTimeToUtc(
+      schedule.timezone,
+      day.year,
+      day.month,
+      day.day,
+      hour,
+      minute,
+      second,
+    );
+    while (candidate.getTime() <= nowUtc.getTime()) {
+      day = addCalendarDays(day.year, day.month, day.day, 14);
+      candidate = zonedTimeToUtc(
+        schedule.timezone,
+        day.year,
+        day.month,
+        day.day,
+        hour,
+        minute,
+        second,
+      );
+    }
+    return candidate;
+  }
+
+  // monthly
+  const now = getZonedParts(nowUtc, schedule.timezone);
+  for (let i = 0; i < 36; i += 1) {
+    const monthIndex = now.month - 1 + i;
+    const year = now.year + Math.floor(monthIndex / 12);
+    const month = (monthIndex % 12) + 1;
+    let day: { year: number; month: number; day: number } | null;
+    if (schedule.monthlyMode === 'same_date') {
+      const monthDay = schedule.monthDay ?? 1;
+      day = {
+        year,
+        month,
+        day: Math.min(monthDay, lastDayOfMonth(year, month)),
+      };
+    } else {
+      day = nthWeekdayOfMonth(year, month, schedule.weekday, schedule.monthlyOrdinal ?? 1);
+      if (!day) {
+        continue;
+      }
+    }
+    const candidate = zonedTimeToUtc(
+      schedule.timezone,
+      day.year,
+      day.month,
+      day.day,
+      hour,
+      minute,
+      second,
+    );
+    if (candidate.getTime() > nowUtc.getTime()) {
+      return candidate;
+    }
+  }
+  throw new Error('No next monthly occurrence');
 }
 
 export type SyncCountdown = 'TONIGHT' | 'TODAY' | 'TOMORROW' | `IN ${number} DAYS`;
@@ -175,6 +293,85 @@ export function syncCountdown(
     return 'TOMORROW';
   }
   return `IN ${dayDiff} DAYS`;
+}
+
+/** Flow card title using the same countdown words as the hub hero. */
+export function syncFlowTitle(
+  scheduledFor: Date,
+  timeZone: string,
+  nowUtc: Date = new Date(),
+): string {
+  const countdown = syncCountdown(scheduledFor, timeZone, nowUtc);
+  if (countdown === 'TONIGHT') {
+    return 'Tonight’s flow';
+  }
+  if (countdown === 'TODAY') {
+    return 'Today’s flow';
+  }
+  if (countdown === 'TOMORROW') {
+    return 'Tomorrow’s flow';
+  }
+  const weekday = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    weekday: 'long',
+  }).format(scheduledFor);
+  return `${weekday}’s flow`;
+}
+
+export type SyncStartKind = 'start_early' | 'start_today' | 'continue' | 'hold_now';
+
+/**
+ * Admin start control on the Sync hub.
+ * Before the meeting’s local calendar day → Start early (confirm).
+ * On that day (and not yet missed) → Start the Sync (no confirm).
+ * In progress → Continue. Missed → Hold it now.
+ */
+export function syncStartKind(input: {
+  status: 'upcoming' | 'in_progress' | 'finished' | 'skipped';
+  scheduledFor: Date;
+  timeZone: string;
+  missed: boolean;
+  nowUtc?: Date;
+}): SyncStartKind | null {
+  if (input.status === 'in_progress') {
+    return 'continue';
+  }
+  if (input.status !== 'upcoming') {
+    return null;
+  }
+  if (input.missed) {
+    return 'hold_now';
+  }
+  const nowUtc = input.nowUtc ?? new Date();
+  const meeting = getZonedParts(input.scheduledFor, input.timeZone);
+  const now = getZonedParts(nowUtc, input.timeZone);
+  const meetingDay = Date.UTC(meeting.year, meeting.month - 1, meeting.day);
+  const nowDay = Date.UTC(now.year, now.month - 1, now.day);
+  const dayDiff = Math.round((meetingDay - nowDay) / 86_400_000);
+  if (dayDiff <= 0) {
+    return 'start_today';
+  }
+  return 'start_early';
+}
+
+export function syncStartTestId(kind: SyncStartKind): string {
+  if (kind === 'start_early') {
+    return 'start-early';
+  }
+  if (kind === 'start_today') {
+    return 'start-the-sync';
+  }
+  if (kind === 'hold_now') {
+    return 'hold-it-now';
+  }
+  return 'continue';
+}
+
+export function weekdayLong(scheduledFor: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    weekday: 'long',
+  }).format(scheduledFor);
 }
 
 export function formatMeetingWhen(scheduledFor: Date, timeZone: string): string {

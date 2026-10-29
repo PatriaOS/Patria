@@ -47,6 +47,7 @@ export const screenTitles = {
   designGallery: copy.design.galleryTitle,
   sync: copy.tabs.sync,
   syncSchedule: copy.sync.scheduleTitle,
+  syncMove: copy.sync.moveThisMeeting,
   syncAgenda: copy.sync.addToAgenda,
   syncRun: copy.sync.title,
   syncPast: copy.sync.pastMeetings,
@@ -86,6 +87,7 @@ export const routes = {
   designGallery: '/design-gallery',
   sync: '/(signed-in)/sync',
   syncSchedule: '/(signed-in)/sync-schedule',
+  syncMove: '/(signed-in)/sync-move',
   syncAgenda: (itemId?: string) =>
     (itemId
       ? `/(signed-in)/sync-agenda?itemId=${encodeURIComponent(itemId)}`

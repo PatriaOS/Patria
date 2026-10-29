@@ -1928,19 +1928,38 @@ try {
     }
 
     if (test.number === 38) {
-      step(38, 1, 'Continue opens Wins', () => {
+      step(38, 1, 'Not yet leaves the meeting upcoming', () => {
+        const spaceId = e2eFamilySpaceId();
+        // Force a day-before start so Start early + Not yet is deterministic.
+        sqlOnE2eFamily(
+          `UPDATE public.sync_meetings
+             SET scheduled_for = now() + interval '2 days',
+                 status = 'upcoming',
+                 started_by = null,
+                 started_at = null,
+                 finished_at = null
+           WHERE family_space_id = '${spaceId}'
+             AND status IN ('upcoming', 'in_progress')`,
+        );
         maestro({
           flow: flow('38_run_sync.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'run' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'not_yet' },
         });
       });
-      step(38, 2, 'Look ahead after Wins', () => result('pass'));
-      step(38, 3, 'Decide then Gratitude', () => result('pass'));
-      step(38, 4, 'Priority and a task', () => result('pass'));
-      step(38, 5, 'Finish returns to Sync', () => result('pass'));
-      step(38, 6, 'Tasks list shows the new task', () => result('pass'));
-      step(38, 7, 'Missed meeting offers Hold it now without guilt', () => {
+      step(38, 2, 'Start early confirms and opens Wins', () => {
+        maestro({
+          flow: flow('38_run_sync.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'run', E2E_STAY: '1' },
+        });
+      });
+      step(38, 3, 'Look ahead after Wins', () => result('pass'));
+      step(38, 4, 'Decide then Gratitude', () => result('pass'));
+      step(38, 5, 'Priority and a task', () => result('pass'));
+      step(38, 6, 'Finish returns to Sync', () => result('pass'));
+      step(38, 7, 'Tasks list shows the new task', () => result('pass'));
+      step(38, 8, 'Missed meeting offers Hold it now without guilt', () => {
         const spaceId = e2eFamilySpaceId();
         sqlOnE2eFamily(
           `UPDATE public.sync_meetings
@@ -2178,6 +2197,186 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'reopen_no_reminder', E2E_STAY: '1' },
         });
       });
+    }
+
+    if (test.number === 46) {
+      step(46, 1, 'Frequency choices on schedule', () => {
+        maestro({
+          flow: flow('46_sync_frequency.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'setup' },
+        });
+      });
+      step(46, 2, 'Weekly save shows next meeting', () => result('pass'));
+      step(46, 3, 'Every two weeks saves', () => {
+        maestro({
+          flow: flow('46_sync_frequency.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'biweekly', E2E_STAY: '1' },
+        });
+      });
+      step(46, 4, 'Monthly same weekday last saves', () => {
+        maestro({
+          flow: flow('46_sync_frequency.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'monthly_weekday', E2E_STAY: '1' },
+        });
+      });
+      step(46, 5, 'Monthly same date 31 shows shorter-months line', () => {
+        maestro({
+          flow: flow('46_sync_frequency.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'monthly_date', E2E_STAY: '1' },
+        });
+      });
+      step(46, 6, 'Non-admin has no Change the schedule', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('46_sync_frequency.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'member' },
+        });
+      });
+    }
+
+    if (test.number === 47) {
+      const moveWhen = (() => {
+        const d = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day} 18:00`;
+      })();
+      step(47, 1, 'Move this meeting screen', () => {
+        maestro({
+          flow: flow('47_move_vs_series.yaml'),
+          device: deviceA,
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'move',
+            MOVE_WHEN: moveWhen,
+            E2E_STAY: '1',
+          },
+        });
+      });
+      step(47, 2, 'Moved time shows on Sync', () => result('pass'));
+      step(47, 3, 'All-future preserves moved meeting', () => {
+        maestro({
+          flow: flow('47_move_vs_series.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'series', E2E_STAY: '1' },
+        });
+      });
+      step(47, 4, 'Past finished meeting unchanged', () => {
+        // Must match e2e-setup finished seed + PastMeetingsScreen formatMeetingDay.
+        const pastDay = new Intl.DateTimeFormat(undefined, {
+          timeZone: 'America/Chicago',
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        }).format(new Date('2026-10-14T19:00:00-05:00'));
+        maestro({
+          flow: flow('47_move_vs_series.yaml'),
+          device: deviceA,
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'past',
+            PAST_DAY: pastDay,
+            E2E_STAY: '1',
+          },
+        });
+      });
+    }
+
+    if (test.number === 48) {
+      step(48, 1, 'Member sees Going / Can\'t make it', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('48_sync_rsvp.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'member_going' },
+        });
+      });
+      step(48, 2, 'Going shows under Who\'s coming', () => result('pass'));
+      step(48, 3, 'Can\'t make it updates tallies', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('48_sync_rsvp.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'member_cant', E2E_STAY: '1' },
+        });
+      });
+      step(48, 4, 'Admin sees Not answered yet', () => {
+        maestro({
+          flow: flow('48_sync_rsvp.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'admin_tallies' },
+        });
+      });
+      step(48, 5, 'Reply controls gone after start', () =>
+        result('skip', 'manual: start the Sync or wait until the start time'),
+      );
+    }
+
+    if (test.number === 49) {
+      step(49, 1, 'Extended-only member cannot see Household RSVP', () => {
+        maestro({
+          flow: flow('49_outside_circle.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 3), PHASE: 'extended' },
+        });
+      });
+      step(49, 2, 'Household member can still reply', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('49_outside_circle.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'household' },
+        });
+      });
+    }
+
+    if (test.number === 50) {
+      step(50, 1, 'Needs you lists unanswered Sync invite', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('50_needs_you_sync_rsvp.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'listed' },
+        });
+      });
+      step(50, 2, 'Going clears the Needs you invite', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result('skip', 'needs 2 simulators for Test 2');
+        }
+        maestro({
+          flow: flow('50_needs_you_sync_rsvp.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'cleared', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 51) {
+      step(51, 1, 'Add to my calendar permission sheet', () =>
+        result('skip', 'manual: system calendar permission sheet'),
+      );
+      step(51, 2, 'Family Sync event with link only', () =>
+        result('skip', 'manual: inspect device calendar for Family Sync, no agenda'),
+      );
+      step(51, 3, 'Series change offers calendar update', () =>
+        result('skip', 'manual: after schedule change, offer to update the stored event'),
+      );
     }
     } catch (error) {
       const failed = reports

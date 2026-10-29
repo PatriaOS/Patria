@@ -1,6 +1,13 @@
 import { randomUuid } from '../../lib/crypto/random';
 import { supabase } from '../../lib/supabase';
-import type { SyncAgendaKind, SyncStep } from './syncSchedule';
+import type {
+  SyncAgendaKind,
+  SyncFrequency,
+  SyncMonthlyMode,
+  SyncStep,
+} from './syncSchedule';
+
+export type SyncRsvp = 'going' | 'cant';
 
 export type SyncScheduleRow = {
   familySpaceId: string;
@@ -8,6 +15,11 @@ export type SyncScheduleRow = {
   localTime: string;
   timezone: string;
   circleId: string;
+  frequency: SyncFrequency;
+  monthlyMode: SyncMonthlyMode | null;
+  monthlyOrdinal: number | null;
+  monthDay: number | null;
+  anchorLocalDate: string;
 };
 
 export type SyncMeetingStatus = 'upcoming' | 'in_progress' | 'finished' | 'skipped';
@@ -23,6 +35,13 @@ export type SyncMeetingRow = {
   finishedAt: string | null;
   priorityText: string;
   summary: Record<string, unknown>;
+  movedIndividually: boolean;
+};
+
+export type SyncMeetingAnswerRow = {
+  meetingId: string;
+  userId: string;
+  answer: SyncRsvp;
 };
 
 export type SyncAgendaItemRow = {
@@ -67,7 +86,9 @@ function asTimeString(value: string): string {
 export async function fetchSyncSchedule(spaceId: string): Promise<SyncScheduleRow | null> {
   const { data, error } = await supabase
     .from('sync_schedules')
-    .select('family_space_id, weekday, local_time, timezone, circle_id')
+    .select(
+      'family_space_id, weekday, local_time, timezone, circle_id, frequency, monthly_mode, monthly_ordinal, month_day, anchor_local_date',
+    )
     .eq('family_space_id', spaceId)
     .maybeSingle();
   if (error) {
@@ -82,6 +103,11 @@ export async function fetchSyncSchedule(spaceId: string): Promise<SyncScheduleRo
     localTime: asTimeString(data.local_time as string),
     timezone: data.timezone as string,
     circleId: data.circle_id as string,
+    frequency: (data.frequency as SyncFrequency) ?? 'weekly',
+    monthlyMode: (data.monthly_mode as SyncMonthlyMode | null) ?? null,
+    monthlyOrdinal: (data.monthly_ordinal as number | null) ?? null,
+    monthDay: (data.month_day as number | null) ?? null,
+    anchorLocalDate: (data.anchor_local_date as string) ?? '',
   };
 }
 
@@ -89,7 +115,7 @@ export async function fetchSyncMeetings(spaceId: string): Promise<SyncMeetingRow
   const { data, error } = await supabase
     .from('sync_meetings')
     .select(
-      'id, family_space_id, circle_id, scheduled_for, status, started_by, started_at, finished_at, priority_text, summary',
+      'id, family_space_id, circle_id, scheduled_for, status, started_by, started_at, finished_at, priority_text, summary, moved_individually',
     )
     .eq('family_space_id', spaceId)
     .order('scheduled_for', { ascending: false });
@@ -107,6 +133,22 @@ export async function fetchSyncMeetings(spaceId: string): Promise<SyncMeetingRow
     finishedAt: (row.finished_at as string | null) ?? null,
     priorityText: (row.priority_text as string) ?? '',
     summary: (row.summary as Record<string, unknown>) ?? {},
+    movedIndividually: Boolean(row.moved_individually),
+  }));
+}
+
+export async function fetchSyncMeetingAnswers(meetingId: string): Promise<SyncMeetingAnswerRow[]> {
+  const { data, error } = await supabase
+    .from('sync_meeting_answers')
+    .select('meeting_id, user_id, answer')
+    .eq('meeting_id', meetingId);
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map((row) => ({
+    meetingId: row.meeting_id as string,
+    userId: row.user_id as string,
+    answer: row.answer as SyncRsvp,
   }));
 }
 
@@ -188,21 +230,50 @@ export async function fetchSyncTasks(spaceId: string): Promise<SyncTaskRow[]> {
   }));
 }
 
+export type UpsertSyncScheduleResult = {
+  meetingId: string;
+  movedPreserved: boolean;
+};
+
 export async function upsertSyncSchedule(input: {
   spaceId: string;
   weekday: number;
   localTime: string;
   timezone: string;
   circleId: string;
-  nextScheduledFor: Date;
-}): Promise<string> {
+  frequency: SyncFrequency;
+  monthlyMode?: SyncMonthlyMode | null;
+  monthlyOrdinal?: number | null;
+  monthDay?: number | null;
+}): Promise<UpsertSyncScheduleResult> {
   const { data, error } = await supabase.rpc('upsert_sync_schedule', {
     p_space_id: input.spaceId,
     p_weekday: input.weekday,
     p_local_time: input.localTime,
     p_timezone: input.timezone,
     p_circle_id: input.circleId,
-    p_next_scheduled_for: input.nextScheduledFor.toISOString(),
+    p_frequency: input.frequency,
+    p_monthly_mode: input.frequency === 'monthly' ? input.monthlyMode : null,
+    p_monthly_ordinal:
+      input.frequency === 'monthly' && input.monthlyMode === 'same_weekday'
+        ? input.monthlyOrdinal
+        : null,
+    p_month_day:
+      input.frequency === 'monthly' && input.monthlyMode === 'same_date' ? input.monthDay : null,
+  });
+  if (error) {
+    throw error;
+  }
+  const row = data as { meeting_id: string; moved_preserved: boolean };
+  return {
+    meetingId: row.meeting_id,
+    movedPreserved: Boolean(row.moved_preserved),
+  };
+}
+
+export async function ensureNextMeeting(spaceId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('ensure_next_meeting', {
+    p_space_id: spaceId,
   });
   if (error) {
     throw error;
@@ -210,15 +281,50 @@ export async function upsertSyncSchedule(input: {
   return data as string;
 }
 
-export async function ensureNextMeeting(spaceId: string, scheduledFor: Date): Promise<string> {
-  const { data, error } = await supabase.rpc('ensure_next_meeting', {
-    p_space_id: spaceId,
-    p_scheduled_for: scheduledFor.toISOString(),
+export async function moveSyncMeeting(meetingId: string, newScheduledFor: Date): Promise<SyncMeetingRow> {
+  const { data, error } = await supabase.rpc('move_sync_meeting', {
+    p_meeting_id: meetingId,
+    p_new_scheduled_for: newScheduledFor.toISOString(),
   });
   if (error) {
     throw error;
   }
-  return data as string;
+  const row = data as {
+    id: string;
+    family_space_id: string;
+    circle_id: string;
+    scheduled_for: string;
+    status: SyncMeetingStatus;
+    started_by: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    priority_text: string;
+    summary: Record<string, unknown>;
+    moved_individually: boolean;
+  };
+  return {
+    id: row.id,
+    familySpaceId: row.family_space_id,
+    circleId: row.circle_id,
+    scheduledFor: row.scheduled_for,
+    status: row.status,
+    startedBy: row.started_by,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+    priorityText: row.priority_text ?? '',
+    summary: row.summary ?? {},
+    movedIndividually: Boolean(row.moved_individually),
+  };
+}
+
+export async function setSyncMeetingAnswer(meetingId: string, answer: SyncRsvp): Promise<void> {
+  const { error } = await supabase.rpc('set_sync_meeting_answer', {
+    p_meeting_id: meetingId,
+    p_answer: answer,
+  });
+  if (error) {
+    throw error;
+  }
 }
 
 export async function startSyncMeeting(meetingId: string): Promise<SyncMeetingRow> {
@@ -251,6 +357,9 @@ export async function startSyncMeeting(meetingId: string): Promise<SyncMeetingRo
     finishedAt: row.finished_at,
     priorityText: row.priority_text ?? '',
     summary: row.summary ?? {},
+    movedIndividually: Boolean(
+      (row as { moved_individually?: boolean }).moved_individually,
+    ),
   };
 }
 
@@ -258,13 +367,11 @@ export async function finishSyncMeeting(input: {
   meetingId: string;
   priorityText: string;
   summary: Record<string, unknown>;
-  nextScheduledFor: Date;
 }): Promise<string> {
   const { data, error } = await supabase.rpc('finish_sync_meeting', {
     p_meeting_id: input.meetingId,
     p_priority_text: input.priorityText,
     p_summary: input.summary,
-    p_next_scheduled_for: input.nextScheduledFor.toISOString(),
   });
   if (error) {
     throw error;

@@ -20,7 +20,12 @@ import {
 import { radius, space, stroke } from '../../theme/tokens';
 import { useTheme } from '../../theme';
 import { fillTemplate } from './syncLabels';
-import { SYNC_STEPS, type SyncAgendaKind, type SyncStep } from './syncSchedule';
+import {
+  SYNC_STEPS,
+  type SyncAgendaKind,
+  type SyncStartKind,
+  type SyncStep,
+} from './syncSchedule';
 
 export type SyncAgendaRowView = {
   id: string;
@@ -38,7 +43,12 @@ export type SyncHubViewProps = {
   circleName: string;
   whenLabel: string;
   countdown: string | null;
-  canContinue: boolean;
+  /** Same countdown words as the hero (Tonight’s flow, Sunday’s flow, …). */
+  flowTitle?: string;
+  /** Admin start chip: Start early / Start the Sync / Continue. Missed uses Hold it now below. */
+  startKind: SyncStartKind | null;
+  startLabel: string | null;
+  startTestId: string | null;
   missed: boolean;
   runnerName: string | null;
   /** 0-based current step while a meeting runs; null = all upcoming. */
@@ -46,16 +56,28 @@ export type SyncHubViewProps = {
   agenda: SyncAgendaRowView[];
   busy: boolean;
   error: string | null;
+  canReply?: boolean;
+  myAnswer?: 'going' | 'cant' | null;
+  goingNames?: string[];
+  cantNames?: string[];
+  unansweredNames?: string[];
+  calendarNotice?: string | null;
+  /** Add to my calendar, or Add the new time… after the meeting moved. */
+  calendarButtonLabel?: string;
   onSetUp: () => void;
-  onContinue: () => void;
+  onStart: () => void;
   onHoldNow: () => void;
   onNextDate: () => void;
   onFollow: () => void;
   onAddAgenda: () => void;
   onSchedule: () => void;
+  onMoveMeeting?: () => void;
   onPast: () => void;
   onTasks: () => void;
   onOpenItem: (id: string) => void;
+  onAnswerGoing?: () => void;
+  onAnswerCant?: () => void;
+  onAddToCalendar?: () => void;
 };
 
 function stepState(
@@ -74,12 +96,18 @@ function stepState(
   return 'upcoming';
 }
 
-function FlowProgress({ flowStepIndex }: { flowStepIndex: number | null }) {
+function FlowProgress({
+  flowStepIndex,
+  flowTitle,
+}: {
+  flowStepIndex: number | null;
+  flowTitle: string;
+}) {
   const { colors } = useTheme();
   return (
     <Card testID="sync-tonight-flow">
       <View style={styles.flowHeader}>
-        <Section>{copy.sync.tonightFlow}</Section>
+        <Section accessibilityLabel={flowTitle}>{flowTitle}</Section>
         <Caption tone="muted">{copy.sync.flowTotal}</Caption>
       </View>
       <View style={styles.flowRow}>
@@ -99,11 +127,17 @@ function FlowProgress({ flowStepIndex }: { flowStepIndex: number | null }) {
                 ? colors.onMustard
                 : colors.textMuted;
           return (
-            <View key={step} style={styles.flowStep} testID={`sync-flow-step-${step}`}>
+            <View
+              key={step}
+              style={styles.flowStep}
+              testID={`sync-flow-step-${step}`}
+              accessible
+              accessibilityLabel={info.title}
+              accessibilityHint={`${index + 1}${state === 'done' ? ', done' : state === 'current' ? ', current' : ''}`}
+            >
               <View
                 style={[styles.flowCircle, { backgroundColor: fill }]}
-                accessible
-                accessibilityLabel={`${index + 1}${state === 'done' ? ', done' : state === 'current' ? ', current' : ''}`}
+                importantForAccessibility="no-hide-descendants"
               >
                 {state === 'done' ? (
                   <Icon icon={Check} name="check" color={labelColor} size={16} decorative />
@@ -117,7 +151,7 @@ function FlowProgress({ flowStepIndex }: { flowStepIndex: number | null }) {
                 color={state === 'upcoming' ? colors.textMuted : colors.text}
                 style={styles.flowLabel}
                 numberOfLines={2}
-                accessibilityLabel={info.title}
+                accessible={false}
               >
                 {info.title}
               </Caption>
@@ -260,15 +294,22 @@ export function SyncHubView(props: SyncHubViewProps) {
           ) : null}
           <Display>{copy.sync.title}</Display>
         </View>
-        {props.admin && props.hasMeeting && props.canContinue && !props.runnerName && !props.missed ? (
+        {props.admin &&
+        props.hasMeeting &&
+        props.startKind &&
+        props.startKind !== 'hold_now' &&
+        props.startLabel &&
+        props.startTestId &&
+        !props.runnerName &&
+        !props.missed ? (
           <Pressable
-            testID="continue"
+            testID={props.startTestId}
             accessibilityRole="button"
-            accessibilityLabel={copy.sync.continue}
-            onPress={props.onContinue}
+            accessibilityLabel={props.startLabel}
+            onPress={props.onStart}
             style={[styles.continueChip, { backgroundColor: colors.accentTerracotta }]}
           >
-            <Caption color={colors.onPrimary}>{copy.sync.continue}</Caption>
+            <Caption color={colors.onPrimary}>{props.startLabel}</Caption>
           </Pressable>
         ) : null}
       </View>
@@ -314,7 +355,89 @@ export function SyncHubView(props: SyncHubViewProps) {
 
       {props.error ? <ErrorState message={props.error} /> : null}
 
-      {props.hasMeeting ? <FlowProgress flowStepIndex={props.flowStepIndex} /> : null}
+      {props.admin ? (
+        <ButtonStack>
+          {props.hasMeeting && props.onMoveMeeting ? (
+            <Button
+              label={copy.sync.moveThisMeeting}
+              testID="move-this-meeting"
+              variant="secondary"
+              onPress={props.onMoveMeeting}
+            />
+          ) : null}
+          <Button
+            label={copy.sync.changeSchedule}
+            testID="schedule"
+            variant="secondary"
+            onPress={props.onSchedule}
+          />
+        </ButtonStack>
+      ) : null}
+
+      {props.hasMeeting && props.canReply ? (
+        <Card testID="sync-rsvp">
+          <Section>{copy.sync.rsvpYourReply}</Section>
+          <ButtonStack>
+            <Button
+              label={copy.sync.rsvpGoing}
+              testID="rsvp-going"
+              variant={props.myAnswer === 'going' ? 'primary' : 'secondary'}
+              busy={props.busy}
+              onPress={props.onAnswerGoing ?? (() => undefined)}
+            />
+            <Button
+              label={copy.sync.rsvpCant}
+              testID="rsvp-cant"
+              variant={props.myAnswer === 'cant' ? 'primary' : 'secondary'}
+              busy={props.busy}
+              onPress={props.onAnswerCant ?? (() => undefined)}
+            />
+          </ButtonStack>
+          <Button
+            label={props.calendarButtonLabel ?? copy.sync.addToCalendar}
+            testID="add-to-calendar"
+            variant="ghost"
+            disabled={props.busy}
+            onPress={props.onAddToCalendar ?? (() => undefined)}
+          />
+          {props.calendarNotice ? <Caption tone="muted">{props.calendarNotice}</Caption> : null}
+        </Card>
+      ) : null}
+
+      {props.hasMeeting && !props.missed && !props.runnerName ? (
+        <Card testID="sync-whos-coming">
+          <Section>{copy.sync.whosComing}</Section>
+          <Caption tone="muted">
+            {fillTemplate(copy.sync.rsvpGoingCount, {
+              count: String(props.goingNames?.length ?? 0),
+            })}
+          </Caption>
+          {(props.goingNames ?? []).length > 0 ? (
+            <Body>{(props.goingNames ?? []).join(', ')}</Body>
+          ) : null}
+          <Caption tone="muted">
+            {fillTemplate(copy.sync.rsvpCantCount, {
+              count: String(props.cantNames?.length ?? 0),
+            })}
+          </Caption>
+          {(props.cantNames ?? []).length > 0 ? (
+            <Body>{(props.cantNames ?? []).join(', ')}</Body>
+          ) : null}
+          {props.admin && (props.unansweredNames?.length ?? 0) > 0 ? (
+            <>
+              <Caption tone="muted">{copy.sync.rsvpUnanswered}</Caption>
+              <Body>{(props.unansweredNames ?? []).join(', ')}</Body>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {props.hasMeeting ? (
+        <FlowProgress
+          flowStepIndex={props.flowStepIndex}
+          flowTitle={props.flowTitle ?? copy.sync.tonightFlow}
+        />
+      ) : null}
 
       {props.hasMeeting ? (
         <AgendaCard
@@ -325,9 +448,6 @@ export function SyncHubView(props: SyncHubViewProps) {
         />
       ) : null}
 
-      {props.admin ? (
-        <Button label={copy.sync.schedule} variant="ghost" onPress={props.onSchedule} />
-      ) : null}
       <Button label={copy.sync.tasks} variant="ghost" onPress={props.onTasks} />
       <Button label={copy.sync.pastMeetings} variant="ghost" onPress={props.onPast} />
     </>

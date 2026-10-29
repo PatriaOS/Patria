@@ -1,0 +1,150 @@
+# PHONE_TESTS: 46
+# AREAS: sync
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'setup' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - runFlow:
+          when:
+            visible:
+              id: "set-up-our-sync"
+          commands:
+            - tapOn:
+                id: "set-up-our-sync"
+      - runFlow:
+          when:
+            visible:
+              id: "schedule"
+          commands:
+            - tapOn:
+                id: "schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync-schedule"
+          timeout: 15000
+      - assertVisible:
+          id: "frequency-weekly"
+      - assertVisible:
+          id: "frequency-every_two_weeks"
+      - assertVisible:
+          id: "frequency-monthly"
+      - tapOn:
+          id: "frequency-weekly"
+      - tapOn:
+          id: "weekday-sun"
+      - scrollUntilVisible:
+          element:
+            id: "save-schedule"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "save-schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+      - assertVisible:
+          id: "sync-tonight-flow"
+- runFlow:
+    when:
+      true: ${PHASE == 'biweekly'}
+    commands:
+      - tapOn:
+          id: "sync"
+      - tapOn:
+          id: "schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "frequency-every_two_weeks"
+          timeout: 15000
+      - tapOn:
+          id: "frequency-every_two_weeks"
+      - scrollUntilVisible:
+          element:
+            id: "save-schedule"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "save-schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+- runFlow:
+    when:
+      true: ${PHASE == 'monthly_weekday'}
+    commands:
+      - tapOn:
+          id: "sync"
+      - tapOn:
+          id: "schedule"
+      - tapOn:
+          id: "frequency-monthly"
+      - tapOn:
+          id: "monthly-mode-same_weekday"
+      - tapOn:
+          id: "monthly-ordinal--1"
+      - scrollUntilVisible:
+          element:
+            id: "save-schedule"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "save-schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+- runFlow:
+    when:
+      true: ${PHASE == 'monthly_date'}
+    commands:
+      - tapOn:
+          id: "sync"
+      - tapOn:
+          id: "schedule"
+      - tapOn:
+          id: "frequency-monthly"
+      - tapOn:
+          id: "monthly-mode-same_date"
+      - tapOn:
+          id: "month-day"
+      - eraseText: 4
+      - inputText: "31"
+      - pressKey: Enter
+      - assertVisible: "In shorter months we use the last day of the month."
+      - scrollUntilVisible:
+          element:
+            id: "save-schedule"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "save-schedule"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 30000
+- runFlow:
+    when:
+      true: ${PHASE == 'member'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - assertNotVisible:
+          id: "schedule"

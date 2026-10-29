@@ -1,0 +1,15 @@
+# PHONE_TESTS: 51
+# AREAS: sync
+# Permission sheet and device calendar inspection are manual.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "sync"
+- extendedWaitUntil:
+    visible:
+      id: "add-to-calendar"
+    timeout: 20000
+- assertVisible:
+    id: "add-to-calendar"

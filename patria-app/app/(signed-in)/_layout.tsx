@@ -102,6 +102,7 @@ export default function SignedInLayout() {
         name="sync-schedule"
         options={{ ...pushed, title: screenTitles.syncSchedule }}
       />
+      <Stack.Screen name="sync-move" options={{ ...pushed, title: screenTitles.syncMove }} />
       <Stack.Screen name="sync-agenda" options={{ ...pushed, title: screenTitles.syncAgenda }} />
       <Stack.Screen name="sync-run" options={{ ...pushed, title: screenTitles.syncRun }} />
       <Stack.Screen name="sync-past" options={{ ...pushed, title: screenTitles.syncPast }} />

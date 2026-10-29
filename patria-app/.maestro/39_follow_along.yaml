@@ -16,19 +16,7 @@ appId: app.patria.dev
             id: "screen-sync"
           timeout: 20000
       - runFlow:
-          when:
-            visible:
-              id: "hold-it-now"
-          commands:
-            - tapOn:
-                id: "hold-it-now"
-      - runFlow:
-          when:
-            visible:
-              id: "continue"
-          commands:
-            - tapOn:
-                id: "continue"
+          file: subflows/start_sync_from_hub.yaml
       - extendedWaitUntil:
           visible:
             id: "screen-sync-run"
@@ -51,6 +39,10 @@ appId: app.patria.dev
           id: "follow-along"
       - assertNotVisible:
           id: "continue"
+      - assertNotVisible:
+          id: "start-early"
+      - assertNotVisible:
+          id: "start-the-sync"
       - tapOn:
           id: "follow-along"
       - extendedWaitUntil:
@@ -80,7 +72,8 @@ appId: app.patria.dev
       - tapOn:
           id: "notes"
       - inputText: "Hike felt great"
-      - hideKeyboard
+      # Multiline notes — Enter inserts a newline; tap the step title to dismiss the keyboard.
+      - tapOn: "Wins"
       - tapOn:
           id: "next"
       - extendedWaitUntil:

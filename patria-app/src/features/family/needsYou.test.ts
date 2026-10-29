@@ -23,6 +23,41 @@ describe('needsYou', () => {
     ]);
   });
 
+  it('lists an unanswered Sync invite after overdue tasks', () => {
+    const items = buildNeedsYouItems({
+      keyHolder: false,
+      recoveryAccepted: 2,
+      hasPaper: true,
+      recoveryStatus: 'ready',
+      syncMeeting: { status: 'upcoming', scheduledFor: '2026-11-02T00:00:00Z' },
+      syncRsvpNeeded: true,
+      timeZone: 'UTC',
+      userId: 'u1',
+      tasks: [],
+      deviceOrJoinCount: 0,
+      now: new Date('2026-10-26T12:00:00Z'),
+    });
+    expect(items.map((row) => row.id)).toEqual(['sync-rsvp']);
+    expect(items[0]?.testID).toBe('needs-you-sync-rsvp');
+  });
+
+  it('hides the Sync invite after the person answers', () => {
+    const items = buildNeedsYouItems({
+      keyHolder: false,
+      recoveryAccepted: 2,
+      hasPaper: true,
+      recoveryStatus: 'ready',
+      syncMeeting: { status: 'upcoming', scheduledFor: '2026-11-02T00:00:00Z' },
+      syncRsvpNeeded: false,
+      timeZone: 'UTC',
+      userId: 'u1',
+      tasks: [],
+      deviceOrJoinCount: 0,
+      now: new Date('2026-10-26T12:00:00Z'),
+    });
+    expect(items.map((row) => row.id)).toEqual([]);
+  });
+
   it('formats the bell badge and label', () => {
     expect(needsYouBadgeCount(0)).toBeNull();
     expect(needsYouBadgeCount(3)).toBe('3');

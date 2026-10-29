@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { copy } from '../../lib/copy';
@@ -23,6 +24,7 @@ import { useSyncSpace } from './useSyncSpace';
 
 export function PastMeetingsScreen() {
   const sync = useSyncSpace();
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const screenProps = {
     withHeader: true,
     testID: 'screen-sync-past',
@@ -51,7 +53,15 @@ export function PastMeetingsScreen() {
     .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
 
   return (
-    <Screen {...screenProps} refreshing={sync.refreshing} onRefresh={sync.refresh}>
+    <Screen
+      {...screenProps}
+      refreshing={pullRefreshing}
+      onRefresh={() => {
+        setPullRefreshing(true);
+        sync.refresh();
+        requestAnimationFrame(() => setPullRefreshing(false));
+      }}
+    >
       {finished.length === 0 ? (
         <EmptyState title={copy.sync.pastMeetings} message={copy.sync.noPastMeetings} />
       ) : (

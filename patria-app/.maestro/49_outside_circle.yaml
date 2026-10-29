@@ -1,0 +1,32 @@
+# PHONE_TESTS: 49
+# AREAS: sync
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'extended' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-sync"
+          timeout: 20000
+      - assertNotVisible:
+          id: "rsvp-going"
+      - assertNotVisible:
+          id: "sync-whos-coming"
+- runFlow:
+    when:
+      true: ${PHASE == 'household'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "sync"
+      - extendedWaitUntil:
+          visible:
+            id: "rsvp-going"
+          timeout: 20000
