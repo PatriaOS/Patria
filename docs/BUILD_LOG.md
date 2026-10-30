@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-30 — test:linux keeps Mac node_modules untouched
+
+`npm run test:linux` bind-mounts the repo into Docker and ran `npm ci` into that mount, so Linux packages overwrote `patria-app/node_modules` on the Mac and Metro then failed to find modules (ansi-regex, reanimated’s semver, lucide icons). An anonymous volume now shadows `/repo/patria-app/node_modules` inside the container so `npm ci` only fills that volume.
+
 ## 2026-10-30 — Trust screens: last lines above the bottom chrome
 
 Long Screen pages ended flush: scroll `paddingBottom` was only `space.xxl`. Screen now uses `space.xxl + space.xl` plus the bottom inset on scroll content (tab screens keep the existing tab clearance), so the last lines clear the home indicator. Phone test 52 scrolls each trust doc to its last paragraph.
