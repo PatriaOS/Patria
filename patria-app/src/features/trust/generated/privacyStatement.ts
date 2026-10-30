@@ -91,6 +91,15 @@ export const privacyStatementDocument = {
           {
             "text": " a public key for each approved phone, and the approvals made by your family."
           }
+        ],
+        [
+          {
+            "text": "Technical information:",
+            "bold": true
+          },
+          {
+            "text": " our hosting provider keeps standard technical logs, such as the time of a request and the IP address it came from, to keep Patria secure. Patria does not use these for advertising or tracking."
+          }
         ]
       ]
     },
@@ -300,7 +309,7 @@ export const privacyStatementDocument = {
         ],
         [
           {
-            "text": "You can ask us to delete your account and your information at any time by writing to us. We will confirm when it is done."
+            "text": "You can ask us to delete your account and your information at any time by writing to support.patria@gmail.com. We will confirm when it is done. A way to delete your account inside the app is coming before Patria opens to the public."
           }
         ]
       ]

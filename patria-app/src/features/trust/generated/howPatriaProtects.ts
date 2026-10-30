@@ -296,7 +296,7 @@ export const howPatriaProtectsDocument = {
             "bold": true
           },
           {
-            "text": " Patria's app and servers never record keys, recovery codes, invite links or personal content in their logs."
+            "text": " Patria's own code never writes keys, recovery codes, invite links or personal content into logs. Our hosting provider keeps standard technical logs, such as the time of a request and the IP address it came from, to keep the service secure."
           }
         ]
       ]

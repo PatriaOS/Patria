@@ -58,7 +58,7 @@ Honest note: if you lose every device and cannot reach your helpers or your prin
 
 - **Cannot:** read your Vault, see your keys, or see your printed recovery code.
 - **Do not:** browse your family's information. Patria is in early testing and only its founder has access to its systems. A written rule for staff access will be published before the first families join.
-- **Logs:** Patria's app and servers never record keys, recovery codes, invite links or personal content in their logs.
+- **Logs:** Patria's own code never writes keys, recovery codes, invite links or personal content into logs. Our hosting provider keeps standard technical logs, such as the time of a request and the IP address it came from, to keep the service secure.
 
 ## AI and the Patria Brain
 

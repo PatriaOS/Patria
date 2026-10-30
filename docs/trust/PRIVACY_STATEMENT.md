@@ -16,6 +16,7 @@ Your family's information belongs to your family. This statement explains, in pl
 - **Your family:** your family name, members, roles and circles.
 - **What your family adds:** photos and short videos, meeting agendas, notes, tasks and replies, and Legacy Vault entries. Vault entries are locked on your phone, so Patria cannot read them.
 - **Phone details needed for security:** a public key for each approved phone, and the approvals made by your family.
+- **Technical information:** our hosting provider keeps standard technical logs, such as the time of a request and the IP address it came from, to keep Patria secure. Patria does not use these for advertising or tracking.
 
 ## What we do not collect
 
@@ -59,7 +60,7 @@ Children's profiles are added and managed by a parent or family admin. Patria do
 
 - We keep your information while your account is active.
 - When someone leaves a family, their access ends at once, and their Only me Vault entries are deleted.
-- You can ask us to delete your account and your information at any time by writing to us. We will confirm when it is done.
+- You can ask us to delete your account and your information at any time by writing to support.patria@gmail.com. We will confirm when it is done. A way to delete your account inside the app is coming before Patria opens to the public.
 
 ## Security
 

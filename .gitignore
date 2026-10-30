@@ -2,3 +2,6 @@ node_modules/
 
 # Local design scratch (not product docs)
 docs/design/.gov02-shots.txt
+
+# Maestro / agent screenshots of trust screens (not product docs)
+docs/trust/screenshots/

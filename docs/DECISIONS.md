@@ -30,6 +30,7 @@ Use the exported screens in `docs/design/` when present. Where a screen is missi
 
 Slice 1: email and password, with email verification, through Supabase Auth.
 Before App Store submission: add Sign in with Apple and Google sign in. (Apple requires Sign in with Apple when an app offers other third party sign in options.)
+**Backlog:** In app account deletion (Apple requires it before App Store submission). Until then, people write to `support.patria@gmail.com` (see Privacy statement).
 
 ## D5. One person, many family spaces
 
