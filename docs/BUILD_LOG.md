@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-30 — Trust screens: last lines above the bottom chrome
+
+Long Screen pages ended flush: scroll `paddingBottom` was only `space.xxl`. Screen now uses `space.xxl + space.xl` plus the bottom inset on scroll content (tab screens keep the existing tab clearance), so the last lines clear the home indicator. Phone test 52 scrolls each trust doc to its last paragraph.
+
 ## 2026-10-29 — Trust docs: logs + account deletion wording
 
 Femi corrected both trust documents after fact check: hosting provider keeps standard technical logs (request time, IP); account deletion is by writing to support.patria@gmail.com, with an in-app option before public launch. Regenerated offline app content. Backlog on D4: in-app account deletion (Apple requires it before App Store submission).

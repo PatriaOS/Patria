@@ -2380,14 +2380,14 @@ try {
     }
 
     if (test.number === 52) {
-      step(52, 1, 'Drawer Privacy Policy opens the Privacy statement', () => {
+      step(52, 1, 'Privacy statement opens and scrolls to the contact line', () => {
         maestro({
           flow: flow('52_trust_docs.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'privacy_policy' },
         });
       });
-      step(52, 2, 'Privacy and Security opens How Patria protects your family', () => {
+      step(52, 2, 'How Patria opens, scrolls to Questions, then back', () => {
         maestro({
           flow: flow('52_trust_docs.yaml'),
           device: deviceA,

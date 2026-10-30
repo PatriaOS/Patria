@@ -71,11 +71,17 @@ function BlockView({ block }: { block: TrustBlock }) {
 }
 
 export function TrustDocumentView(props: Props) {
+  const lastIndex = props.document.blocks.length - 1;
   return (
     <Screen withHeader testID={props.testID} accessibilityLabel={props.accessibilityLabel}>
       <View style={styles.stack}>
         {props.document.blocks.map((block, index) => (
-          <BlockView key={`${block.type}-${index}`} block={block} />
+          <View
+            key={`${block.type}-${index}`}
+            testID={index === lastIndex ? `${props.testID}-end` : undefined}
+          >
+            <BlockView block={block} />
+          </View>
         ))}
       </View>
     </Screen>
