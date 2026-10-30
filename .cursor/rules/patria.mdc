@@ -66,3 +66,15 @@ Patria is a private family app: it runs a family's day to day and keeps its memo
    (3) run that flow and include the result in the summary.
    If a feature changes an existing test, update the test and its flow; never delete a test
    without saying why.
+
+## Definition of done
+Every feature or fix ships in the same PR with whichever of these apply:
+* `docs/DECISIONS.md` — a product or engineering choice changed or was clarified
+* `docs/testing/PHONE_TESTS.md` and `patria-app/.maestro/` — what a person sees or taps changed
+* `docs/BUILD_LOG.md` — always append a short entry for the slice
+* `docs/FEATURES.md` — feature status or acceptance criteria moved forward
+* `README.md` — status, getting started or security guidance changed
+* `docs/trust/` — what Patria collects, stores, shares or protects changed (then run
+  `npm run trust:content` so the in-app copy stays in sync; the unit test fails if it drifts)
+
+Do not merge if CI app or database jobs failed. Never skip or weaken database tests to make CI pass.

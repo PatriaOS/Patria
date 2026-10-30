@@ -8,6 +8,9 @@
 * `FIRST_PROMPTS.md`: the prompts to paste into Cursor, in order, to build the first slice.
 * `security/KEYS.md`: family encryption keys and recovery (CIR05 step 2 protocol).
 * `security/KEYS_IMPLEMENTATION.md`: small-step build plan for those keys. No code until Step 1 is approved.
+* `trust/`: How Patria protects your family and the Privacy statement (source of truth for in-app trust screens).
+* `DESIGN_SYSTEM.md`: D32 design system. Screen exports live in `design/`.
+* `testing/PHONE_TESTS.md`: numbered phone tests (Maestro flows in `patria-app/.maestro/`).
 
 Project rules for Cursor live in `.cursor/rules/patria.mdc` at the repository root.
 

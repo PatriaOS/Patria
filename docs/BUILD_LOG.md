@@ -7,9 +7,17 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-30 — Repo docs, CI port retry, trust and Docker merges
+
+Public README rewritten for early testing (stack, layout, Mac getting started, testing, security). `SECURITY.md` and a PR template carry the definition of done. Cursor rules require the same doc updates in every feature PR. `.DS_Store` removed from git and ignored. CI database job: no `services:` Postgres and only one `supabase start`; still, run `supabase stop --no-backup` first and retry start once if port 54322 is busy — tests still fail if the database never starts. Trust docs landed in PR #6 (phone test 52); Docker `node_modules` volume in PR #7.
+
 ## 2026-10-30 — test:linux keeps Mac node_modules untouched
 
-`npm run test:linux` bind-mounts the repo into Docker and ran `npm ci` into that mount, so Linux packages overwrote `patria-app/node_modules` on the Mac and Metro then failed to find modules (ansi-regex, reanimated’s semver, lucide icons). An anonymous volume now shadows `/repo/patria-app/node_modules` inside the container so `npm ci` only fills that volume.
+`npm run test:linux` bind-mounts the repo into Docker and ran `npm ci` into that mount, so Linux packages overwrote `patria-app/node_modules` on the Mac and Metro then failed to find modules (ansi-regex, reanimated’s semver, lucide icons). An anonymous volume now shadows `/repo/patria-app/node_modules` inside the container so `npm ci` only fills that volume. Merged as PR #7.
+
+## 2026-10-30 — Trust docs merged (PR #6)
+
+Offline trust screens, D38, phone test 52 and scroll padding for long Screens shipped on `trust-docs` and merged to main.
 
 ## 2026-10-30 — Trust screens: last lines above the bottom chrome
 
