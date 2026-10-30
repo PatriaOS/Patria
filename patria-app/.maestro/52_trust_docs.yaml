@@ -1,0 +1,61 @@
+# PHONE_TESTS: 52
+# AREAS: navigation
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'privacy_policy' || PHASE == null || PHASE == ''}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
+          id: "^home$"
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-privacy-policy"
+          timeout: 10000
+      - tapOn:
+          id: "menu-privacy-policy"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-statement"
+          timeout: 20000
+      - assertVisible: "Patria Privacy Statement"
+- runFlow:
+    when:
+      true: ${PHASE == 'how_patria'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-privacy-security"
+          timeout: 10000
+      - tapOn:
+          id: "menu-privacy-security"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
+      - scrollUntilVisible:
+          element:
+            id: "privacy-how-patria-protects"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "privacy-how-patria-protects"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-how-patria-protects"
+          timeout: 15000
+      - assertVisible: "How Patria Protects Your Family"
+      - tapOn:
+          point: 8%, 12%
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000

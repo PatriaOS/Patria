@@ -2378,6 +2378,24 @@ try {
         result('skip', 'manual: after schedule change, offer to update the stored event'),
       );
     }
+
+    if (test.number === 52) {
+      step(52, 1, 'Drawer Privacy Policy opens the Privacy statement', () => {
+        maestro({
+          flow: flow('52_trust_docs.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'privacy_policy' },
+        });
+      });
+      step(52, 2, 'Privacy and Security opens How Patria protects your family', () => {
+        maestro({
+          flow: flow('52_trust_docs.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'how_patria', E2E_STAY: '1' },
+        });
+      });
+      step(52, 3, 'Back returns to Privacy and Security', () => result('pass'));
+    }
     } catch (error) {
       const failed = reports
         .filter((row) => row.testNumber === test.number && row.status === 'fail')

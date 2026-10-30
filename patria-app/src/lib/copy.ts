@@ -123,6 +123,8 @@ export const copy = {
       'Choose two people who can help if you lose every phone. Recovery never starts from Home.',
     privacySecurityContacts: 'Recovery contacts',
     privacySecurityPrinted: 'Printed code',
+    privacySecurityHowPatria: 'How Patria protects your family',
+    privacySecurityStatement: 'Privacy statement',
     recoveryReminderTitle: 'Set up recovery',
     recoveryReminderBody:
       'If every phone is lost, the family’s private things can’t be recovered without it.',
@@ -775,6 +777,10 @@ export const copy = {
     sectionType: 'Type',
     sectionColor: 'Color',
     sectionComponents: 'Components',
+  },
+  trust: {
+    howPatriaProtectsTitle: 'How Patria protects your family',
+    privacyStatementTitle: 'Privacy statement',
   },
 } as const;
 

@@ -63,6 +63,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "trust:content": "node scripts/generate-trust-content.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node scripts/e2e-check.mjs",
     "e2e:check": "node scripts/e2e-check.mjs",

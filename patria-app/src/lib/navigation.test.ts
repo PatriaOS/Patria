@@ -53,6 +53,10 @@ describe('navigation headers', () => {
     expect(routes.appearance).toBe('/(signed-in)/appearance');
     expect(routes.needsYou).toBe('/(signed-in)/needs-you');
     expect(routes.privacySecurity).toBe('/(signed-in)/privacy-security');
+    expect(routes.howPatriaProtects).toBe('/(signed-in)/how-patria-protects');
+    expect(routes.privacyStatement).toBe('/(signed-in)/privacy-statement');
+    expect(screenTitles.howPatriaProtects).toBe('How Patria protects your family');
+    expect(screenTitles.privacyStatement).toBe('Privacy statement');
     expect(routes.family).toBe('/(signed-in)/family');
     expect(routes.sync).toBe('/(signed-in)/sync');
     expect(routes.syncSchedule).toBe('/(signed-in)/sync-schedule');

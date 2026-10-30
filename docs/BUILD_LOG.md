@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-10-29 — Trust documents offline (D38 recorded)
+
+Saved *How Patria protects your family* and the Privacy statement under `docs/trust/` as the source of truth. The app renders them from generated typed content (no network, no WebView). Drawer Privacy Policy opens the statement; Privacy and Security links to both. D38 records agreed AI privacy for the Patria Brain (not built). Phone test 52.
+
 ## 2026-10-28 — Test 37 member Win after refresh
 
 Step 4 failed asserting Park picnic at the top of Sync after a mid-screen swipe; agenda still sat below RSVP. Focus refresh now also refetches agenda (not only invalidate), and the flow leaves Sync and opens it again, then scrolls to the item. Unit test covers focus invalidate and pull refetch.

@@ -88,6 +88,14 @@ export default function SignedInLayout() {
         name="privacy-security"
         options={{ ...pushed, title: screenTitles.privacySecurity }}
       />
+      <Stack.Screen
+        name="how-patria-protects"
+        options={{ ...pushed, title: screenTitles.howPatriaProtects }}
+      />
+      <Stack.Screen
+        name="privacy-statement"
+        options={{ ...pushed, title: screenTitles.privacyStatement }}
+      />
       <Stack.Screen name="memories-add" options={{ ...pushed, title: screenTitles.memoriesAdd }} />
       <Stack.Screen
         name="memories-connect"

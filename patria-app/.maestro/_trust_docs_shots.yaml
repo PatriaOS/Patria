@@ -1,0 +1,131 @@
+# Local screenshots for trust docs (light then dark). Expects Test 1 already signed in (E2E_STAY).
+# AREAS: navigation
+appId: app.patria.dev
+---
+- launchApp
+- runFlow:
+    file: subflows/dismiss_open_in.yaml
+- runFlow:
+    file: subflows/dismiss_recovery_reminder.yaml
+- extendedWaitUntil:
+    visible:
+      id: "^home$|home-menu"
+    timeout: 45000
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-settings"
+    timeout: 10000
+- tapOn:
+    id: "menu-settings"
+- extendedWaitUntil:
+    visible:
+      id: "appearance-light"
+    timeout: 15000
+- tapOn:
+    id: "appearance-light"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-privacy-policy"
+    timeout: 10000
+- tapOn:
+    id: "menu-privacy-policy"
+- extendedWaitUntil:
+    visible:
+      id: "screen-privacy-statement"
+    timeout: 20000
+- takeScreenshot: privacy-statement-light
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- tapOn:
+    id: "home-menu"
+- tapOn:
+    id: "menu-privacy-security"
+- extendedWaitUntil:
+    visible:
+      id: "privacy-how-patria-protects"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "privacy-how-patria-protects"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "privacy-how-patria-protects"
+- extendedWaitUntil:
+    visible:
+      id: "screen-how-patria-protects"
+    timeout: 15000
+- takeScreenshot: how-patria-light
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "screen-privacy-security"
+    timeout: 15000
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- tapOn:
+    id: "home-menu"
+- tapOn:
+    id: "menu-settings"
+- extendedWaitUntil:
+    visible:
+      id: "appearance-dark"
+    timeout: 15000
+- tapOn:
+    id: "appearance-dark"
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- tapOn:
+    id: "home-menu"
+- tapOn:
+    id: "menu-privacy-policy"
+- extendedWaitUntil:
+    visible:
+      id: "screen-privacy-statement"
+    timeout: 20000
+- takeScreenshot: privacy-statement-dark
+- tapOn:
+    point: 8%, 12%
+- extendedWaitUntil:
+    visible:
+      id: "^home$"
+    timeout: 15000
+- tapOn:
+    id: "home-menu"
+- tapOn:
+    id: "menu-privacy-security"
+- scrollUntilVisible:
+    element:
+      id: "privacy-how-patria-protects"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "privacy-how-patria-protects"
+- extendedWaitUntil:
+    visible:
+      id: "screen-how-patria-protects"
+    timeout: 15000
+- takeScreenshot: how-patria-dark
