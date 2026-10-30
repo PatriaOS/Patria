@@ -75,7 +75,7 @@
     "e2e:setup": "node scripts/e2e-setup.mjs",
     "e2e:db-check": "node scripts/e2e-db-check.mjs",
     "test": "jest",
-    "test:linux": "docker run --rm -v \"$(cd .. && pwd)\":/repo -w /repo/patria-app node:22.13 bash -c 'npm ci && npm run typecheck && npm run lint && npm test -- --ci --maxWorkers=2'"
+    "test:linux": "docker run --rm -v \"$(cd .. && pwd)\":/repo -v /repo/patria-app/node_modules -w /repo/patria-app node:22.13 bash -c 'npm ci && npm run typecheck && npm run lint && npm test -- --ci --maxWorkers=2'"
   },
   "private": true
 }
