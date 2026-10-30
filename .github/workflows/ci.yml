@@ -35,6 +35,14 @@ jobs:
         with:
           version: 2.121.0
       - name: Start local Supabase and apply migrations
-        run: supabase start
+        run: |
+          set -euo pipefail
+          # Clear any leftover stack that may still hold Postgres (port 54322).
+          supabase stop --no-backup || true
+          if ! supabase start; then
+            echo "supabase start failed; stopping and retrying once"
+            supabase stop --no-backup || true
+            supabase start
+          fi
       - name: Run database tests
         run: supabase test db
