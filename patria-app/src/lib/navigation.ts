@@ -61,6 +61,8 @@ export const screenTitles = {
   appearance: copy.appearance.title,
   needsYou: copy.home.needsYouTitle,
   privacySecurity: copy.home.privacySecurityTitle,
+  howPatriaProtects: copy.trust.howPatriaProtectsTitle,
+  privacyStatement: copy.trust.privacyStatementTitle,
 } as const;
 
 export const routes = {
@@ -104,6 +106,8 @@ export const routes = {
   appearance: '/(signed-in)/appearance',
   needsYou: '/(signed-in)/needs-you',
   privacySecurity: '/(signed-in)/privacy-security',
+  howPatriaProtects: '/(signed-in)/how-patria-protects',
+  privacyStatement: '/(signed-in)/privacy-statement',
 } as const;
 
 export function headerWhenPushed(canGoBack: boolean) {

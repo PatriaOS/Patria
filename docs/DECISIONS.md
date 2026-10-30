@@ -30,6 +30,7 @@ Use the exported screens in `docs/design/` when present. Where a screen is missi
 
 Slice 1: email and password, with email verification, through Supabase Auth.
 Before App Store submission: add Sign in with Apple and Google sign in. (Apple requires Sign in with Apple when an app offers other third party sign in options.)
+**Backlog:** In app account deletion (Apple requires it before App Store submission). Until then, people write to `support.patria@gmail.com` (see Privacy statement).
 
 ## D5. One person, many family spaces
 
@@ -285,3 +286,16 @@ GOV02 slice 2. Builds on D35. Still Standard tier; still no push and no email ca
 * **Answers:** Going or Can’t make it, changeable until the meeting starts. Circle members can read answers; only your own row can be written, and only before start. Every circle member sees who is going and who can’t; only admins see who has not answered (app filter; RLS stays circle read). Moving a meeting or changing all future clears answers on affected upcoming meetings so Needs you can show the invite again.
 * **In-app invite:** Sync hub shows the next meeting with Going / Can’t make it; Needs you lists an unanswered invite at low priority. No nagging.
 * **Add to my calendar:** permission only on tap; iOS write-only via expo-calendar; event is “Family Sync”, the time (30 minutes) and `patria://sync` only — no agenda or names. Event id stays on the phone (AsyncStorage), never on the server.
+
+## D38. AI privacy for the Patria Brain (agreed, not built) (29 October 2026)
+
+Agreed by Femi on 29 October 2026. Not implemented yet; building starts only after this written decision. Summarised from the architecture paper (*How Patria Protects Your Family*) and the Patria Brain privacy brief.
+
+* **No AI reads anything in Patria today.** When AI help arrives, it is optional, per person, and never reads the Legacy Vault. Children are excluded.
+* **Each adult chooses a privacy level for themselves:**
+  * *Only what I send* — paste, share or forward specific messages; only those reach processing.
+  * *Private on my phone* — Patria reads email on the phone; the email never leaves the device.
+  * *Patria Cloud* — the person forwards email to Patria for processing.
+* **Patria Cloud rules:** process in memory and do not store email content; any short retry queue is encrypted and empties itself; email content is never written to logs; the AI provider must agree in writing not to train on the content and to keep it for as short a time as possible.
+* **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
+* Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.

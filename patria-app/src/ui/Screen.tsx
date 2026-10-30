@@ -7,11 +7,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { space } from '../theme/tokens';
 import { useTheme } from '../theme';
 import { screenSafeEdges } from './screenEdges';
+import { screenScrollPaddingBottom } from './screenScrollPadding';
 
 type ScrollViewRef = ComponentRef<typeof ScrollView>;
 
@@ -41,6 +42,13 @@ export function Screen({
   scrollRef,
 }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Extra scroll padding after the last line (SafeAreaView still owns the
+  // bottom edge when there is no tab bar). Long trust pages were ending flush.
+  const scrollPaddingBottom = screenScrollPaddingBottom({
+    withTabBar,
+    bottomInset: scroll ? insets.bottom : 0,
+  });
   const body = scroll ? (
     <ScrollView
       ref={scrollRef}
@@ -48,7 +56,7 @@ export function Screen({
         styles.scroll,
         {
           backgroundColor: colors.background,
-          paddingBottom: withTabBar ? space.xxl + 80 : space.xxl,
+          paddingBottom: scrollPaddingBottom,
         },
       ]}
       keyboardShouldPersistTaps="handled"

@@ -72,6 +72,15 @@ describe('PrivacySecurityScreen', () => {
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/recovery-setup');
   });
 
+  it('opens the offline trust documents from Privacy and Security', async () => {
+    const { findByTestId } = await renderScreen(<PrivacySecurityScreen />);
+    await fireEvent.press(await findByTestId('privacy-how-patria-protects'));
+    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/how-patria-protects');
+    mockedRouter().push.mockClear();
+    await fireEvent.press(await findByTestId('privacy-statement'));
+    expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/privacy-statement');
+  });
+
   it('offers a printed-code step after two contacts accept', async () => {
     (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
       contacts: [],

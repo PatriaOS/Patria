@@ -64,6 +64,20 @@ export function PrivacySecurityScreen() {
           <Muted>{copy.home.recoveryYouAreContact.replace('{family}', current.space.name)}</Muted>
         )}
       </Card>
+      <ButtonStack>
+        <Button
+          label={copy.home.privacySecurityHowPatria}
+          testID="privacy-how-patria-protects"
+          variant="secondary"
+          onPress={() => router.push(routes.howPatriaProtects)}
+        />
+        <Button
+          label={copy.home.privacySecurityStatement}
+          testID="privacy-statement"
+          variant="secondary"
+          onPress={() => router.push(routes.privacyStatement)}
+        />
+      </ButtonStack>
     </Screen>
   );
 }

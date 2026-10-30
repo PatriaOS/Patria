@@ -441,3 +441,9 @@ Areas: sync
 1. Sign in as Test 1. Open **Sync** and tap **Add to my calendar**. (manual) Pass if the system **Add Event** sheet opens, pre-filled with **Family Sync**, the meeting start and end (30 minutes), a repeat that matches the schedule, and `patria://sync` — with no agenda text or names. Patria does not ask for calendar permission for this sheet.
 2. Tap **Add** (or **Done**) in the sheet. Pass if Sync shows **Added to your calendar.** Tap **Add to my calendar** again and **Cancel** the sheet. Pass if Sync shows no new notice. (manual)
 3. Change the Sync schedule (or move this meeting), then open Sync. Pass if the button says **Add the new time to my calendar**. Tap it, add the new event in the sheet. Pass if Sync says the event was added and to remove the old Family Sync if it is still there. (manual)
+
+### 52. Trust documents offline
+Areas: navigation
+1. Sign in as Test 1. Open the Home menu and tap **Privacy Policy**. Pass if the **Privacy statement** screen opens with the heading **Patria Privacy Statement** (no Soon tag on the menu row). Scroll to the end. Pass if the last paragraph (**We will update this statement… Questions or requests: support.patria@gmail.com.**) is fully visible above the bottom of the screen.
+2. Go back to Home. Open the menu, tap **Privacy and Security**, then **How Patria protects your family**. Pass if that screen opens with the heading **How Patria Protects Your Family**. Scroll to the end. Pass if the **Questions** heading and **Write to support.patria@gmail.com. We will answer in plain language.** are fully visible.
+3. Go back. Pass if you return to **Privacy and Security**.

@@ -73,13 +73,18 @@ function buildRows(privacyNeedsAttention: boolean): MenuRow[] {
       testID: 'menu-privacy-security',
       dot: privacyNeedsAttention,
     },
+    {
+      kind: 'link',
+      label: copy.home.menuPrivacyPolicy,
+      href: routes.privacyStatement,
+      testID: 'menu-privacy-policy',
+    },
     { kind: 'divider' },
     { kind: 'soon', label: copy.home.menuHelp, testID: 'menu-help' },
     { kind: 'soon', label: copy.home.menuFeedback, testID: 'menu-feedback' },
     { kind: 'soon', label: copy.home.menuAbout, testID: 'menu-about' },
     { kind: 'divider' },
     { kind: 'soon', label: copy.home.menuTerms, testID: 'menu-terms' },
-    { kind: 'soon', label: copy.home.menuPrivacyPolicy, testID: 'menu-privacy-policy' },
   ];
 }
 
@@ -146,8 +151,9 @@ export function HomeMenuDrawer(props: Props) {
   const swipeStartX = useRef(0);
 
   const onNavigate = (href: string) => {
-    animateClose();
+    // Push first so the destination mounts before the drawer finishes closing.
     router.push(href as never);
+    animateClose();
   };
 
   const onSignOutPress = () => {
@@ -352,8 +358,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     gap: space.xxs,
-    // Leave room so Privacy Policy clears the pinned footer on small phones.
-    paddingBottom: space.xl,
+    // Leave room so Privacy Policy clears the pinned Sign out footer.
+    paddingBottom: space.xxl + space.xl,
   },
   footer: {
     flexShrink: 0,
