@@ -1,5 +1,6 @@
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
+import { formatLetterDate } from '../letters/letterDates';
 import {
   calendarDayInZone,
   overdueTasksForUser,
@@ -19,6 +20,19 @@ export type NeedsYouItem = {
   testID: string;
 };
 
+/** The few letter fields Needs you reads. Letters the person can't see never reach this list. */
+export type NeedsYouLetter = {
+  id: string;
+  authorId: string;
+  recipientId: string;
+  status: string;
+  visibility: string;
+  recipientLeftAt: string | null;
+  triggerAt: string;
+  authorName: string | null;
+  recipientName: string | null;
+};
+
 export type NeedsYouInput = {
   keyHolder: boolean;
   recoveryAccepted: number;
@@ -32,8 +46,69 @@ export type NeedsYouInput = {
   tasks: { id: string; ownerUserId: string | null; dueOn: string | null; doneAt: string | null }[];
   /** Device / join / recovery-invite rows that need this user's tap. */
   deviceOrJoinCount: number;
+  /** Letters visible to this person (see useLetterAttention). */
+  letters?: NeedsYouLetter[];
   now?: Date;
 };
+
+function letterNeedsYouItem(
+  letter: NeedsYouLetter,
+  userId: string | undefined,
+  timeZone: string,
+): Omit<NeedsYouItem, 'rank'> | null {
+  if (!userId) {
+    return null;
+  }
+  const action = copy.letters.needsYouOpenLetters;
+  // The author can still withdraw a sealed letter whose recipient left.
+  if (
+    letter.authorId === userId &&
+    letter.recipientLeftAt != null &&
+    (letter.status === 'sealed' || letter.status === 'pending')
+  ) {
+    return {
+      id: `letter-left-${letter.id}`,
+      kind: 'letter_recipient_left',
+      title: copy.letters.needsYouRecipientLeftTitle,
+      body: copy.letters.needsYouRecipientLeftBody.replace(
+        '{name}',
+        letter.recipientName ?? copy.letters.formerMember,
+      ),
+      actionLabel: action,
+      href: routes.letters,
+      testID: 'needs-you-letter-left',
+    };
+  }
+  if (letter.recipientId !== userId || letter.recipientLeftAt != null) {
+    return null;
+  }
+  const from = letter.authorName ?? copy.letters.formerMember;
+  if (letter.status === 'pending') {
+    return {
+      id: `letter-pending-${letter.id}`,
+      kind: 'letter_pending',
+      title: copy.letters.needsYouPendingTitle,
+      body: copy.letters.needsYouPendingBody.replace('{name}', from),
+      actionLabel: action,
+      href: routes.letters,
+      testID: 'needs-you-letter-pending',
+    };
+  }
+  if (letter.status === 'sealed' && letter.visibility === 'announced') {
+    return {
+      id: `letter-announced-${letter.id}`,
+      kind: 'letter_announced',
+      title: copy.letters.needsYouAnnouncedTitle,
+      body: copy.letters.needsYouAnnouncedBody
+        .replace('{name}', from)
+        .replace('{date}', formatLetterDate(letter.triggerAt, timeZone)),
+      actionLabel: action,
+      href: routes.letters,
+      testID: 'needs-you-letter-announced',
+    };
+  }
+  return null;
+}
 
 /** Ranked Needs you rows for the bell badge and Needs you screen. Navigation only. */
 export function buildNeedsYouItems(input: NeedsYouInput): NeedsYouItem[] {
@@ -115,6 +190,13 @@ export function buildNeedsYouItems(input: NeedsYouInput): NeedsYouItem[] {
       href: routes.sync,
       testID: 'needs-you-sync-rsvp',
     });
+  }
+
+  for (const letter of input.letters ?? []) {
+    const item = letterNeedsYouItem(letter, input.userId, input.timeZone);
+    if (item) {
+      raw.push(item);
+    }
   }
 
   const ranked = rankHomeAttention(raw.map(({ id, kind }) => ({ id, kind })));

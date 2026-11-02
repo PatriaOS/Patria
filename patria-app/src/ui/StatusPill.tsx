@@ -25,7 +25,12 @@ export function StatusPill({ label, tone = 'neutral', testID }: Props) {
   const textTone = tone === 'danger' ? 'danger' : tone === 'success' ? 'success' : 'muted';
 
   return (
-    <View testID={testID} style={[styles.pill, { backgroundColor }]}>
+    <View
+      testID={testID}
+      accessible
+      accessibilityLabel={label}
+      style={[styles.pill, { backgroundColor }]}
+    >
       <Caption tone={textTone}>{label}</Caption>
     </View>
   );

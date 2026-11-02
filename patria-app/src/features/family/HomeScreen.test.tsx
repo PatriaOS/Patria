@@ -432,7 +432,7 @@ describe('HomeScreen invite entry', () => {
       const view = await renderScreen(<HomeScreen />);
       const overline = await view.findByTestId('home-sync-overline');
       expect(String(overline.props.children)).toMatch(
-        /^[A-Z]+DAY FAMILY SYNC · (IN \d+ DAYS|TOMORROW)$/,
+        /^[A-Z]+DAY FAMILY SYNC · (IN \d+ DAYS|TOMORROW|TODAY|TONIGHT)$/,
       );
       expect(String((await view.findByTestId('home-sync-title')).props.children)).toBe(
         'Household meeting',

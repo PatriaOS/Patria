@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@noble/ciphers/chacha.js": "npm:@noble/ciphers@2.4.0/chacha.js",
+    "@noble/curves/nist.js": "npm:@noble/curves@2.4.0/nist.js",
+    "@noble/hashes/hkdf.js": "npm:@noble/hashes@2.4.0/hkdf.js",
+    "@noble/hashes/sha2.js": "npm:@noble/hashes@2.4.0/sha2.js",
+    "@noble/hashes/utils.js": "npm:@noble/hashes@2.4.0/utils.js",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "@aws-sdk/client-kms": "npm:@aws-sdk/client-kms@3"
+  }
+}

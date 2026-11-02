@@ -386,6 +386,13 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# LEG02: opens the Patria half of a letter's key only after its trigger time.
+[functions.letter-release]
+enabled = true
+verify_jwt = true
+import_map = "./functions/letter-release/deno.json"
+entrypoint = "./functions/letter-release/index.ts"
+
 [analytics]
 enabled = true
 port = 54327

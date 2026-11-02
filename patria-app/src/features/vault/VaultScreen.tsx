@@ -231,6 +231,12 @@ export function VaultScreen() {
       {writer ? (
         <Button label={copy.vault.newDecision} onPress={() => router.push(routes.vaultNew)} />
       ) : null}
+      <Button
+        label={copy.vault.lettersEntry}
+        variant="secondary"
+        onPress={() => router.push(routes.letters)}
+        testID="letters-entry"
+      />
       {items.length === 0 ? (
         <EmptyState title={copy.vault.emptyTitle} message={copy.vault.emptyBody} compact />
       ) : (

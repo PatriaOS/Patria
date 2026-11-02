@@ -205,8 +205,74 @@ try {
     process.exit(0);
   }
 
+  if (command === 'assert-letter-withdrawn') {
+    const family = flag('family');
+    const sid = spaceId(family);
+    const letters = Number(
+      query(dbUrl, `SELECT count(*) FROM public.letters WHERE family_space_id = '${sid}';`),
+    );
+    if (letters !== 0) {
+      throw new Error(`expected 0 letters after withdraw, found ${letters}`);
+    }
+    const withdrawnIds = query(
+      dbUrl,
+      `SELECT coalesce(string_agg(letter_id::text, ','), '') FROM public.letter_events WHERE family_space_id = '${sid}' AND event_type = 'withdrawn';`,
+    );
+    if (!withdrawnIds) {
+      throw new Error('expected a withdrawn letter_events row');
+    }
+    const ids = withdrawnIds
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    for (const letterId of ids) {
+      const payload = Number(
+        query(dbUrl, `SELECT count(*) FROM public.letter_payloads WHERE letter_id = '${letterId}';`),
+      );
+      const authorShare = Number(
+        query(
+          dbUrl,
+          `SELECT count(*) FROM public.letter_author_shares WHERE letter_id = '${letterId}';`,
+        ),
+      );
+      const recipientShare = Number(
+        query(
+          dbUrl,
+          `SELECT count(*) FROM public.letter_recipient_shares WHERE letter_id = '${letterId}';`,
+        ),
+      );
+      const patriaShare = Number(
+        query(
+          dbUrl,
+          `SELECT count(*) FROM public.letter_patria_shares WHERE letter_id = '${letterId}';`,
+        ),
+      );
+      if (payload + authorShare + recipientShare + patriaShare !== 0) {
+        throw new Error(
+          `withdraw left content or shares for ${letterId}: payload=${payload} author=${authorShare} recipient=${recipientShare} patria=${patriaShare}`,
+        );
+      }
+    }
+    console.log('assert-letter-withdrawn ok');
+    process.exit(0);
+  }
+
+  if (command === 'letter-fingerprint') {
+    const family = flag('family');
+    const sid = spaceId(family);
+    const fingerprint = query(
+      dbUrl,
+      `SELECT fingerprint FROM public.letters WHERE family_space_id = '${sid}' ORDER BY sealed_at DESC NULLS LAST, created_at DESC LIMIT 1;`,
+    );
+    if (!fingerprint || !/^[0-9a-f]{12}$/i.test(fingerprint)) {
+      throw new Error(`missing or invalid letter fingerprint: ${fingerprint || '(empty)'}`);
+    }
+    process.stdout.write(`${fingerprint}\n`);
+    process.exit(0);
+  }
+
   console.error(
-    `${SCRIPT} usage: invite-url | assert-epoch | assert-wraps | assert-no-wraps | assert-no-print-columns | assert-recovery-public | assert-under-recovery | memory-path | memory-files-gone`,
+    `${SCRIPT} usage: invite-url | assert-epoch | assert-wraps | assert-no-wraps | assert-no-print-columns | assert-recovery-public | assert-under-recovery | memory-path | memory-files-gone | assert-letter-withdrawn | letter-fingerprint`,
   );
   process.exit(1);
 } catch (error) {

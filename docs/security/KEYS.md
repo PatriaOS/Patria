@@ -41,7 +41,7 @@ Patria should keep a family’s vault (letters, decisions, documents, health, te
 | Someone looking over your shoulder, or you unlocking the phone for them | We cannot fix physical coercion in this slice. |
 | A rooted/jailbroken phone with malware already inside the OS | Secure store can be bypassed on a fully compromised device. |
 | Patria being forced by a government to add a backdoor | We will not build a backdoor. Legal process is a company policy question, not a key-design feature. |
-| Sealed letters, document encryption | LEG02+ and CARE07, after this key design. Decision Ledger text is LEG01 slice 1 (D33). |
+| Document encryption | CARE07, after this key design. Sealed letters use letterbox keys (LEG02 / D42). |
 | Generational Custody Handover (lawyer / third share, death certificates) | GROW04, Phase 3. CIR05 recovery is for a **living** family that lost a phone, not inheritance. |
 | Merging two family spaces | D1. Each space has its own family key. |
 | Teen private space keys | GROW02. |
@@ -52,7 +52,9 @@ We do **not** encrypt the slice 1 family home (space name, member list, invites)
 
 **Personal key (D34).** One 32-byte key per member per family, minted once by `create_personal_key` for the exact set of that member’s approved devices and sealed to their recovery public key. Only-me CEKs wrap to this key (`patria/vault-cek-private/v1`). Approving your own extra phone also wraps it; removing a phone deletes that wrap; recovery restores it from the seal; rotating recovery requires a new seal in the same call. A role change does not delete it. Membership delete does.
 
-**Voice notes (D34).** Per-recording file key inside the entry JSON. Playback writes plaintext to the cache directory and deletes it when leaving the screen and on app start. That file can exist while the note is playing; that is an honest limit, not a second store.
+**Letterbox key (D42 / LEG02).** One X25519 key pair per member per family. The public key is stored so family members who may author letters can seal `shareR` to it (`patria/letter-recipient-share/v1`). The private key is wrapped to the member’s personal key (`patria/letterbox-private/v1`), so every approved phone and recovery can open it — letters are not stranded when phones are replaced. Created on the member’s phone when the personal key exists (next app open). Authors never read other members’ `device_keys`.
+
+**Voice notes (D34).** Per-recording file key inside the entry JSON. Playback writes plaintext to the cache directory and deletes it when leaving the screen and on app start. That file can exist while the note is playing; that is an honest limit, not a second store. Letter voice notes use the same pattern with context `patria/letter-audio/v1`.
 
 **Note for the Legacy Vault design:** With a single family key, **circles are not protected by encryption**. Anyone who holds the family key can decrypt any vault blob if they can fetch it. RLS still hides rows from the wrong people on the honest server, but a stolen database dump, a bug in Storage policies, or a future leak of ciphertext would let every key-holder read every circle’s vault items. **Vault items should use per-item or per-circle keys** (wrapped to the family key or to the members of that circle), so Household vs Extended Family vs Only Me is enforced by cryptography, not only by RLS. That work belongs with LEG01+, not CIR05.
 

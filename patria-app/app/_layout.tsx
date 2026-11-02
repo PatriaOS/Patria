@@ -9,6 +9,8 @@ import { assertE2ePhotoSamplesGated } from '../src/features/memories/e2ePhotoSam
 import { assertE2eVoiceSampleGated } from '../src/features/vault/e2eVoiceSample';
 import { wipeVaultAudioCache } from '../src/features/vault/vaultPlayback';
 import { AuthProvider } from '../src/lib/auth-context';
+// Ensure @noble/curves can call crypto.getRandomValues on Hermes (letter P-256 seal).
+import '../src/lib/crypto/random';
 import { hiddenRootHeader, pushedScreenHeader, screenTitles } from '../src/lib/navigation';
 import { queryClient } from '../src/lib/queryClient';
 import { colors, FontGate, useTheme, useThemedStackOptions } from '../src/theme';

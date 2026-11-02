@@ -7,6 +7,26 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-02 — Letters trust docs, hosted seal gate, fail-shot device
+
+Trust docs (How Patria / Privacy) document Letters to the Future; `trust:content` regenerated. Hosted production builds refuse to seal when the release public key is missing or the known fake key — Letters shows Coming soon. e2e failure screenshots use the Simulator that last ran Maestro (not always device A).
+
+## 2026-11-02 — Letters 60 recipient assert (open date a11y)
+
+Test 60 step 2 failed on `assertVisible: "Opens .*"` even though Test 2’s Letters screen showed only the announced stub (“A letter from Test 1”, Opens date, Sealed) and no surprise row. ListRow’s accessibility label was title-only, so Maestro could not see the open-date subtitle. ListRow now includes the body in the label; the flow still asserts the surprise body and “For Test 2” are absent. Not an RLS leak — pgTAP already covers surprise-hidden-while-sealed.
+
+## 2026-11-02 — Letters 60–62 dual-sim + RNG wiring
+
+Skipped core steps on 60–62 are not passes. Maestro now drives Test 2 on the second Simulator for announced-vs-surprise, withdraw (plus `assert-letter-withdrawn` for payload and every share row), and past-trigger open with voice + matching seal code. e2e starts local `letter-release` with the fake private key when needed. `random.ts` always installs `crypto.getRandomValues` from expo-crypto (no Math.random fallback); unit test fails if that wiring is missing. expo-crypto was already a dependency (family keys) — no new native module, so no `e2e:build` for this slice.
+
+## 2026-11-01 — Letters 59–63: recovery gate + e2e seed
+
+Femi’s run opened Letters with the opaque “hold the family key and have set up recovery” banner and no Write button: tests 59–63 used the admin-only family scenario and never seeded D25 recovery (or a recipient letterbox), while `letter_writer_ready` / `letter_recipient_ready` both require recovery. Letters now mirrors Vault (recovery CTA when a writer is missing contacts; ensure letterbox on Letters as well as Home). e2e uses `admin-elders`, SQL recovery for Test 1 and Test 2, let-in + Home so letterbox keys exist, self-contained Maestro flows 60–63, and the fake letter-release public key in `.env.e2e.local`. Hermes also lacked `crypto.getRandomValues` for `@noble/curves` P-256 keygen — polyfilled via expo-crypto in `random.ts`.
+
+## 2026-11-01 — LEG02 Letters Slice A (D42)
+
+Letters to the Future: write/seal with date triggers, Surprise/Announced, author edit/withdraw, voice notes, automatic dual-share path (per-member letterbox for shareR; Patria P-256 ECDH KEY_AGREEMENT for shareP; fake local key refused on hosted by public-key fingerprint). Family `timezone` on `family_spaces`. pgTAP covers RLS, letterbox, and no non-admin `device_keys` access. Slice B waits. Nothing to hosted. Trust wording held for Femi. Runbook: `docs/runbooks/letter-release-kms.md`.
+
 ## 2026-10-30 — Repo docs, CI port retry, trust and Docker merges
 
 Public README rewritten for early testing (stack, layout, Mac getting started, testing, security). `SECURITY.md` and a PR template carry the definition of done. Cursor rules require the same doc updates in every feature PR. `.DS_Store` removed from git and ignored. CI database job: no `services:` Postgres and only one `supabase start`; still, run `supabase stop --no-backup` first and retry start once if port 54322 is busy — tests still fail if the database never starts. Trust docs landed in PR #6 (phone test 52); Docker `node_modules` volume in PR #7.

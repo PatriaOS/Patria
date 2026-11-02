@@ -16,10 +16,17 @@ export type VoiceNoteFieldProps = {
   durationSeconds: number | null;
   onRecorded: (draft: VoiceDraft) => void;
   onRemove: () => void;
+  /** Optional test id for the record button (letters reuse this field). */
+  recordTestID?: string;
 };
 
 // E2E replaces only the microphone. onRecorded still encrypts through prepareVaultAudio.
-function VoiceNoteFieldE2e({ durationSeconds, onRecorded, onRemove }: VoiceNoteFieldProps) {
+function VoiceNoteFieldE2e({
+  durationSeconds,
+  onRecorded,
+  onRemove,
+  recordTestID,
+}: VoiceNoteFieldProps) {
   const [previewPlain, setPreviewPlain] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +66,7 @@ function VoiceNoteFieldE2e({ durationSeconds, onRecorded, onRemove }: VoiceNoteF
           variant="secondary"
           onPress={() => void startRecording()}
           busy={busy}
+          testID={recordTestID}
         />
       ) : (
         <ButtonStack>

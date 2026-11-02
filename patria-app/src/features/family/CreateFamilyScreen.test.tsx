@@ -4,6 +4,7 @@ import { copy } from '../../lib/copy';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { supabase } from '../../lib/supabase';
 import { renderScreen } from '../../test/renderScreen';
+import { defaultTimezone } from '../sync/syncLabels';
 import { CreateFamilyScreen } from './CreateFamilyScreen';
 
 jest.mock('../../lib/supabase', () => ({
@@ -86,5 +87,20 @@ describe('CreateFamilyScreen', () => {
       });
     });
     expect(mockedRouter().replace).toHaveBeenCalledWith('/(signed-in)/ready');
+  });
+
+  it('stores this phone’s time zone on the new family space', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: 's1', error: null });
+    const { getByLabelText, getByText } = await renderScreen(<CreateFamilyScreen />);
+
+    await fireEvent.changeText(getByLabelText(copy.createFamily.spaceNameLabel), 'The Riveras');
+    await fireEvent.press(getByText(copy.createFamily.submit));
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'create_family_space',
+        expect.objectContaining({ p_timezone: defaultTimezone() }),
+      );
+    });
   });
 });

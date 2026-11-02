@@ -1,0 +1,73 @@
+# PHONE_TESTS: 63
+# AREAS: letters
+# Seal with voice and assert the seal code screen (full open match waits on 62 seed).
+# Surprise is the default visibility — keep it without tapping.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letters"
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "write-letter"
+    timeout: 20000
+- tapOn:
+    id: "write-letter"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-new"
+    timeout: 15000
+- tapOn:
+    id: "letter-body"
+- inputText: "Seal code with voice."
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "letter-record-voice"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "letter-record-voice"
+- extendedWaitUntil:
+    visible: "0:20"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "letter-date-1y"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "letter-date-1y"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "seal-letter"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "seal-letter"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-sealed"
+    timeout: 30000
+- assertVisible: "Your letter is sealed"
+- extendedWaitUntil:
+    visible:
+      id: "letter-seal-code"
+    timeout: 10000

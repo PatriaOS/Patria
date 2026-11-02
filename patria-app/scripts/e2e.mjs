@@ -160,7 +160,11 @@ function restartAllMaestroDrivers() {
   }
 }
 
+/** Last Simulator udid passed to Maestro — used for failure screenshots. */
+let lastMaestroDevice = null;
+
 function maestro({ flow, device, env }) {
+  lastMaestroDevice = device || deviceA || null;
   const args = ['test', '--no-ansi', '--platform', 'ios'];
   if (device) {
     args.push('--device', device);
@@ -453,6 +457,22 @@ function stopMetroOn8081() {
   } catch {
     // Nothing is listening on 8081.
   }
+  // Hard kill if something is still bound (stale Metro without e2e public env).
+  try {
+    const still = execFileSync('lsof', ['-nP', '-iTCP:8081', '-sTCP:LISTEN', '-t'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    for (const pid of still.split(/\s+/).filter(Boolean)) {
+      try {
+        process.kill(Number(pid), 'SIGKILL');
+      } catch {
+        // Already gone.
+      }
+    }
+  } catch {
+    // Port is free.
+  }
 }
 
 let metroReadyForE2e = false;
@@ -470,35 +490,47 @@ async function ensureMetro() {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
+  if (await metroReady()) {
+    // Port still occupied after stop — do not reuse a Metro that may lack e2e env.
+    stopMetroOn8081();
+    const wait = Date.now();
+    while (Date.now() - wait < 5000 && (await metroReady())) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+  if (await metroReady()) {
+    throw new Error('Could not free port 8081 for e2e Metro.');
+  }
+  progress('Starting Metro in the background.');
+  const log = join(ARTIFACTS, 'metro.log');
+  // Reload .env.e2e.local so letter-release public key from e2e-setup is present.
+  const freshEnv = loadLocalFiles().e2eEnv;
+  const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
+    cwd: APP_ROOT,
+    env: {
+      ...process.env,
+      ...publicExpoEnv(freshEnv),
+      EXPO_PUBLIC_E2E: '1',
+      EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX:
+        freshEnv.EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX ||
+        '03ca1057fffbed5969b9619fc60d57877b24f95dbeb0844593b417d3cdeeeedc56',
+      EXPO_NO_DOTENV: '1',
+      REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
+    },
+    stdio: ['ignore', 'ignore', 'ignore'],
+    detached: true,
+  });
+  child.unref();
+  appendFileSync(log, `spawned metro pid=${child.pid}\n`);
+  const started = Date.now();
+  while (Date.now() - started < 90000) {
+    if (await metroReady()) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
   if (!(await metroReady())) {
-    progress('Starting Metro in the background.');
-    const log = join(ARTIFACTS, 'metro.log');
-    const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
-      cwd: APP_ROOT,
-      env: {
-        ...process.env,
-        ...publicExpoEnv(e2eEnv),
-        EXPO_PUBLIC_E2E: '1',
-        EXPO_NO_DOTENV: '1',
-        REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
-      },
-      stdio: ['ignore', 'ignore', 'ignore'],
-      detached: true,
-    });
-    child.unref();
-    appendFileSync(log, `spawned metro pid=${child.pid}\n`);
-    const started = Date.now();
-    while (Date.now() - started < 90000) {
-      if (await metroReady()) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    if (!(await metroReady())) {
-      throw new Error('Metro did not become ready on port 8081.');
-    }
-  } else {
-    progress('Metro is already running on port 8081.');
+    throw new Error('Metro did not become ready on port 8081.');
   }
   metroReadyForE2e = true;
   progress('Metro is ready.');
@@ -618,8 +650,48 @@ function seedLetIn(memberN, device) {
   }
 }
 
+function seedLettersReady() {
+  // e2e-setup seeds recovery rows for Test 1 and Test 2 (writer + recipient gates).
+  // Here: family key wraps, let-in for the recipient, then open Home so letterbox keys exist.
+  // Test 3 is only a SQL recovery contact — no phone let-in needed for seal/open.
+  seedAdminKeys();
+  const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+  // Test 1 is already on device A from seedAdminKeys — stay signed in for let-in
+  // (a full sign-out mid-seed has been flaky when Sync/Needs you chrome is open).
+  const waiting = tryMaestro({
+    flow: flow('09_let_in.yaml'),
+    device: other,
+    env: { ...signInEnv(secrets, 2), PHASE: 'waiting' },
+  });
+  if (waiting.ok) {
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: deviceA,
+      env: { ...signInEnv(secrets, 1), PHASE: 'let_in', E2E_STAY: '1' },
+    });
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: other,
+      env: { ...signInEnv(secrets, 2), PHASE: 'keys_ready', E2E_STAY: '1' },
+    });
+  } else {
+    seedLetIn(2, other);
+  }
+  // Home (and Letters) call ensureLetterboxKey once personal/family keys are ready.
+  signInOnDevice(1, deviceA);
+  signInOnDevice(2, other);
+}
+
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42].includes(testNumber)) {
+  if (
+    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+      testNumber,
+    )
+  ) {
+    return;
+  }
+  if ([59, 60, 61, 62, 63].includes(testNumber)) {
+    seedLettersReady();
     return;
   }
   seedAdminKeys();
@@ -678,7 +750,10 @@ function step(testNumber, stepNumber, label, fn) {
   } catch (error) {
     status = 'fail';
     detail = error instanceof Error ? error.message : 'failed';
-    captureScreen(deviceA, `fail-test-${testNumber}-step-${stepNumber}`);
+    const shotDevice = lastMaestroDevice || deviceA;
+    if (shotDevice) {
+      captureScreen(shotDevice, `fail-test-${testNumber}-step-${stepNumber}`);
+    }
     reports.push({ testNumber, stepNumber, label, status, detail });
     console.log(`  ${stepNumber}. ${label}: FAIL${detail ? ` (${detail})` : ''}`);
     throw error instanceof Error ? error : new Error(detail || 'failed');
@@ -747,6 +822,78 @@ if (record && deviceA) {
   recorders.push(startRecording(deviceA, `device-a`));
 }
 
+const FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX =
+  '78c5bcc55c54ed015e7452df3b55a395401c17c2088049bcd1a9c678dca33a85';
+let letterReleaseReady = false;
+
+async function letterReleaseResponds() {
+  try {
+    const response = await fetch('http://127.0.0.1:54321/functions/v1/letter-release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    // 401 = function up (JWT required). 500 with release_key_missing means serve is up but env missing.
+    return response.status === 401 || response.status === 500 || response.status === 400;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureLetterReleaseServe() {
+  if (letterReleaseReady && (await letterReleaseResponds())) {
+    return;
+  }
+  const envBody = [
+    '# Local e2e only. Fake letter-release private key; hosted refuses this fingerprint.',
+    `LETTER_RELEASE_PRIVATE_KEY_HEX=${FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX}`,
+    '',
+  ].join('\n');
+  const functionsEnvPath = join(APP_ROOT, 'supabase', 'functions', '.env');
+  const supabaseEnvPath = join(APP_ROOT, 'supabase', '.env');
+  writeFileSync(functionsEnvPath, envBody, { encoding: 'utf8' });
+  writeFileSync(supabaseEnvPath, envBody, { encoding: 'utf8' });
+  progress('Starting letter-release Edge Function serve.');
+  const log = join(ARTIFACTS, 'letter-release.log');
+  const child = spawn(
+    'npx',
+    ['supabase', 'functions', 'serve', 'letter-release', '--env-file', functionsEnvPath],
+    {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        LETTER_RELEASE_PRIVATE_KEY_HEX: FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX,
+      },
+      stdio: ['ignore', 'ignore', 'ignore'],
+      detached: true,
+    },
+  );
+  child.unref();
+  appendFileSync(log, `spawned letter-release pid=${child.pid}\n`);
+  const started = Date.now();
+  while (Date.now() - started < 90000) {
+    if (await letterReleaseResponds()) {
+      letterReleaseReady = true;
+      progress('letter-release Edge Function is ready.');
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error('letter-release Edge Function did not become ready on :54321.');
+}
+
+function markDueLettersPastTrigger() {
+  const spaceId = e2eFamilySpaceId();
+  sqlOnE2eFamily(
+    `UPDATE public.letters
+       SET trigger_at = now() - interval '1 day',
+           updated_at = now()
+     WHERE family_space_id = '${spaceId}'
+       AND status = 'sealed';`,
+  );
+  sqlOnE2eFamily(`SELECT public.mark_due_letters();`);
+}
+
 await ensureMetro();
 
 const total = selected.length;
@@ -792,7 +939,9 @@ try {
     testDeadline =
       Date.now() +
       timeoutMsForTest(test.number) +
-      ([9, 10, 11, 13, 30, 34].includes(test.number) ? 15 * 60 * 1000 : 0);
+      ([9, 10, 11, 13, 30, 34, 59, 60, 61, 62, 63].includes(test.number)
+        ? 15 * 60 * 1000
+        : 0);
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
     } catch (error) {
@@ -844,7 +993,11 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42].includes(test.number)) {
+    if (
+      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+        test.number,
+      )
+    ) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
@@ -2396,6 +2549,121 @@ try {
       });
       step(52, 3, 'Back returns to Privacy and Security', () => result('pass'));
     }
+
+    if (test.number === 59) {
+      step(59, 1, 'Open Letters and write form', () => {
+        maestro({
+          flow: flow('59_write_seal_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+      step(59, 2, 'Seal shows fingerprint', () => result('pass'));
+      step(59, 3, 'Sealed letter listed', () => result('pass'));
+    }
+
+    if (test.number === 60) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 60 needs 2 simulators (E2E_DEVICES=2) for Test 2 recipient steps.');
+      }
+      step(60, 1, 'Announced letter listed for author', () => {
+        maestro({
+          flow: flow('60_announced_vs_surprise.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'author', E2E_STAY: '1' },
+        });
+      });
+      step(60, 2, 'Recipient sees announced only', () => {
+        maestro({
+          flow: flow('60_announced_vs_surprise.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_list', E2E_STAY: '1' },
+        });
+      });
+      step(60, 3, 'Announced stub hides body', () => {
+        maestro({
+          flow: flow('60_announced_vs_surprise.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_stub', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 61) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 61 needs 2 simulators (E2E_DEVICES=2) for recipient after withdraw.');
+      }
+      step(61, 1, 'Edit reseals with new code', () => {
+        maestro({
+          flow: flow('61_edit_withdraw_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
+        });
+      });
+      step(61, 2, 'Withdraw removes letter', () => {
+        maestro({
+          flow: flow('61_edit_withdraw_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'withdraw', E2E_STAY: '1' },
+        });
+        const gone = dbCheck(['assert-letter-withdrawn', '--family', E2E_FAMILY_NAME]);
+        if (!gone.ok) {
+          throw new Error(gone.error || 'assert-letter-withdrawn failed');
+        }
+        maestro({
+          flow: flow('61_edit_withdraw_letter.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_gone', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 62) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 62 needs 2 simulators (E2E_DEVICES=2) for recipient open.');
+      }
+      await ensureLetterReleaseServe();
+      step(62, 1, 'Due letter appears for recipient', () => {
+        maestro({
+          flow: flow('62_date_release_automatic.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'seal', E2E_STAY: '1' },
+        });
+        markDueLettersPastTrigger();
+        maestro({
+          flow: flow('62_date_release_automatic.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_ready', E2E_STAY: '1' },
+        });
+      });
+      step(62, 2, 'Open with fake release key', () => {
+        const fingerprint = dbCheck(['letter-fingerprint', '--family', E2E_FAMILY_NAME]);
+        if (!fingerprint.ok || !fingerprint.stdout) {
+          throw new Error(fingerprint.error || 'letter-fingerprint missing');
+        }
+        const sealCode = fingerprint.stdout.trim();
+        maestro({
+          flow: flow('62_date_release_automatic.yaml'),
+          device: deviceB,
+          env: {
+            ...signInEnv(secrets, 2),
+            PHASE: 'open',
+            SEAL_CODE: sealCode,
+            E2E_STAY: '1',
+          },
+        });
+      });
+    }
+
+    if (test.number === 63) {
+      step(63, 1, 'Seal code matches on open', () => {
+        maestro({
+          flow: flow('63_fingerprint_match.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+    }
     } catch (error) {
       const failed = reports
         .filter((row) => row.testNumber === test.number && row.status === 'fail')
@@ -2410,7 +2678,10 @@ try {
           status: 'fail',
           detail: 'timed out',
         });
-        captureScreen(deviceA, `timeout-test-${test.number}`);
+        const shotDevice = lastMaestroDevice || deviceA;
+        if (shotDevice) {
+          captureScreen(shotDevice, `timeout-test-${test.number}`);
+        }
         markNotReached(test, 1);
       } else {
         throw error;

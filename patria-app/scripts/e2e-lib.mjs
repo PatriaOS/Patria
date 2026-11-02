@@ -135,6 +135,16 @@ export function scenarioForTest(testNumber) {
   if (testNumber === 49) {
     return 'admin-elder-extended';
   }
+  // Letters: Test 1 writes; Test 2 receives (letterbox + recovery); Test 3 is a recovery contact.
+  if (
+    testNumber === 59 ||
+    testNumber === 60 ||
+    testNumber === 61 ||
+    testNumber === 62 ||
+    testNumber === 63
+  ) {
+    return 'admin-elders';
+  }
   return 'admin';
 }
 
@@ -468,8 +478,22 @@ export function ensureJavaHome() {
     process.env.JAVA_HOME = execFileSync('/usr/libexec/java_home', {
       encoding: 'utf8',
     }).trim();
+    return;
   } catch {
-    // Maestro will fail with a clear Java error if nothing is installed.
+    // Fall through — some JDKs are installed but not registered with java_home.
+  }
+  const fallbacks = [
+    '/Library/Java/JavaVirtualMachines/jdk-27.jdk/Contents/Home',
+    '/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home',
+  ];
+  for (const home of fallbacks) {
+    try {
+      execFileSync(`${home}/bin/java`, ['-version'], { stdio: 'ignore' });
+      process.env.JAVA_HOME = home;
+      return;
+    } catch {
+      // try next
+    }
   }
 }
 
@@ -486,6 +510,7 @@ export const PHONE_AREA_LIST = [
   'memories',
   'vault',
   'sync',
+  'letters',
 ];
 
 export const SMOKE_TEST_NUMBERS = [1, 3, 8];
@@ -634,6 +659,15 @@ export function mapFileToAreas(file) {
   ) {
     areas.add('vault');
     areas.add('keys');
+  }
+  if (
+    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint/.test(
+      n,
+    )
+  ) {
+    areas.add('letters');
+    areas.add('keys');
+    areas.add('vault');
   }
   if (
     /patria-app\/src\/features\/sync|patria-app\/src\/features\/family\/(HomeToday|HomeSyncCard|OnThisDay|ThisWeek)|patria-app\/app\/\(signed-in\)\/(\(tabs\)\/)?(sync|index)|gov02|weekly_family_sync|3[6-9]_|4[0-2]_/.test(

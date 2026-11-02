@@ -873,11 +873,15 @@ stateDiagram-v2
 | Life event never happens | Author can set a fallback date (for example "or at 35"). |
 | Recipient no longer in the family space | Delivered by secure email link after identity check. |
 
+**Slice A (D42).** Date triggers and the automatic open path only (recipient letterbox + Patria P-256 ECDH release share). Surprise / Announced, author edit and withdraw, optional voice (5 minutes), fingerprint, fake local release key. Age triggers, keepers, early release, and child/guardian delivery wait for Slice B. Life events and video wait later. No AI.
+
 **Acceptance criteria (definition of done)**
 
 * [ ] Sealed content is unreadable by anyone, including Patria, before release (verified by security review).
-* [ ] Date and age triggers release within 1 hour of the trigger time.
-* [ ] Tamper evident hash is shown on release and matches the sealed version.
+* [x] Date triggers release within 1 hour of the trigger time (Slice A; age in Slice B).
+* [x] Tamper evident hash is shown on release and matches the sealed version (Slice A phone tests 59+).
+* [x] Surprise recipients see no letter row before release; announced recipients see From and open date only (pgTAP).
+* [x] Withdraw destroys content and shares; letter_events remain (pgTAP).
 
 **Data captured:** Encrypted letter, recipients, trigger, confirmer, state history.
 

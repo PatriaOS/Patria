@@ -137,12 +137,19 @@ jest.mock('tus-js-client', () => ({
   },
 }));
 
-jest.mock('expo-crypto', () => ({
-  getRandomValues: (typedArray: Uint8Array): Uint8Array => {
-    globalThis.crypto.getRandomValues(typedArray as never);
-    return typedArray;
-  },
-}));
+jest.mock('expo-crypto', () => {
+  // randomFillSync — never call globalThis.crypto.getRandomValues here.
+  // random.ts wires that global to expo-crypto; Node's webcrypto is the same object,
+  // so routing through it would recurse forever.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const nodeCrypto = require('crypto') as { randomFillSync: (buf: Uint8Array) => Uint8Array };
+  return {
+    getRandomValues: (typedArray: Uint8Array): Uint8Array => {
+      nodeCrypto.randomFillSync(typedArray);
+      return typedArray;
+    },
+  };
+});
 
 jest.mock('expo-router', () => {
   const React = require('react') as typeof import('react');

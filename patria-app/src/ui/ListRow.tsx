@@ -18,6 +18,9 @@ type Props = {
 
 export function ListRow({ title, body, onPress, leading, trailing, testID }: Props) {
   const { colors } = useTheme();
+  // VoiceOver / Maestro only see this label when the row is one accessible control;
+  // include the subtitle so open dates and similar body text are reachable.
+  const accessibilityLabel = body ? `${title}. ${body}` : title;
   const content = (
     <View style={[styles.row, { borderBottomColor: colors.hairline }]}>
       {leading}
@@ -31,7 +34,11 @@ export function ListRow({ title, body, onPress, leading, trailing, testID }: Pro
 
   if (!onPress) {
     return (
-      <View testID={testID ?? testIdFromLabel(title)} accessibilityLabel={title} accessible>
+      <View
+        testID={testID ?? testIdFromLabel(title)}
+        accessibilityLabel={accessibilityLabel}
+        accessible
+      >
         {content}
       </View>
     );
@@ -41,7 +48,7 @@ export function ListRow({ title, body, onPress, leading, trailing, testID }: Pro
     <Pressable
       testID={testID ?? testIdFromLabel(title)}
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={({ pressed }) => [{ opacity: pressed ? 0.75 : 1 }]}
     >

@@ -7,6 +7,7 @@ import { copy } from '../../lib/copy';
 import { fetchFirstDeviceNotices } from '../../lib/crypto/deviceAccess';
 import { supabaseRecoverFlowGateway } from '../../lib/crypto/recoverFlow';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
+import { useLetterAttention } from '../letters/useLetterAttention';
 import { fetchSyncMeetingAnswers, fetchSyncTasks } from '../sync/syncApi';
 import { syncAnswersKey } from '../sync/syncQueryKeys';
 import { defaultTimezone } from '../sync/syncLabels';
@@ -19,6 +20,7 @@ export function NeedsYouScreen() {
   const router = useRouter();
   const { userId, spaceId, current, admin, keyHolder } = useCurrentFamily();
   const sync = useSyncSpace();
+  const letters = useLetterAttention(spaceId, userId);
   const { refresh: refreshSync } = sync;
   const activeMeetingId = sync.active?.id;
 
@@ -114,6 +116,7 @@ export function NeedsYouScreen() {
     userId,
     tasks: tasksQuery.data ?? [],
     deviceOrJoinCount,
+    letters,
   });
 
   return (

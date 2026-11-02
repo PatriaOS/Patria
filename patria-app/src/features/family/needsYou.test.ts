@@ -58,6 +58,92 @@ describe('needsYou', () => {
     expect(items.map((row) => row.id)).toEqual([]);
   });
 
+  describe('letters', () => {
+    const base = {
+      keyHolder: false,
+      recoveryAccepted: 2,
+      hasPaper: true,
+      recoveryStatus: 'ready',
+      syncMeeting: null,
+      timeZone: 'UTC',
+      userId: 'me',
+      tasks: [],
+      deviceOrJoinCount: 0,
+      now: new Date('2026-10-26T12:00:00Z'),
+    };
+    const letter = {
+      id: 'l1',
+      authorId: 'ana',
+      recipientId: 'me',
+      status: 'pending',
+      visibility: 'surprise',
+      recipientLeftAt: null,
+      triggerAt: '2026-10-20T00:00:00Z',
+      authorName: 'Ana',
+      recipientName: 'Me',
+    };
+
+    it('tells the recipient a letter is waiting', () => {
+      const items = buildNeedsYouItems({ ...base, letters: [letter] });
+      expect(items.map((row) => row.kind)).toEqual(['letter_pending']);
+      expect(items[0]?.body).toBe(copy.letters.needsYouPendingBody.replace('{name}', 'Ana'));
+    });
+
+    it('tells the recipient about an announced letter that has not opened yet', () => {
+      const items = buildNeedsYouItems({
+        ...base,
+        letters: [
+          { ...letter, status: 'sealed', visibility: 'announced', triggerAt: '2027-01-05T12:00:00Z' },
+        ],
+      });
+      expect(items.map((row) => row.kind)).toEqual(['letter_announced']);
+      expect(items[0]?.body).toContain('Ana');
+    });
+
+    it('stays quiet about a sealed surprise', () => {
+      const items = buildNeedsYouItems({
+        ...base,
+        letters: [{ ...letter, status: 'sealed', visibility: 'surprise' }],
+      });
+      expect(items).toEqual([]);
+    });
+
+    it('tells the author when the recipient left', () => {
+      const items = buildNeedsYouItems({
+        ...base,
+        userId: 'ana',
+        letters: [
+          {
+            ...letter,
+            status: 'sealed',
+            recipientId: 'ben',
+            recipientLeftAt: '2026-10-25T00:00:00Z',
+            recipientName: null,
+          },
+        ],
+      });
+      expect(items.map((row) => row.kind)).toEqual(['letter_recipient_left']);
+      expect(items[0]?.body).toContain(copy.letters.formerMember);
+    });
+
+    it('does not list a pending letter for someone who has left', () => {
+      const items = buildNeedsYouItems({
+        ...base,
+        letters: [{ ...letter, recipientLeftAt: '2026-10-25T00:00:00Z' }],
+      });
+      expect(items).toEqual([]);
+    });
+
+    it('ranks letters after the older kinds', () => {
+      const items = buildNeedsYouItems({
+        ...base,
+        deviceOrJoinCount: 1,
+        letters: [letter],
+      });
+      expect(items.map((row) => row.kind)).toEqual(['device_or_join', 'letter_pending']);
+    });
+  });
+
   it('formats the bell badge and label', () => {
     expect(needsYouBadgeCount(0)).toBeNull();
     expect(needsYouBadgeCount(3)).toBe('3');

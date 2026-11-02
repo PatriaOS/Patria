@@ -17,6 +17,16 @@ describe('homeAttention', () => {
     expect(ranked.map((row) => row.id)).toEqual(['r', 'd', 's', 't']);
   });
 
+  it('ranks letters after every older kind', () => {
+    const ranked = rankHomeAttention([
+      { id: 'a', kind: 'letter_announced' },
+      { id: 'l', kind: 'letter_recipient_left' },
+      { id: 'p', kind: 'letter_pending' },
+      { id: 'f', kind: 'failed_retry' },
+    ]);
+    expect(ranked.map((row) => row.id)).toEqual(['f', 'p', 'l', 'a']);
+  });
+
   it('shows at most two with a hidden count', () => {
     const ranked = rankHomeAttention([
       { id: 'a', kind: 'recovery_setup' },
