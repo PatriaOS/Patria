@@ -13,6 +13,7 @@ import { sealSharePToReleasePublicKey } from '../../lib/crypto/letterReleaseKey'
 import { splitLetterCek, wipeLetterShares } from '../../lib/crypto/letterSplit';
 import { obtainPersonalKey } from '../../lib/crypto/personalKey';
 import { randomUuid } from '../../lib/crypto/random';
+import { logKeyStep } from '../../lib/devLog';
 import { getLetterReleasePublicKey } from './letterReleaseConfig';
 import { fetchLetterboxPublicKey } from './letterboxEnsure';
 import {
@@ -40,7 +41,12 @@ export type SealLetterParams = {
 
 export type SealLetterResult =
   | { ok: true; fingerprint: string; version: number }
-  | { ok: false; reason: 'recipient_not_ready' | 'too_large' | 'failed' };
+  | {
+      ok: false;
+      reason: 'recipient_not_ready' | 'too_large' | 'failed';
+      /** Short diagnostic for e2e / __DEV__ only — never shown in production UI. */
+      detail?: string;
+    };
 
 export async function sealLetterOnDevice(params: SealLetterParams): Promise<SealLetterResult> {
   const version = (params.previousVersion ?? 0) + 1;
@@ -150,11 +156,16 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
       wipeLetterShares(shares);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : '';
+    const message = error instanceof Error ? error.message : String(error ?? '');
     if (message.includes('too large')) {
       return { ok: false, reason: 'too_large' };
     }
-    return { ok: false, reason: 'failed' };
+    logKeyStep('seal_letter_failed', message.slice(0, 120) || 'unknown');
+    return {
+      ok: false,
+      reason: 'failed',
+      detail: message.slice(0, 160) || undefined,
+    };
   } finally {
     if (personalKey) {
       wipe(personalKey);

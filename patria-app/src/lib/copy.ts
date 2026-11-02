@@ -754,6 +754,7 @@ export const copy = {
     emptyBody: 'Write to someone in your family. It stays sealed until the day you pick.',
     notForYou: 'Letters are for family members who hold the family key and have set up recovery.',
     recoveryFirst: 'Set up recovery before you write a letter.',
+    recoveryFirstAction: 'Set up recovery',
     approveOtherPhone: 'Approve this phone from one of your other phones to read your letters.',
     forLine: 'For {name}',
     opensOn: 'Opens {date}',

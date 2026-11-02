@@ -453,6 +453,22 @@ function stopMetroOn8081() {
   } catch {
     // Nothing is listening on 8081.
   }
+  // Hard kill if something is still bound (stale Metro without e2e public env).
+  try {
+    const still = execFileSync('lsof', ['-nP', '-iTCP:8081', '-sTCP:LISTEN', '-t'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    for (const pid of still.split(/\s+/).filter(Boolean)) {
+      try {
+        process.kill(Number(pid), 'SIGKILL');
+      } catch {
+        // Already gone.
+      }
+    }
+  } catch {
+    // Port is free.
+  }
 }
 
 let metroReadyForE2e = false;
@@ -470,35 +486,47 @@ async function ensureMetro() {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
+  if (await metroReady()) {
+    // Port still occupied after stop — do not reuse a Metro that may lack e2e env.
+    stopMetroOn8081();
+    const wait = Date.now();
+    while (Date.now() - wait < 5000 && (await metroReady())) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+  if (await metroReady()) {
+    throw new Error('Could not free port 8081 for e2e Metro.');
+  }
+  progress('Starting Metro in the background.');
+  const log = join(ARTIFACTS, 'metro.log');
+  // Reload .env.e2e.local so letter-release public key from e2e-setup is present.
+  const freshEnv = loadLocalFiles().e2eEnv;
+  const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
+    cwd: APP_ROOT,
+    env: {
+      ...process.env,
+      ...publicExpoEnv(freshEnv),
+      EXPO_PUBLIC_E2E: '1',
+      EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX:
+        freshEnv.EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX ||
+        '03ca1057fffbed5969b9619fc60d57877b24f95dbeb0844593b417d3cdeeeedc56',
+      EXPO_NO_DOTENV: '1',
+      REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
+    },
+    stdio: ['ignore', 'ignore', 'ignore'],
+    detached: true,
+  });
+  child.unref();
+  appendFileSync(log, `spawned metro pid=${child.pid}\n`);
+  const started = Date.now();
+  while (Date.now() - started < 90000) {
+    if (await metroReady()) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
   if (!(await metroReady())) {
-    progress('Starting Metro in the background.');
-    const log = join(ARTIFACTS, 'metro.log');
-    const child = spawn('npx', ['expo', 'start', '--port', '8081'], {
-      cwd: APP_ROOT,
-      env: {
-        ...process.env,
-        ...publicExpoEnv(e2eEnv),
-        EXPO_PUBLIC_E2E: '1',
-        EXPO_NO_DOTENV: '1',
-        REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
-      },
-      stdio: ['ignore', 'ignore', 'ignore'],
-      detached: true,
-    });
-    child.unref();
-    appendFileSync(log, `spawned metro pid=${child.pid}\n`);
-    const started = Date.now();
-    while (Date.now() - started < 90000) {
-      if (await metroReady()) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    if (!(await metroReady())) {
-      throw new Error('Metro did not become ready on port 8081.');
-    }
-  } else {
-    progress('Metro is already running on port 8081.');
+    throw new Error('Metro did not become ready on port 8081.');
   }
   metroReadyForE2e = true;
   progress('Metro is ready.');
@@ -618,8 +646,48 @@ function seedLetIn(memberN, device) {
   }
 }
 
+function seedLettersReady() {
+  // e2e-setup seeds recovery rows for Test 1 and Test 2 (writer + recipient gates).
+  // Here: family key wraps, let-in for the recipient, then open Home so letterbox keys exist.
+  // Test 3 is only a SQL recovery contact — no phone let-in needed for seal/open.
+  seedAdminKeys();
+  const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+  // Test 1 is already on device A from seedAdminKeys — stay signed in for let-in
+  // (a full sign-out mid-seed has been flaky when Sync/Needs you chrome is open).
+  const waiting = tryMaestro({
+    flow: flow('09_let_in.yaml'),
+    device: other,
+    env: { ...signInEnv(secrets, 2), PHASE: 'waiting' },
+  });
+  if (waiting.ok) {
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: deviceA,
+      env: { ...signInEnv(secrets, 1), PHASE: 'let_in', E2E_STAY: '1' },
+    });
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: other,
+      env: { ...signInEnv(secrets, 2), PHASE: 'keys_ready', E2E_STAY: '1' },
+    });
+  } else {
+    seedLetIn(2, other);
+  }
+  // Home (and Letters) call ensureLetterboxKey once personal/family keys are ready.
+  signInOnDevice(1, deviceA);
+  signInOnDevice(2, other);
+}
+
 function seedBeforeYouStart(testNumber) {
-  if (![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42].includes(testNumber)) {
+  if (
+    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+      testNumber,
+    )
+  ) {
+    return;
+  }
+  if ([59, 60, 61, 62, 63].includes(testNumber)) {
+    seedLettersReady();
     return;
   }
   seedAdminKeys();
@@ -792,7 +860,9 @@ try {
     testDeadline =
       Date.now() +
       timeoutMsForTest(test.number) +
-      ([9, 10, 11, 13, 30, 34].includes(test.number) ? 15 * 60 * 1000 : 0);
+      ([9, 10, 11, 13, 30, 34, 59, 60, 61, 62, 63].includes(test.number)
+        ? 15 * 60 * 1000
+        : 0);
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
     } catch (error) {
@@ -844,7 +914,11 @@ try {
       continue;
     }
 
-    if ([9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42].includes(test.number)) {
+    if (
+      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+        test.number,
+      )
+    ) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {

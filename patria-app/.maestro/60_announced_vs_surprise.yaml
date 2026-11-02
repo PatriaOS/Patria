@@ -1,11 +1,16 @@
 # PHONE_TESTS: 60
 # AREAS: letters
+# Self-contained: seals an Announced letter, then checks the author list.
 appId: app.patria.dev
 ---
 - runFlow:
     file: subflows/sign_in.yaml
 - tapOn:
     id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
 - scrollUntilVisible:
     element:
       id: "letters-entry"
@@ -17,4 +22,59 @@ appId: app.patria.dev
     visible:
       id: "screen-letters"
     timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "write-letter"
+    timeout: 20000
+- tapOn:
+    id: "write-letter"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-new"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "Test 2"
+    timeout: 30000
+- tapOn:
+    id: "letter-from"
+- eraseText
+- inputText: "Test 1"
+- hideKeyboard
+- tapOn:
+    id: "letter-body"
+- inputText: "An announced letter for later."
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "visibility-announced"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "visibility-announced"
+- scrollUntilVisible:
+    element:
+      id: "letter-date-1y"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "letter-date-1y"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "seal-letter"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "seal-letter"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-sealed"
+    timeout: 45000
+- tapOn:
+    id: "letter-sealed-done"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letters"
+    timeout: 15000
+- assertVisible: "For Test 2"
 - assertVisible: "Announced"

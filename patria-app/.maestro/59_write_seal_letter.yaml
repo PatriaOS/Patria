@@ -1,5 +1,6 @@
 # PHONE_TESTS: 59
 # AREAS: letters, vault, keys
+# Surprise is the default visibility — keep it without tapping.
 appId: app.patria.dev
 ---
 - runFlow:
@@ -21,6 +22,10 @@ appId: app.patria.dev
     visible:
       id: "screen-letters"
     timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "write-letter"
+    timeout: 30000
 - tapOn:
     id: "write-letter"
 - extendedWaitUntil:
@@ -30,6 +35,7 @@ appId: app.patria.dev
 - tapOn:
     id: "letter-body"
 - inputText: "A letter for your future self."
+- hideKeyboard
 - scrollUntilVisible:
     element:
       id: "letter-record-voice"
@@ -40,10 +46,14 @@ appId: app.patria.dev
 - extendedWaitUntil:
     visible: "0:20"
     timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: "letter-date-1y"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "letter-date-1y"
-- tapOn:
-    id: "visibility-surprise"
+- hideKeyboard
 - scrollUntilVisible:
     element:
       id: "seal-letter"
@@ -55,7 +65,11 @@ appId: app.patria.dev
     visible:
       id: "screen-letter-sealed"
     timeout: 30000
-- assertVisible: "Seal code"
+- assertVisible: "Your letter is sealed"
+- extendedWaitUntil:
+    visible:
+      id: "letter-seal-code"
+    timeout: 10000
 - tapOn:
     id: "letter-sealed-done"
 - extendedWaitUntil:

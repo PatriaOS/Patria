@@ -1,11 +1,16 @@
 # PHONE_TESTS: 62
 # AREAS: letters, keys
+# Slice A gate: writer can open Letters. Full past-trigger open is seeded in e2e.mjs when ready.
 appId: app.patria.dev
 ---
 - runFlow:
     file: subflows/sign_in.yaml
 - tapOn:
     id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
 - scrollUntilVisible:
     element:
       id: "letters-entry"
@@ -16,6 +21,10 @@ appId: app.patria.dev
 - extendedWaitUntil:
     visible:
       id: "screen-letters"
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "write-letter"
     timeout: 20000
 - assertVisible:
     id: "write-letter"

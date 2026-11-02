@@ -158,6 +158,10 @@ for (const n of [1, 2, 3]) {
 
 const envPath = join(APP_ROOT, '.env.e2e.local');
 const anonKey = status.ANON_KEY ?? e2eEnv.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+// Same fake P-256 public key as .env.e2e.example — local letter seal only; hosted refuses it.
+const letterReleasePublic =
+  e2eEnv.EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX ||
+  '03ca1057fffbed5969b9619fc60d57877b24f95dbeb0844593b417d3cdeeeedc56';
 writeFileSync(
   envPath,
   [
@@ -165,6 +169,7 @@ writeFileSync(
     `EXPO_PUBLIC_SUPABASE_URL=${url}`,
     `EXPO_PUBLIC_SUPABASE_ANON_KEY=${anonKey}`,
     'EXPO_PUBLIC_E2E=1',
+    `EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX=${letterReleasePublic}`,
     '',
   ].join('\n'),
   { encoding: 'utf8' },
@@ -295,10 +300,16 @@ if (
   testNumber === 31 ||
   testNumber === 32 ||
   testNumber === 33 ||
-  testNumber === 34
+  testNumber === 34 ||
+  testNumber === 59 ||
+  testNumber === 60 ||
+  testNumber === 61 ||
+  testNumber === 62 ||
+  testNumber === 63
 ) {
   const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
   const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));
+  // Test 1 (author): vault/letter writer gate needs recovery_contacts + recovery_public_keys.
   sql(
     dbUrl,
     `INSERT INTO public.recovery_contacts (
@@ -312,6 +323,28 @@ if (
        '${spaceId}', '${adminSession.userId}', decode(repeat('ab', 32), 'hex'), 1
      );`,
   );
+  // Letters also need Test 2 ready to receive (letter_recipient_ready → has_recovery_setup).
+  if (
+    testNumber === 59 ||
+    testNumber === 60 ||
+    testNumber === 61 ||
+    testNumber === 62 ||
+    testNumber === 63
+  ) {
+    sql(
+      dbUrl,
+      `INSERT INTO public.recovery_contacts (
+         family_space_id, member_id, user_id, slot, status, created_by
+       ) VALUES
+         ('${spaceId}', '${contactA.userId}', '${adminSession.userId}', 'a', 'accepted', '${contactA.userId}'),
+         ('${spaceId}', '${contactA.userId}', '${contactB.userId}', 'b', 'accepted', '${contactA.userId}');
+       INSERT INTO public.recovery_public_keys (
+         family_space_id, user_id, public_key, recovery_key_epoch
+       ) VALUES (
+         '${spaceId}', '${contactA.userId}', decode(repeat('cd', 32), 'hex'), 1
+       );`,
+    );
+  }
 }
 
 const syncNeedsSchedule = [37, 38, 39, 40, 42, 47, 48, 49, 50, 51].includes(testNumber);

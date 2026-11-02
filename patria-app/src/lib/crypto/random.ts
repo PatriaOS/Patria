@@ -5,6 +5,21 @@ import { getRandomValues } from 'expo-crypto';
 export const KEY_BYTES = 32;
 export const XCHACHA_NONCE_BYTES = 24;
 
+/**
+ * @noble/curves (P-256 keygen) reads globalThis.crypto.getRandomValues.
+ * React Native / Hermes does not define it; wire expo-crypto once for the process.
+ */
+(() => {
+  const g = globalThis as { crypto?: { getRandomValues?: (arr: Uint8Array) => Uint8Array } };
+  const cryptoObj = g.crypto ?? (g.crypto = {});
+  if (typeof cryptoObj.getRandomValues !== 'function') {
+    cryptoObj.getRandomValues = (arr: Uint8Array) => {
+      getRandomValues(arr);
+      return arr;
+    };
+  }
+})();
+
 export function randomBytes(length: number): Uint8Array {
   if (!Number.isInteger(length) || length < 1) {
     throw new Error('invalid random length');

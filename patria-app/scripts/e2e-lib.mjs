@@ -135,6 +135,16 @@ export function scenarioForTest(testNumber) {
   if (testNumber === 49) {
     return 'admin-elder-extended';
   }
+  // Letters: Test 1 writes; Test 2 receives (letterbox + recovery); Test 3 is a recovery contact.
+  if (
+    testNumber === 59 ||
+    testNumber === 60 ||
+    testNumber === 61 ||
+    testNumber === 62 ||
+    testNumber === 63
+  ) {
+    return 'admin-elders';
+  }
   return 'admin';
 }
 
@@ -468,8 +478,22 @@ export function ensureJavaHome() {
     process.env.JAVA_HOME = execFileSync('/usr/libexec/java_home', {
       encoding: 'utf8',
     }).trim();
+    return;
   } catch {
-    // Maestro will fail with a clear Java error if nothing is installed.
+    // Fall through — some JDKs are installed but not registered with java_home.
+  }
+  const fallbacks = [
+    '/Library/Java/JavaVirtualMachines/jdk-27.jdk/Contents/Home',
+    '/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home',
+  ];
+  for (const home of fallbacks) {
+    try {
+      execFileSync(`${home}/bin/java`, ['-version'], { stdio: 'ignore' });
+      process.env.JAVA_HOME = home;
+      return;
+    } catch {
+      // try next
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import {
   Banner,
@@ -13,11 +13,16 @@ import {
   StatusPill,
 } from '../../ui';
 import { copy } from '../../lib/copy';
+import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { fetchMembers } from '../../lib/family';
 import { routes } from '../../lib/navigation';
+import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
+import { isVaultWriterRole } from '../../lib/roles';
 import { useCurrentFamily } from '../family/useCurrentFamily';
+import { canWriteVault } from '../vault/VaultScreen';
 import { formatLetterDate } from './letterDates';
-import { fetchFamilyTimezone, fetchLetters, letterWriterReady, type LetterRow } from './letterApi';
+import { fetchFamilyTimezone, fetchLetters, type LetterRow } from './letterApi';
+import { ensureLetterboxKey } from './letterboxEnsure';
 
 function statusLabel(row: LetterRow): string {
   if (row.recipientLeftAt) {
@@ -35,11 +40,23 @@ function statusLabel(row: LetterRow): string {
 export function LettersScreen() {
   const router = useRouter();
   const { userId, spaceId, current } = useCurrentFamily();
+  const role = current?.role;
 
-  const writerQuery = useQuery({
-    queryKey: ['letterWriterReady', spaceId, userId],
-    enabled: Boolean(spaceId && userId),
-    queryFn: () => letterWriterReady(spaceId!, userId!),
+  const keyStatusQuery = useQuery({
+    queryKey: ['familyKeyStatus', spaceId, userId, role],
+    enabled: Boolean(spaceId && userId && current),
+    queryFn: () =>
+      ensureKeysForOpenFamily({
+        spaceId: spaceId as string,
+        userId: userId as string,
+        role,
+      }),
+  });
+
+  const recoveryQuery = useQuery({
+    queryKey: ['recoverySnapshot', spaceId, userId],
+    enabled: Boolean(spaceId && userId && current),
+    queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, role),
   });
 
   const lettersQuery = useQuery({
@@ -60,6 +77,28 @@ export function LettersScreen() {
     queryFn: () => fetchFamilyTimezone(spaceId!),
   });
 
+  // Letterbox must exist before someone can receive; create on Letters as well as Home
+  // so the first visit after recovery still works without bouncing through Home.
+  useEffect(() => {
+    if (keyStatusQuery.data !== 'ready' || !spaceId || !userId) {
+      return;
+    }
+    void ensureLetterboxKey({ spaceId, userId }).catch(() => {
+      // No personal key / recovery yet — seal gate and banners cover that.
+    });
+  }, [keyStatusQuery.data, spaceId, userId]);
+
+  const canWrite = canWriteVault({
+    role,
+    keyReady: keyStatusQuery.data === 'ready',
+    acceptedContacts: recoveryQuery.data?.accepted ?? 0,
+    hasRecoveryPublic: Boolean(recoveryQuery.data?.hasRecoveryPublic),
+  });
+  const needsRecovery =
+    isVaultWriterRole(role) &&
+    keyStatusQuery.data === 'ready' &&
+    ((recoveryQuery.data?.accepted ?? 0) < 2 || !recoveryQuery.data?.hasRecoveryPublic);
+
   const authored = useMemo(
     () => (lettersQuery.data ?? []).filter((row) => row.authorId === userId),
     [lettersQuery.data, userId],
@@ -73,43 +112,58 @@ export function LettersScreen() {
   const memberName = (id: string) =>
     membersQuery.data?.find((m) => m.userId === id)?.displayName ?? copy.letters.formerMember;
 
-  if (!spaceId || !userId || !current) {
+  if (!spaceId || !userId || !current || keyStatusQuery.isLoading || recoveryQuery.isLoading) {
     return (
-      <Screen testID="screen-letters" >
+      <Screen testID="screen-letters">
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
   }
 
-  if (lettersQuery.isError || writerQuery.isError) {
+  if (lettersQuery.isError) {
     return (
-      <Screen testID="screen-letters" >
+      <Screen testID="screen-letters">
         <ErrorState message={copy.common.error} />
       </Screen>
     );
   }
 
-  if (lettersQuery.isLoading || writerQuery.isLoading) {
+  if (lettersQuery.isLoading) {
     return (
-      <Screen testID="screen-letters" >
+      <Screen testID="screen-letters">
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
   }
 
   return (
-    <Screen testID="screen-letters" >
+    <Screen testID="screen-letters">
       <Banner message={copy.letters.lockNote} />
-      {writerQuery.data ? (
+      {needsRecovery ? (
+        <Banner
+          message={copy.letters.recoveryFirst}
+          action={
+            <Button
+              label={copy.letters.recoveryFirstAction}
+              variant="secondary"
+              onPress={() => router.push(routes.recoverySetup)}
+              testID="letters-setup-recovery"
+            />
+          }
+        />
+      ) : null}
+      {keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
+        <Banner message={copy.letters.approveOtherPhone} tone="warning" />
+      ) : null}
+      {canWrite ? (
         <Button
           label={copy.letters.write}
           onPress={() => router.push(routes.letterNew())}
           testID="write-letter"
-          
         />
-      ) : (
+      ) : !needsRecovery && keyStatusQuery.data === 'ready' ? (
         <Banner message={copy.letters.notForYou} tone="warning" />
-      )}
+      ) : null}
 
       {authored.length === 0 && forMe.length === 0 ? (
         <EmptyState title={copy.letters.emptyTitle} message={copy.letters.emptyBody} />
@@ -119,10 +173,26 @@ export function LettersScreen() {
         <ListRow
           key={row.id}
           title={copy.letters.forLine.replace('{name}', memberName(row.recipientId))}
-          body={copy.letters.opensOn.replace('{date}', formatLetterDate(row.triggerAt, timeZone))}
+          body={copy.letters.opensOn.replace(
+            '{date}',
+            formatLetterDate(row.triggerAt, timeZone),
+          )}
           onPress={() => router.push(routes.letterDetail(row.id))}
           testID={`letter-${row.id}`}
-          trailing={<StatusPill label={statusLabel(row)} />}
+          trailing={
+            <StatusPill
+              testID={
+                row.visibility === 'announced'
+                  ? `letter-announced-${row.id}`
+                  : `letter-status-${row.id}`
+              }
+              label={
+                row.visibility === 'announced'
+                  ? copy.letters.announcedBadge
+                  : statusLabel(row)
+              }
+            />
+          }
         />
       ))}
 
@@ -130,7 +200,10 @@ export function LettersScreen() {
         <ListRow
           key={`recv-${row.id}`}
           title={copy.letters.announcedStubTitle.replace('{name}', row.fromLabel)}
-          body={copy.letters.opensOn.replace('{date}', formatLetterDate(row.triggerAt, timeZone))}
+          body={copy.letters.opensOn.replace(
+            '{date}',
+            formatLetterDate(row.triggerAt, timeZone),
+          )}
           onPress={() => router.push(routes.letterDetail(row.id))}
           testID={`letter-recv-${row.id}`}
           trailing={<StatusPill label={statusLabel(row)} />}

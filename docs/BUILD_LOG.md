@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-01 — Letters 59–63: recovery gate + e2e seed
+
+Femi’s run opened Letters with the opaque “hold the family key and have set up recovery” banner and no Write button: tests 59–63 used the admin-only family scenario and never seeded D25 recovery (or a recipient letterbox), while `letter_writer_ready` / `letter_recipient_ready` both require recovery. Letters now mirrors Vault (recovery CTA when a writer is missing contacts; ensure letterbox on Letters as well as Home). e2e uses `admin-elders`, SQL recovery for Test 1 and Test 2, let-in + Home so letterbox keys exist, self-contained Maestro flows 60–63, and the fake letter-release public key in `.env.e2e.local`. Hermes also lacked `crypto.getRandomValues` for `@noble/curves` P-256 keygen — polyfilled via expo-crypto in `random.ts`.
+
 ## 2026-11-01 — LEG02 Letters Slice A (D42)
 
 Letters to the Future: write/seal with date triggers, Surprise/Announced, author edit/withdraw, voice notes, automatic dual-share path (per-member letterbox for shareR; Patria P-256 ECDH KEY_AGREEMENT for shareP; fake local key refused on hosted by public-key fingerprint). Family `timezone` on `family_spaces`. pgTAP covers RLS, letterbox, and no non-admin `device_keys` access. Slice B waits. Nothing to hosted. Trust wording held for Femi. Runbook: `docs/runbooks/letter-release-kms.md`.

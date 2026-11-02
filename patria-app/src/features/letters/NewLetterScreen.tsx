@@ -45,7 +45,8 @@ import {
 import { sealLetterOnDevice } from './letterSeal';
 
 const schema = z.object({
-  fromLabel: z.string().trim().min(1).max(80),
+  // Empty is OK until seal — we fill From with the member's name when it loads.
+  fromLabel: z.string().trim().max(80),
   body: z.string().trim().min(1).max(20000),
   dateYmd: z.string().trim().min(1),
 });
@@ -161,6 +162,13 @@ export function NewLetterScreen() {
 
   const readyMembers = candidates.filter((m) => readyQuery.data?.[m.userId]);
 
+  useEffect(() => {
+    if (recipientId || existing?.recipientId || readyMembers.length === 0) {
+      return;
+    }
+    setRecipientId(readyMembers[0].userId);
+  }, [recipientId, existing?.recipientId, readyMembers]);
+
   const onSeal = handleSubmit(async (values) => {
     setFormError(null);
     if (!spaceId || !userId || !effectiveRecipientId) {
@@ -191,12 +199,16 @@ export function NewLetterScreen() {
         createDraft: !editId,
       });
       if (!result.ok) {
-        setFormError(
+        const base =
           result.reason === 'too_large'
             ? copy.letters.sealTooLarge
             : result.reason === 'recipient_not_ready'
               ? copy.letters.recipientNeedsOpen
-              : copy.letters.sealFailed,
+              : copy.letters.sealFailed;
+        setFormError(
+          process.env.EXPO_PUBLIC_E2E === '1' && result.detail
+            ? `${base} (${result.detail})`
+            : base,
         );
         return;
       }
@@ -238,15 +250,19 @@ export function NewLetterScreen() {
         <Body>
           {copy.letters.sealedBody.replace('{name}', sealedName).replace('{date}', sealedDate)}
         </Body>
-        <Caption>
-          {copy.letters.fingerprintLabel}: {sealedFingerprint}
-        </Caption>
+        <View
+          testID="letter-seal-code"
+          accessibilityLabel={`${copy.letters.fingerprintLabel}: ${sealedFingerprint}`}
+        >
+          <Caption>
+            {copy.letters.fingerprintLabel}: {sealedFingerprint}
+          </Caption>
+        </View>
         <View testID={`fingerprint-${sealedFingerprint}`} />
         <Button
           label={copy.letters.done}
           onPress={() => router.replace(routes.letters)}
           testID="letter-sealed-done"
-          
         />
       </Screen>
     );
@@ -302,9 +318,28 @@ export function NewLetterScreen() {
             placeholder={copy.letters.bodyPlaceholder}
             error={fieldState.error ? copy.letters.bodyLabel : undefined}
             testID="letter-body"
-            
           />
         )}
+      />
+
+      <Caption>{copy.letters.voiceOptional}</Caption>
+      <VoiceNoteField
+        durationSeconds={voiceDuration}
+        recordTestID="letter-record-voice"
+        onRecorded={(draft) => {
+          if (voicePlain) {
+            wipe(voicePlain);
+          }
+          setVoicePlain(draft.plain);
+          setVoiceDuration(draft.durationSeconds);
+        }}
+        onRemove={() => {
+          if (voicePlain) {
+            wipe(voicePlain);
+          }
+          setVoicePlain(null);
+          setVoiceDuration(null);
+        }}
       />
 
       <Caption>{copy.letters.howTheyFind}</Caption>
@@ -333,7 +368,6 @@ export function NewLetterScreen() {
             onChangeText={onChange}
             placeholder={copy.letters.datePlaceholder}
             testID="letter-date"
-            
           />
         )}
       />
@@ -344,43 +378,20 @@ export function NewLetterScreen() {
           variant="ghost"
           onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 1))}
           testID="letter-date-1y"
-          
         />
         <Button
           label={copy.letters.inFiveYears}
           variant="ghost"
           onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 5))}
           testID="letter-date-5y"
-          
         />
         <Button
           label={copy.letters.inTenYears}
           variant="ghost"
           onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 10))}
           testID="letter-date-10y"
-          
         />
       </ButtonStack>
-
-      <Caption>{copy.letters.voiceOptional}</Caption>
-      <VoiceNoteField
-        durationSeconds={voiceDuration}
-        recordTestID="letter-record-voice"
-        onRecorded={(draft) => {
-          if (voicePlain) {
-            wipe(voicePlain);
-          }
-          setVoicePlain(draft.plain);
-          setVoiceDuration(draft.durationSeconds);
-        }}
-        onRemove={() => {
-          if (voicePlain) {
-            wipe(voicePlain);
-          }
-          setVoicePlain(null);
-          setVoiceDuration(null);
-        }}
-      />
 
       {formError ? <ErrorState message={formError} /> : null}
 
