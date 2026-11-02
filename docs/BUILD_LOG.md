@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-01 — LEG02 Letters Slice A (D42)
+
+Letters to the Future: write/seal with date triggers, Surprise/Announced, author edit/withdraw, voice notes, automatic dual-share path (per-member letterbox for shareR; Patria P-256 ECDH KEY_AGREEMENT for shareP; fake local key refused on hosted by public-key fingerprint). Family `timezone` on `family_spaces`. pgTAP covers RLS, letterbox, and no non-admin `device_keys` access. Slice B waits. Nothing to hosted. Trust wording held for Femi. Runbook: `docs/runbooks/letter-release-kms.md`.
+
 ## 2026-10-30 — Repo docs, CI port retry, trust and Docker merges
 
 Public README rewritten for early testing (stack, layout, Mac getting started, testing, security). `SECURITY.md` and a PR template carry the definition of done. Cursor rules require the same doc updates in every feature PR. `.DS_Store` removed from git and ignored. CI database job: no `services:` Postgres and only one `supabase start`; still, run `supabase stop --no-backup` first and retry start once if port 54322 is busy — tests still fail if the database never starts. Trust docs landed in PR #6 (phone test 52); Docker `node_modules` volume in PR #7.

@@ -34,6 +34,10 @@ import {
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
+import { fetchFamilyTimezone, fetchLetters } from '../letters/letterApi';
+import { LeaveLettersChoice } from '../letters/LeaveLettersChoice';
+import { lettersToDecideOnLeave, withdrawIdsForLeave } from '../letters/leaveLetters';
+import { defaultTimezone } from '../sync/syncLabels';
 
 type MemberScreenProps = {
   userId: string;
@@ -46,6 +50,7 @@ export function MemberScreen({ userId }: MemberScreenProps) {
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [roleOverride, setRoleOverride] = useState<SpaceRole | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [withdrawChosen, setWithdrawChosen] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     void readCurrentFamilyId().then(setSpaceId);
@@ -64,13 +69,29 @@ export function MemberScreen({ userId }: MemberScreenProps) {
     queryFn: () => fetchAdminMemberEmail(spaceId as string, userId),
   });
 
+  const isSelf = session?.user.id === userId;
+  const lettersQuery = useQuery({
+    queryKey: ['lettersForLeave', spaceId, userId],
+    enabled: Boolean(spaceId) && isSelf,
+    queryFn: async () => {
+      const [rows, timeZone] = await Promise.all([
+        fetchLetters(spaceId as string),
+        fetchFamilyTimezone(spaceId as string),
+      ]);
+      return {
+        letters: lettersToDecideOnLeave(rows, userId),
+        timeZone: timeZone ?? defaultTimezone(),
+      };
+    },
+  });
+  const leaveLetters = lettersQuery.data?.letters;
+
   const member = membersQuery.data?.find((row) => row.userId === userId);
   const role = roleOverride ?? member?.role ?? 'teen';
   const myRole = membersQuery.data?.find((row) => row.userId === session?.user.id)?.role;
   const admin = isSpaceAdmin(myRole);
   const adminCount = countAdmins((membersQuery.data ?? []).map((row) => row.role));
   const isLastAdmin = isSpaceAdmin(member?.role) && adminCount <= 1;
-  const isSelf = session?.user.id === userId;
   const cannotLeave = Boolean(isSelf && isSpaceAdmin(myRole) && adminCount <= 1);
 
   if (membersQuery.isLoading || !member) {
@@ -154,32 +175,45 @@ export function MemberScreen({ userId }: MemberScreenProps) {
     ]);
   };
 
+  const confirmLeave = (withdrawLetterIds?: string[]) => {
+    const myId = session?.user.id;
+    if (!spaceId || !myId) {
+      return;
+    }
+    Alert.alert(copy.member.leave, copy.member.leaveConfirm, [
+      { text: copy.common.cancel, style: 'cancel' },
+      {
+        text: copy.member.leave,
+        style: 'destructive',
+        onPress: () => {
+          void leaveFamilySpace({
+            spaceId,
+            userId: myId,
+            ...(withdrawLetterIds ? { withdrawLetterIds } : {}),
+          }).then((result) => {
+            if (!result.ok) {
+              setError(copy.member.leaveFailed);
+              return;
+            }
+            router.replace('/(signed-in)/home');
+          });
+        },
+      },
+    ]);
+  };
+
   const leave = () => {
     const myId = session?.user.id;
     if (!spaceId || !myId || cannotLeave) {
       return;
     }
-    Alert.alert(
-      copy.member.leave,
-      copy.member.leaveConfirm,
-      [
-        { text: copy.common.cancel, style: 'cancel' },
-        {
-          text: copy.member.leave,
-          style: 'destructive',
-          onPress: () => {
-            void leaveFamilySpace({ spaceId, userId: myId }).then((result) => {
-              if (!result.ok) {
-                setError(copy.member.leaveFailed);
-                return;
-              }
-              router.replace('/(signed-in)/home');
-            });
-          },
-        },
-      ],
-      { cancelable: true },
-    );
+    setError(null);
+    const letters = leaveLetters ?? lettersToDecideOnLeave([], myId);
+    if (letters.sealed.length > 0 || letters.draftIds.length > 0) {
+      confirmLeave(withdrawIdsForLeave(letters, withdrawChosen));
+      return;
+    }
+    confirmLeave();
   };
 
   return (
@@ -221,11 +255,34 @@ export function MemberScreen({ userId }: MemberScreenProps) {
       {isSelf && !cannotLeave ? (
         <>
           {error && !admin ? <ErrorState message={error} /> : null}
+          {leaveLetters && leaveLetters.sealed.length > 0 ? (
+            <LeaveLettersChoice
+              letters={leaveLetters.sealed}
+              recipientName={(recipientId) =>
+                membersQuery.data?.find((row) => row.userId === recipientId)?.displayName ??
+                copy.letters.formerMember
+              }
+              timeZone={lettersQuery.data?.timeZone ?? defaultTimezone()}
+              withdrawChosen={withdrawChosen}
+              onChange={(letterId, withdraw) =>
+                setWithdrawChosen((previous) => {
+                  const next = new Set(previous);
+                  if (withdraw) {
+                    next.add(letterId);
+                  } else {
+                    next.delete(letterId);
+                  }
+                  return next;
+                })
+              }
+            />
+          ) : null}
           <Button
             label={copy.member.leave}
             variant="danger"
             testID="leave-family"
             onPress={leave}
+            disabled={lettersQuery.isLoading}
           />
         </>
       ) : null}

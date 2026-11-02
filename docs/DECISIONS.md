@@ -299,3 +299,37 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 * **Patria Cloud rules:** process in memory and do not store email content; any short retry queue is encrypted and empties itself; email content is never written to logs; the AI provider must agree in writing not to train on the content and to keep it for as short a time as possible.
 * **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
 * Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.
+
+## D42. Letters to the Future — dual open paths (1 November 2026)
+
+LEG02. Sealed letters are unreadable by anyone, including Patria, before release. No AI. Video and life-event triggers wait. Slice A ships first; Slice B is a second PR.
+
+### Open paths (both prepared at seal time)
+
+1. **Automatic path (Slice A).** Random per-letter CEK seals text and optional voice (D34 envelope style, 5 minute voice limit). CEK is split 2-of-2 (`shareR ⊕ shareP = CEK`).
+   * **Recipient share (letterbox):** each member has an X25519 letterbox key pair. The public key is readable by family members who may author letters to them. The private key is wrapped to that member’s symmetric personal key (D34), so it reaches all approved phones and survives recovery. The member’s phone creates the pair when the personal key exists (on next app open). Authors seal `shareR` to the recipient’s letterbox public key (`patria/letter-recipient-share/v1`, bound to letter id and version). Do **not** wrap to device keys or expose other members’ `device_keys` to non-admins. Seal gate: recipient must have a letterbox; otherwise plain copy that they need to open Patria once.
+   * **Author share:** wrap the full CEK to the author’s personal key so they can reread and edit while sealed. RLS: author only.
+   * **Patria share:** on the author’s phone, ephemeral P-256 ECDH with Patria’s **ECC_NIST_P256 KEY_AGREEMENT** public key (AWS KMS on hosted; fake pair locally). HKDF info `patria/letter-patria-share/v1` bound to letter id and version; AEAD-seal `shareP`. Store ephemeral public key with ciphertext. `letter-release` calls `DeriveSharedSecret` only after `trigger_at <= now()`, opens `shareP` in memory, and gives it only to the authenticated recipient. Hosted refuses the fake key by **public-key fingerprint**, not only an env flag. No RSA; no new crypto dependencies.
+2. **Keeper path (Slice B).** Same CEK also split 2-of-3 among three adult key-holding keepers using pairwise boxes (D23/D27 pattern). Two keepers can re-seal to the recipient or a guardian. Used when the recipient has no account/key (child through guardian), if automatic fails, or if Patria shut down.
+
+### Product rules
+
+* **Triggers (Slice A):** date only, release within about one hour in `family_spaces.timezone` (IANA; backfill from sync schedule or creator device TZ; never UTC by default). **Age** and adult `profiles.date_of_birth` wait for Slice B. Child DOB already exists on `child_profiles`.
+* **Visibility:** Surprise (default) — recipient RLS returns **no row** before release. Announced — recipient sees non-content fields and a “From” label the author types (defaults to display name). Other family members never see letters they are not part of.
+* **Early release:** per-letter `keepers_may_release_early` (default off). Flow in Slice B only.
+* **Withdraw destroys** ciphertext, voice blobs and every share; keep `letter_events` (ids and states only).
+* **Recipient leaves before release:** letter stays sealed, is not released; author gets Needs you. Outside-family delivery later.
+* **Author leaves:** for each sealed letter, keep or withdraw (default keep). Kept letters still release automatically; author share is dropped. Never silent-delete (unlike Only me).
+* **Hash:** SHA-256 of text ciphertext plus any voice blob; short fingerprint shown at seal and on release.
+* **Who can write:** adults with keys and recovery (D25 / `vault_writer_ready`). One recipient per letter in Slice A.
+* **Notifications:** in-app Needs you only; push later.
+
+### Honest limits (plain words)
+
+* Patria alone cannot open a sealed letter. The recipient alone cannot.
+* Patria together with the recipient (or a stolen unlocked recipient phone) could open early if release policy were bypassed — that gate is enforced in the release function, not by math alone.
+* Two keepers acting together outside the app could reconstruct a letter’s key (Slice B continuity path). One keeper cannot.
+
+### Crypto review
+
+Mark `letterSplit.ts`, `letterEnvelope.ts`, `letterReleaseKey.ts`, `letterbox.ts`, letter seal/open paths and the Edge KMS key-agreement code `SECURITY REVIEW REQUIRED`.

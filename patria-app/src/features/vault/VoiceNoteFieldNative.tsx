@@ -26,6 +26,7 @@ export function VoiceNoteFieldNative({
   durationSeconds,
   onRecorded,
   onRemove,
+  recordTestID,
 }: VoiceNoteFieldProps) {
   const recorder = useAudioRecorder(VAULT_RECORDING_OPTIONS as RecordingOptions);
   const recorderState = useAudioRecorderState(recorder);
@@ -127,6 +128,7 @@ export function VoiceNoteFieldNative({
           variant="secondary"
           onPress={() => void startRecording()}
           busy={busy}
+          testID={recordTestID}
         />
       ) : null}
       {recorderState.isRecording ? (

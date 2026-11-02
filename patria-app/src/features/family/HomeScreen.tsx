@@ -24,6 +24,7 @@ import { fetchMembers } from '../../lib/family';
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { fetchFirstDeviceNotices } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { ensureLetterboxKey } from '../letters/letterboxEnsure';
 import {
   homeRotationQueryKey,
   homeRotationUiFromOutcome,
@@ -47,6 +48,7 @@ import { homeDateOverline, homeFamilyLine, homeGreeting } from './homeGreeting';
 import { HomeMenuDrawer } from './HomeMenuDrawer';
 import { HomeToday } from './HomeToday';
 import { NeedsYouBell } from './NeedsYouBell';
+import { useLetterAttention } from '../letters/useLetterAttention';
 import { buildNeedsYouItems } from './needsYou';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import {
@@ -67,6 +69,7 @@ export function HomeScreen() {
   const queryClient = useQueryClient();
   const { userId, spaceId, membershipsQuery, current, admin, keyHolder } = useCurrentFamily();
   const sync = useSyncSpace();
+  const letters = useLetterAttention(spaceId, userId);
   const [signingOut, setSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -91,6 +94,16 @@ export function HomeScreen() {
         role: current?.role,
       }),
   });
+
+  useEffect(() => {
+    if (keyStatusQuery.data !== 'ready' || !spaceId || !userId) {
+      return;
+    }
+    void ensureLetterboxKey({ spaceId, userId }).catch(() => {
+      // Not every member has recovery yet; seal gate tells authors to wait.
+    });
+  }, [keyStatusQuery.data, spaceId, userId]);
+
   const noticesQuery = useQuery({
     queryKey: ['deviceApprovalNotices', spaceId],
     enabled: Boolean(spaceId),
@@ -433,6 +446,7 @@ export function HomeScreen() {
     userId,
     tasks: tasksQuery.data ?? [],
     deviceOrJoinCount,
+    letters,
   }).length;
   const recoveryNeedsDot =
     keyHolder &&

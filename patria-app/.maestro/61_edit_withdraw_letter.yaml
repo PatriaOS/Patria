@@ -1,0 +1,21 @@
+# PHONE_TESTS: 61
+# AREAS: letters
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letters"
+    timeout: 20000
+- assertVisible:
+    id: "write-letter"

@@ -447,3 +447,33 @@ Areas: navigation
 1. Sign in as Test 1. Open the Home menu and tap **Privacy Policy**. Pass if the **Privacy statement** screen opens with the heading **Patria Privacy Statement** (no Soon tag on the menu row). Scroll to the end. Pass if the last paragraph (**We will update this statement… Questions or requests: support.patria@gmail.com.**) is fully visible above the bottom of the screen.
 2. Go back to Home. Open the menu, tap **Privacy and Security**, then **How Patria protects your family**. Pass if that screen opens with the heading **How Patria Protects Your Family**. Scroll to the end. Pass if the **Questions** heading and **Write to support.patria@gmail.com. We will answer in plain language.** are fully visible.
 3. Go back. Pass if you return to **Privacy and Security**.
+
+## Letters to the Future Slice A (D42)
+
+Write and seal, announced vs surprise, author edit and withdraw, date release with the automatic path (fake key), fingerprint match. Keepers, age, early release and child/guardian wait for Slice B (continue numbering then).
+
+### 59. Write and seal a letter
+Areas: letters, vault, keys
+1. Sign in as Test 1 with keys and recovery set up, and Test 2 also ready to receive (both have opened Patria so letterbox keys exist). Open **Vault**, tap **Letters to the Future**, then **Write a letter**. Pass if you see recipient chips, From, body, Surprise/Announced, voice note and a date.
+2. Pick Test 2, leave From as your name, write a short body, tap **Record a voice note** (e2e uses the sample clip), keep **Surprise**, set the date with **In 1 year**, tap **Seal this letter**. Pass if you see **Your letter is sealed** and a **Seal code** (12 hex characters).
+3. Tap **Done**. Pass if the letter list shows a sealed letter for Test 2.
+
+### 60. Announced vs surprise
+Areas: letters
+1. As Test 1, seal a second letter to Test 2 with **Announced**. Pass if Test 1’s list shows it as Announced.
+2. Sign in as Test 2. Open Letters. Pass if the announced letter appears with From and open date, and the surprise letter from test 59 does **not** appear.
+3. Open the announced letter. Pass if you see it is waiting and **cannot** read the body yet.
+
+### 61. Author edit and withdraw
+Areas: letters
+1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if a new seal code is shown.
+2. Open that letter and tap **Withdraw this letter**, confirm. Pass if it leaves the list and cannot be opened.
+
+### 62. Date release with automatic path (fake key)
+Areas: letters, keys
+1. (manual or e2e seed) Seal a surprise letter whose trigger is in the past (or advance time / call `mark_due_letters`). Sign in as the recipient. Pass if the letter appears as Opening / ready.
+2. Tap **Open this letter**. Pass if the body matches and the seal code matches what was shown when sealing.
+
+### 63. Fingerprint matches on release
+Areas: letters
+1. During test 62 (or a seal that included a voice note from test 59), note the seal code at seal and on open. Pass if they are the same 12 characters (voice is part of the code).

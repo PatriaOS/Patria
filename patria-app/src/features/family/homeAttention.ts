@@ -4,7 +4,10 @@ export type HomeAttentionKind =
   | 'sync_due'
   | 'overdue_tasks'
   | 'sync_rsvp'
-  | 'failed_retry';
+  | 'failed_retry'
+  | 'letter_pending'
+  | 'letter_recipient_left'
+  | 'letter_announced';
 
 export type HomeAttentionItem = {
   id: string;
@@ -19,6 +22,9 @@ const RANK: Record<HomeAttentionKind, number> = {
   overdue_tasks: 4,
   sync_rsvp: 5,
   failed_retry: 6,
+  letter_pending: 7,
+  letter_recipient_left: 8,
+  letter_announced: 9,
 };
 
 /** Ranked attention items; lower rank is more important. Stable by id within a rank. */

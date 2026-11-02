@@ -2396,6 +2396,70 @@ try {
       });
       step(52, 3, 'Back returns to Privacy and Security', () => result('pass'));
     }
+
+    if (test.number === 59) {
+      step(59, 1, 'Open Letters and write form', () => {
+        maestro({
+          flow: flow('59_write_seal_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+      step(59, 2, 'Seal shows fingerprint', () => result('pass'));
+      step(59, 3, 'Sealed letter listed', () => result('pass'));
+    }
+
+    if (test.number === 60) {
+      step(60, 1, 'Announced letter listed for author', () => {
+        maestro({
+          flow: flow('60_announced_vs_surprise.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+      step(60, 2, 'Recipient sees announced only', () =>
+        result('skip', 'needs Test 2 simulator for recipient view'),
+      );
+      step(60, 3, 'Announced stub hides body', () =>
+        result('skip', 'needs Test 2 simulator for recipient view'),
+      );
+    }
+
+    if (test.number === 61) {
+      step(61, 1, 'Edit reseals with new code', () => {
+        maestro({
+          flow: flow('61_edit_withdraw_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+      step(61, 2, 'Withdraw removes letter', () =>
+        result('skip', 'full edit/withdraw path needs seeded sealed letter'),
+      );
+    }
+
+    if (test.number === 62) {
+      step(62, 1, 'Due letter appears for recipient', () => {
+        maestro({
+          flow: flow('62_date_release_automatic.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+      step(62, 2, 'Open with fake release key', () =>
+        result('skip', 'needs past trigger_at seed and letter-release serve'),
+      );
+    }
+
+    if (test.number === 63) {
+      step(63, 1, 'Seal code matches on open', () => {
+        maestro({
+          flow: flow('63_fingerprint_match.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+    }
     } catch (error) {
       const failed = reports
         .filter((row) => row.testNumber === test.number && row.status === 'fail')

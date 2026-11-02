@@ -26,6 +26,7 @@ import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
 import { PasteInviteField } from '../invites/PasteInviteField';
+import { defaultTimezone } from '../sync/syncLabels';
 
 const RELATIONSHIPS = ['mum', 'dad', 'grandparent', 'guardian'] as const;
 
@@ -53,6 +54,7 @@ export function CreateFamilyScreen() {
     const { data, error } = await supabase.rpc('create_family_space', {
       p_name: values.name,
       p_relationship_label: copy.relationships[values.relationship],
+      p_timezone: defaultTimezone(),
     });
     if (error || !data) {
       logFailedAction(error);

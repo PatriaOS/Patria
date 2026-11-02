@@ -57,6 +57,9 @@ export const screenTitles = {
   vault: copy.tabs.vault,
   vaultNew: copy.vault.newDecision,
   vaultEntry: copy.vault.title,
+  letters: copy.letters.title,
+  letterNew: copy.letters.newTitle,
+  letterDetail: copy.letters.detailTitle,
   family: copy.tabs.family,
   appearance: copy.appearance.title,
   needsYou: copy.home.needsYouTitle,
@@ -102,6 +105,12 @@ export const routes = {
   vault: '/(signed-in)/vault',
   vaultNew: '/(signed-in)/vault-new',
   vaultEntry: (entryId: string) => `/(signed-in)/vault/${entryId}` as const,
+  letters: '/(signed-in)/letters',
+  letterNew: (letterId?: string) =>
+    (letterId
+      ? `/(signed-in)/letter-new?letterId=${encodeURIComponent(letterId)}`
+      : '/(signed-in)/letter-new') as string,
+  letterDetail: (letterId: string) => `/(signed-in)/letter/${letterId}` as const,
   family: '/(signed-in)/family',
   appearance: '/(signed-in)/appearance',
   needsYou: '/(signed-in)/needs-you',

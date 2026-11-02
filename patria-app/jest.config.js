@@ -4,7 +4,8 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/supabase/'],
   setupFiles: ['<rootDir>/jest.setup.ts'],
   setupFilesAfterEnv: ['<rootDir>/jest.setupAfterEnv.ts'],
-  modulePathIgnorePatterns: ['<rootDir>/supabase/'],
+  // Edge Function helpers under supabase/functions are imported by parity tests in src/.
+  modulePathIgnorePatterns: ['<rootDir>/supabase/(?!functions/)'],
   moduleNameMapper: {
     '^react-native/setup-env$': '<rootDir>/jest.rn-setup-env.js',
   },

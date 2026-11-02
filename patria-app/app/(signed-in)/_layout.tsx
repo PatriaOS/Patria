@@ -117,6 +117,9 @@ export default function SignedInLayout() {
       <Stack.Screen name="sync-tasks" options={{ ...pushed, title: screenTitles.syncTasks }} />
       <Stack.Screen name="vault-new" options={{ ...pushed, title: screenTitles.vaultNew }} />
       <Stack.Screen name="vault/[entryId]" options={{ ...pushed, title: screenTitles.vaultEntry }} />
+      <Stack.Screen name="letters" options={{ ...pushed, title: screenTitles.letters }} />
+      <Stack.Screen name="letter-new" options={{ ...pushed, title: screenTitles.letterNew }} />
+      <Stack.Screen name="letter/[letterId]" options={{ ...pushed, title: screenTitles.letterDetail }} />
     </Stack>
   );
 }
