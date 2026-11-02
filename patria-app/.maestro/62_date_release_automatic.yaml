@@ -90,7 +90,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 15000
-      - assertVisible: "For Test 2"
+      - assertVisible:
+          text: "For Test 2\\. Opens .*"
 - runFlow:
     when:
       true: ${PHASE == 'recipient_ready'}
@@ -114,7 +115,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 20000
-      - assertVisible: "A letter from Test 1"
+      - assertVisible:
+          text: "A letter from Test 1.*"
       - assertVisible: "Opening"
 - runFlow:
     when:
@@ -139,7 +141,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 20000
-      - tapOn: "A letter from Test 1"
+      - tapOn:
+          text: "A letter from Test 1.*"
       - extendedWaitUntil:
           visible:
             id: "screen-letter-detail"

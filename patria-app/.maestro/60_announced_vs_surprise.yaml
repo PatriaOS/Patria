@@ -127,7 +127,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 15000
-      - assertVisible: "For Test 2"
+      - assertVisible:
+          text: "For Test 2\\. Opens .*"
       - assertVisible: "Announced"
 - runFlow:
     when:
@@ -152,11 +153,15 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 20000
-      - assertVisible: "A letter from Test 1"
+      # Recipient list: announced stub title + open date (ListRow a11y includes body).
       - assertVisible:
-          text: "Opens .*"
+          text: "A letter from Test 1\\. Opens .*"
+      - assertVisible: "Sealed"
+      # Surprise must stay invisible: no author row, no body leak, one announced only.
       - assertNotVisible: "A surprise letter they must not see yet."
-      - assertNotVisible: "For Test 2"
+      - assertNotVisible:
+          text: "For Test 2.*"
+      - assertNotVisible: "Surprise"
 - runFlow:
     when:
       true: ${PHASE == 'recipient_stub'}
@@ -180,7 +185,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 20000
-      - tapOn: "A letter from Test 1"
+      - tapOn:
+          text: "A letter from Test 1.*"
       - extendedWaitUntil:
           visible:
             id: "screen-letter-detail"

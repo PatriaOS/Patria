@@ -75,8 +75,10 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 15000
-      - assertVisible: "For Test 2"
-      - tapOn: "For Test 2"
+      - assertVisible:
+          text: "For Test 2\\. Opens .*"
+      - tapOn:
+          text: "For Test 2.*"
       - extendedWaitUntil:
           visible:
             id: "edit-letter"
@@ -137,7 +139,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letters"
           timeout: 20000
-      - tapOn: "For Test 2"
+      - tapOn:
+          text: "For Test 2.*"
       - extendedWaitUntil:
           visible:
             id: "withdraw-letter"

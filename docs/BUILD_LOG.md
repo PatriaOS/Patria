@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-02 — Letters 60 recipient assert (open date a11y)
+
+Test 60 step 2 failed on `assertVisible: "Opens .*"` even though Test 2’s Letters screen showed only the announced stub (“A letter from Test 1”, Opens date, Sealed) and no surprise row. ListRow’s accessibility label was title-only, so Maestro could not see the open-date subtitle. ListRow now includes the body in the label; the flow still asserts the surprise body and “For Test 2” are absent. Not an RLS leak — pgTAP already covers surprise-hidden-while-sealed.
+
 ## 2026-11-02 — Letters 60–62 dual-sim + RNG wiring
 
 Skipped core steps on 60–62 are not passes. Maestro now drives Test 2 on the second Simulator for announced-vs-surprise, withdraw (plus `assert-letter-withdrawn` for payload and every share row), and past-trigger open with voice + matching seal code. e2e starts local `letter-release` with the fake private key when needed. `random.ts` always installs `crypto.getRandomValues` from expo-crypto (no Math.random fallback); unit test fails if that wiring is missing. expo-crypto was already a dependency (family keys) — no new native module, so no `e2e:build` for this slice.
