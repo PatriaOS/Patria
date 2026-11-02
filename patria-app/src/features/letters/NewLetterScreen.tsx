@@ -42,6 +42,7 @@ import {
   letterWriterReady,
   type LetterVisibility,
 } from './letterApi';
+import { letterReleaseReadyForSealing } from './letterReleaseConfig';
 import { sealLetterOnDevice } from './letterSeal';
 
 const schema = z.object({
@@ -138,7 +139,6 @@ export function NewLetterScreen() {
   }, [nameQuery.data, existingQuery.data, getValues, setValue]);
 
   const existing = existingQuery.data?.authorId === userId ? existingQuery.data : undefined;
-  const effectiveRecipientId = recipientId ?? existing?.recipientId ?? null;
   const effectiveVisibility: LetterVisibility =
     visibility ?? existing?.visibility ?? 'surprise';
 
@@ -161,16 +161,16 @@ export function NewLetterScreen() {
   });
 
   const readyMembers = candidates.filter((m) => readyQuery.data?.[m.userId]);
-
-  useEffect(() => {
-    if (recipientId || existing?.recipientId || readyMembers.length === 0) {
-      return;
-    }
-    setRecipientId(readyMembers[0].userId);
-  }, [recipientId, existing?.recipientId, readyMembers]);
+  // Default to the first ready recipient without an effect (lint: no setState in effect).
+  const effectiveRecipientId =
+    recipientId ?? existing?.recipientId ?? readyMembers[0]?.userId ?? null;
 
   const onSeal = handleSubmit(async (values) => {
     setFormError(null);
+    if (!letterReleaseReadyForSealing()) {
+      setFormError(copy.letters.releaseNotReady);
+      return;
+    }
     if (!spaceId || !userId || !effectiveRecipientId) {
       setFormError(copy.letters.sealFailed);
       return;
@@ -231,6 +231,14 @@ export function NewLetterScreen() {
     return (
       <Screen testID="screen-letter-new" >
         <LoadingState message={copy.common.loading} />
+      </Screen>
+    );
+  }
+
+  if (!letterReleaseReadyForSealing()) {
+    return (
+      <Screen testID="screen-letter-new">
+        <Banner message={copy.letters.releaseNotReady} tone="warning" />
       </Screen>
     );
   }

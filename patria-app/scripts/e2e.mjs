@@ -160,7 +160,11 @@ function restartAllMaestroDrivers() {
   }
 }
 
+/** Last Simulator udid passed to Maestro — used for failure screenshots. */
+let lastMaestroDevice = null;
+
 function maestro({ flow, device, env }) {
+  lastMaestroDevice = device || deviceA || null;
   const args = ['test', '--no-ansi', '--platform', 'ios'];
   if (device) {
     args.push('--device', device);
@@ -746,7 +750,10 @@ function step(testNumber, stepNumber, label, fn) {
   } catch (error) {
     status = 'fail';
     detail = error instanceof Error ? error.message : 'failed';
-    captureScreen(deviceA, `fail-test-${testNumber}-step-${stepNumber}`);
+    const shotDevice = lastMaestroDevice || deviceA;
+    if (shotDevice) {
+      captureScreen(shotDevice, `fail-test-${testNumber}-step-${stepNumber}`);
+    }
     reports.push({ testNumber, stepNumber, label, status, detail });
     console.log(`  ${stepNumber}. ${label}: FAIL${detail ? ` (${detail})` : ''}`);
     throw error instanceof Error ? error : new Error(detail || 'failed');
@@ -2671,7 +2678,10 @@ try {
           status: 'fail',
           detail: 'timed out',
         });
-        captureScreen(deviceA, `timeout-test-${test.number}`);
+        const shotDevice = lastMaestroDevice || deviceA;
+        if (shotDevice) {
+          captureScreen(shotDevice, `timeout-test-${test.number}`);
+        }
         markNotReached(test, 1);
       } else {
         throw error;

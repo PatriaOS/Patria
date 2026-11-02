@@ -1,6 +1,6 @@
 # How Patria Protects Your Family
 
-*Patria's architecture in plain language. Version 1, October 29, 2026. Patria is in early testing; this paper will be updated as Patria grows.*
+*Patria's architecture in plain language. Version 3, November 2, 2026. Patria is in early testing; this paper will be updated as Patria grows.*
 
 ## The short version
 
@@ -39,6 +39,19 @@ The Legacy Vault holds a family's most private records, such as the big decision
 - **Keys made on phones.** Each family has a family key, created on a family member's phone. Patria never holds a usable copy.
 - **Even the length is hidden.** Entries are padded so their size does not reveal what they contain.
 - **Only me entries** are locked with a personal key that only your own phones hold.
+
+## Letters to the Future
+
+A letter (with an optional voice note) is written now and opens for one person on a date you choose. It is sealed so that no one, including Patria, can read it before then.
+
+- **Sealed on your phone.** The letter gets its own key, and the letter is locked on your phone before it leaves. Patria's servers hold only locked content and locked pieces of the key.
+- **Two halves that open it on the day.** The key is split in two. One half can only be opened by the person the letter is for, on any of their phones, even after they replace a phone or recover their account. The other half is locked with Patria's release key, kept in Amazon's key vault, and the server only uses it once the date has come, and only to hand that half to the named person.
+- **You can still read and change your own letter.** A copy for you is locked to your own key, so you can reread, edit (which seals a new version) or withdraw it until it opens. Withdrawing deletes the letter and every piece of its key.
+- **A seal code.** A short code is shown when you seal and again when the letter opens, so the recipient can see nothing was changed.
+- **Surprise or announced.** You choose whether the recipient sees that a letter is waiting (with the opening date and who it is from) or learns about it only when it opens. Other family members never see letters they are not part of.
+- **If you leave the family,** you are asked whether to keep or withdraw each sealed letter; kept letters still open on their date.
+
+Honest note: Patria alone cannot open a sealed letter, and neither can the recipient alone. The rule that a letter opens only on its date is enforced by Patria's release service, not by mathematics alone: if Patria's release systems and the recipient's unlocked phone were both misused together, a letter could be opened early.
 
 ## Phones and family keys
 

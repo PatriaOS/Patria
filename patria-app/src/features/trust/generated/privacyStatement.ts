@@ -13,7 +13,7 @@ export const privacyStatementDocument = {
       "type": "lede",
       "spans": [
         {
-          "text": "Early access version. Last updated October 29, 2026."
+          "text": "Early access version. Last updated November 2, 2026."
         }
       ]
     },
@@ -81,6 +81,15 @@ export const privacyStatementDocument = {
           },
           {
             "text": " photos and short videos, meeting agendas, notes, tasks and replies, and Legacy Vault entries. Vault entries are locked on your phone, so Patria cannot read them."
+          }
+        ],
+        [
+          {
+            "text": "Letters to the Future:",
+            "bold": true
+          },
+          {
+            "text": " the locked letter and voice note, locked pieces of its key, the recipient, the opening date, whether it is a surprise, and the \"From\" name you choose. Patria cannot read a letter before it opens."
           }
         ],
         [
@@ -248,11 +257,20 @@ export const privacyStatementDocument = {
         ],
         [
           {
+            "text": "Letters to the Future",
+            "bold": true
+          },
+          {
+            "text": " only by you until they open, and then by the person they are for. Announced letters show the recipient the opening date and the \"From\" name before then."
+          }
+        ],
+        [
+          {
             "text": "Service providers",
             "bold": true
           },
           {
-            "text": " that host and run Patria, mainly Supabase (database, sign in and storage, running on Amazon Web Services in the United States). They may only use your information to provide their service to Patria."
+            "text": " that host and run Patria, mainly Supabase (database, sign in and storage, running on Amazon Web Services in the United States) and Amazon's key vault (AWS KMS), which holds Patria's key for releasing Letters to the Future. They may only use your information to provide their service to Patria."
           }
         ],
         [

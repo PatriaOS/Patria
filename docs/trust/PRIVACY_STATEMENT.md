@@ -1,6 +1,6 @@
 # Patria Privacy Statement
 
-*Early access version. Last updated October 29, 2026.*
+*Early access version. Last updated November 2, 2026.*
 
 Your family's information belongs to your family. This statement explains, in plain language, what Patria collects, why, who can see it, and the choices you have. Patria is in early testing, so this statement will be updated as Patria grows. A full legal privacy policy will be published before Patria opens to the public.
 
@@ -15,6 +15,7 @@ Your family's information belongs to your family. This statement explains, in pl
 - **Your account:** your name and email address. Your password is stored only in scrambled form, so Patria cannot read it.
 - **Your family:** your family name, members, roles and circles.
 - **What your family adds:** photos and short videos, meeting agendas, notes, tasks and replies, and Legacy Vault entries. Vault entries are locked on your phone, so Patria cannot read them.
+- **Letters to the Future:** the locked letter and voice note, locked pieces of its key, the recipient, the opening date, whether it is a surprise, and the "From" name you choose. Patria cannot read a letter before it opens.
 - **Phone details needed for security:** a public key for each approved phone, and the approvals made by your family.
 - **Technical information:** our hosting provider keeps standard technical logs, such as the time of a request and the IP address it came from, to keep Patria secure. Patria does not use these for advertising or tracking.
 
@@ -45,7 +46,8 @@ You can change these at any time in your phone's settings.
 
 - **Your family,** according to the circles you choose.
 - **Your Vault** only by family members who hold the family key, or only by you for Only me entries.
-- **Service providers** that host and run Patria, mainly Supabase (database, sign in and storage, running on Amazon Web Services in the United States). They may only use your information to provide their service to Patria.
+- **Letters to the Future** only by you until they open, and then by the person they are for. Announced letters show the recipient the opening date and the "From" name before then.
+- **Service providers** that host and run Patria, mainly Supabase (database, sign in and storage, running on Amazon Web Services in the United States) and Amazon's key vault (AWS KMS), which holds Patria's key for releasing Letters to the Future. They may only use your information to provide their service to Patria.
 - **The law:** we share information only if a valid legal process requires it. Vault entries remain locked, because Patria does not hold the key.
 
 ## AI

@@ -13,7 +13,7 @@ export const howPatriaProtectsDocument = {
       "type": "lede",
       "spans": [
         {
-          "text": "Patria's architecture in plain language. Version 1, October 29, 2026. Patria is in early testing; this paper will be updated as Patria grows."
+          "text": "Patria's architecture in plain language. Version 3, November 2, 2026. Patria is in early testing; this paper will be updated as Patria grows."
         }
       ]
     },
@@ -195,6 +195,85 @@ export const howPatriaProtectsDocument = {
             "text": " are locked with a personal key that only your own phones hold."
           }
         ]
+      ]
+    },
+    {
+      "type": "h2",
+      "text": "Letters to the Future"
+    },
+    {
+      "type": "p",
+      "spans": [
+        {
+          "text": "A letter (with an optional voice note) is written now and opens for one person on a date you choose. It is sealed so that no one, including Patria, can read it before then."
+        }
+      ]
+    },
+    {
+      "type": "ul",
+      "items": [
+        [
+          {
+            "text": "Sealed on your phone.",
+            "bold": true
+          },
+          {
+            "text": " The letter gets its own key, and the letter is locked on your phone before it leaves. Patria's servers hold only locked content and locked pieces of the key."
+          }
+        ],
+        [
+          {
+            "text": "Two halves that open it on the day.",
+            "bold": true
+          },
+          {
+            "text": " The key is split in two. One half can only be opened by the person the letter is for, on any of their phones, even after they replace a phone or recover their account. The other half is locked with Patria's release key, kept in Amazon's key vault, and the server only uses it once the date has come, and only to hand that half to the named person."
+          }
+        ],
+        [
+          {
+            "text": "You can still read and change your own letter.",
+            "bold": true
+          },
+          {
+            "text": " A copy for you is locked to your own key, so you can reread, edit (which seals a new version) or withdraw it until it opens. Withdrawing deletes the letter and every piece of its key."
+          }
+        ],
+        [
+          {
+            "text": "A seal code.",
+            "bold": true
+          },
+          {
+            "text": " A short code is shown when you seal and again when the letter opens, so the recipient can see nothing was changed."
+          }
+        ],
+        [
+          {
+            "text": "Surprise or announced.",
+            "bold": true
+          },
+          {
+            "text": " You choose whether the recipient sees that a letter is waiting (with the opening date and who it is from) or learns about it only when it opens. Other family members never see letters they are not part of."
+          }
+        ],
+        [
+          {
+            "text": "If you leave the family,",
+            "bold": true
+          },
+          {
+            "text": " you are asked whether to keep or withdraw each sealed letter; kept letters still open on their date."
+          }
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "spans": [
+        {
+          "text": "Honest note: Patria alone cannot open a sealed letter, and neither can the recipient alone. The rule that a letter opens only on its date is enforced by Patria's release service, not by mathematics alone: if Patria's release systems and the recipient's unlocked phone were both misused together, a letter could be opened early."
+        }
       ]
     },
     {

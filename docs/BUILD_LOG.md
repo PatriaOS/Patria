@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-02 — Letters trust docs, hosted seal gate, fail-shot device
+
+Trust docs (How Patria / Privacy) document Letters to the Future; `trust:content` regenerated. Hosted production builds refuse to seal when the release public key is missing or the known fake key — Letters shows Coming soon. e2e failure screenshots use the Simulator that last ran Maestro (not always device A).
+
 ## 2026-11-02 — Letters 60 recipient assert (open date a11y)
 
 Test 60 step 2 failed on `assertVisible: "Opens .*"` even though Test 2’s Letters screen showed only the announced stub (“A letter from Test 1”, Opens date, Sealed) and no surprise row. ListRow’s accessibility label was title-only, so Maestro could not see the open-date subtitle. ListRow now includes the body in the label; the flow still asserts the surprise body and “For Test 2” are absent. Not an RLS leak — pgTAP already covers surprise-hidden-while-sealed.

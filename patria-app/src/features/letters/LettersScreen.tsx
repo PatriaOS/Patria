@@ -22,6 +22,7 @@ import { useCurrentFamily } from '../family/useCurrentFamily';
 import { canWriteVault } from '../vault/VaultScreen';
 import { formatLetterDate } from './letterDates';
 import { fetchFamilyTimezone, fetchLetters, type LetterRow } from './letterApi';
+import { letterReleaseReadyForSealing } from './letterReleaseConfig';
 import { ensureLetterboxKey } from './letterboxEnsure';
 
 function statusLabel(row: LetterRow): string {
@@ -88,13 +89,17 @@ export function LettersScreen() {
     });
   }, [keyStatusQuery.data, spaceId, userId]);
 
-  const canWrite = canWriteVault({
-    role,
-    keyReady: keyStatusQuery.data === 'ready',
-    acceptedContacts: recoveryQuery.data?.accepted ?? 0,
-    hasRecoveryPublic: Boolean(recoveryQuery.data?.hasRecoveryPublic),
-  });
+  const releaseReady = letterReleaseReadyForSealing();
+  const canWrite =
+    releaseReady &&
+    canWriteVault({
+      role,
+      keyReady: keyStatusQuery.data === 'ready',
+      acceptedContacts: recoveryQuery.data?.accepted ?? 0,
+      hasRecoveryPublic: Boolean(recoveryQuery.data?.hasRecoveryPublic),
+    });
   const needsRecovery =
+    releaseReady &&
     isVaultWriterRole(role) &&
     keyStatusQuery.data === 'ready' &&
     ((recoveryQuery.data?.accepted ?? 0) < 2 || !recoveryQuery.data?.hasRecoveryPublic);
@@ -139,7 +144,13 @@ export function LettersScreen() {
   return (
     <Screen testID="screen-letters">
       <Banner message={copy.letters.lockNote} />
-      {needsRecovery ? (
+      {!releaseReady ? (
+        <EmptyState
+          title={copy.letters.comingSoonTitle}
+          message={copy.letters.comingSoonBody}
+        />
+      ) : null}
+      {releaseReady && needsRecovery ? (
         <Banner
           message={copy.letters.recoveryFirst}
           action={
@@ -152,7 +163,7 @@ export function LettersScreen() {
           }
         />
       ) : null}
-      {keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
+      {releaseReady && keyStatusQuery.data && keyStatusQuery.data !== 'ready' ? (
         <Banner message={copy.letters.approveOtherPhone} tone="warning" />
       ) : null}
       {canWrite ? (
@@ -161,11 +172,11 @@ export function LettersScreen() {
           onPress={() => router.push(routes.letterNew())}
           testID="write-letter"
         />
-      ) : !needsRecovery && keyStatusQuery.data === 'ready' ? (
+      ) : releaseReady && !needsRecovery && keyStatusQuery.data === 'ready' ? (
         <Banner message={copy.letters.notForYou} tone="warning" />
       ) : null}
 
-      {authored.length === 0 && forMe.length === 0 ? (
+      {releaseReady && authored.length === 0 && forMe.length === 0 ? (
         <EmptyState title={copy.letters.emptyTitle} message={copy.letters.emptyBody} />
       ) : null}
 
