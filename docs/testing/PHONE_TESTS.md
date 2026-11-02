@@ -460,19 +460,19 @@ Areas: letters, vault, keys
 
 ### 60. Announced vs surprise
 Areas: letters
-1. As Test 1, seal a second letter to Test 2 with **Announced**. Pass if Test 1’s list shows it as Announced.
-2. Sign in as Test 2. Open Letters. Pass if the announced letter appears with From and open date, and the surprise letter from test 59 does **not** appear.
+1. As Test 1, seal a Surprise letter and an **Announced** letter to Test 2 (e2e seals both in this test because each phone test starts from a fresh family). Pass if Test 1’s list shows the Announced letter as Announced.
+2. Sign in as Test 2 on the second Simulator. Open Letters. Pass if the announced letter appears with From and open date, and the surprise letter does **not** appear.
 3. Open the announced letter. Pass if you see it is waiting and **cannot** read the body yet.
 
 ### 61. Author edit and withdraw
 Areas: letters
 1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if a new seal code is shown.
-2. Open that letter and tap **Withdraw this letter**, confirm. Pass if it leaves the list and cannot be opened.
+2. Open that letter and tap **Withdraw this letter**, confirm. Pass if it leaves the list. Check the database: the letter row, payload and every share row are gone (events may remain). On the second Simulator as Test 2, Pass if the letter cannot be opened and does not appear.
 
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys
-1. (manual or e2e seed) Seal a surprise letter whose trigger is in the past (or advance time / call `mark_due_letters`). Sign in as the recipient. Pass if the letter appears as Opening / ready.
-2. Tap **Open this letter**. Pass if the body matches and the seal code matches what was shown when sealing.
+1. Seal a surprise letter with a voice note; e2e then sets `trigger_at` in the past and calls `mark_due_letters`. Sign in as the recipient on the second Simulator. Pass if the letter appears as Opening / ready.
+2. Tap **Open this letter**. Pass if the body matches, the voice note can be played, and the seal code matches what was shown when sealing.
 
 ### 63. Fingerprint matches on release
 Areas: letters

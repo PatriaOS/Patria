@@ -1,123 +1,180 @@
 # PHONE_TESTS: 61
 # AREAS: letters
-# Self-contained: seal, edit/reseal, then withdraw.
+# PHASE=edit: seal, edit, reseal with a new seal code.
+# PHASE=withdraw: withdraw, confirm, list empty.
+# PHASE=recipient_gone: Test 2 never sees the letter.
 appId: app.patria.dev
 ---
 - runFlow:
-    file: subflows/sign_in.yaml
-- tapOn:
-    id: "vault"
-- extendedWaitUntil:
-    visible:
-      id: "screen-vault"
-    timeout: 20000
-- scrollUntilVisible:
-    element:
-      id: "letters-entry"
-    direction: DOWN
-    timeout: 15000
-- tapOn:
-    id: "letters-entry"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letters"
-    timeout: 20000
-- extendedWaitUntil:
-    visible:
-      id: "write-letter"
-    timeout: 30000
-- tapOn:
-    id: "write-letter"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letter-new"
-    timeout: 15000
-- extendedWaitUntil:
-    visible: "Test 2"
-    timeout: 30000
-- tapOn:
-    id: "letter-from"
-- eraseText
-- inputText: "Test 1"
-- hideKeyboard
-- tapOn:
-    id: "letter-body"
-- inputText: "A letter to edit and withdraw."
-- hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: "letter-date-1y"
-    direction: DOWN
-    timeout: 10000
-- tapOn:
-    id: "letter-date-1y"
-- hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: "seal-letter"
-    direction: DOWN
-    timeout: 10000
-- tapOn:
-    id: "seal-letter"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letter-sealed"
-    timeout: 45000
-- tapOn:
-    id: "letter-sealed-done"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letters"
-    timeout: 15000
-- assertVisible: "For Test 2"
-- tapOn: "For Test 2"
-- extendedWaitUntil:
-    visible:
-      id: "edit-letter"
-    timeout: 15000
-- tapOn:
-    id: "edit-letter"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letter-new"
-    timeout: 15000
-- tapOn:
-    id: "letter-body"
-- eraseText
-- inputText: "Edited letter body."
-- hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: "seal-letter"
-    direction: DOWN
-    timeout: 10000
-- tapOn:
-    id: "seal-letter"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letter-sealed"
-    timeout: 45000
-- assertVisible: "Your letter is sealed"
-- extendedWaitUntil:
-    visible:
-      id: "letter-seal-code"
-    timeout: 10000
-- tapOn:
-    id: "letter-sealed-done"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letters"
-    timeout: 15000
-- tapOn: "For Test 2"
-- extendedWaitUntil:
-    visible:
-      id: "withdraw-letter"
-    timeout: 15000
-- tapOn:
-    id: "withdraw-letter"
-- tapOn: "Withdraw this letter"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letters"
-    timeout: 20000
-- assertVisible: "No letters yet"
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'edit'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 30000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-from"
+      - eraseText
+      - inputText: "Test 1"
+      - hideKeyboard
+      - tapOn:
+          id: "letter-body"
+      - inputText: "A letter to edit and withdraw."
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "letter-date-1y"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-date-1y"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 45000
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+      - assertVisible: "For Test 2"
+      - tapOn: "For Test 2"
+      - extendedWaitUntil:
+          visible:
+            id: "edit-letter"
+          timeout: 15000
+      - tapOn:
+          id: "edit-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - tapOn:
+          id: "letter-body"
+      - eraseText
+      - inputText: "Edited letter body."
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 45000
+      - assertVisible: "Your letter is sealed"
+      - extendedWaitUntil:
+          visible:
+            id: "letter-seal-code"
+          timeout: 10000
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+- runFlow:
+    when:
+      true: ${PHASE == 'withdraw'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - tapOn: "For Test 2"
+      - extendedWaitUntil:
+          visible:
+            id: "withdraw-letter"
+          timeout: 15000
+      - tapOn:
+          id: "withdraw-letter"
+      - tapOn: "Withdraw this letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - assertVisible: "No letters yet"
+- runFlow:
+    when:
+      true: ${PHASE == 'recipient_gone'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - assertVisible: "No letters yet"
+      - assertNotVisible: "A letter from Test 1"
+      - assertNotVisible: "Edited letter body."
+      - assertNotVisible:
+          id: "open-letter"

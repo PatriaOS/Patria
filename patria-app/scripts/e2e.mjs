@@ -815,6 +815,78 @@ if (record && deviceA) {
   recorders.push(startRecording(deviceA, `device-a`));
 }
 
+const FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX =
+  '78c5bcc55c54ed015e7452df3b55a395401c17c2088049bcd1a9c678dca33a85';
+let letterReleaseReady = false;
+
+async function letterReleaseResponds() {
+  try {
+    const response = await fetch('http://127.0.0.1:54321/functions/v1/letter-release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    // 401 = function up (JWT required). 500 with release_key_missing means serve is up but env missing.
+    return response.status === 401 || response.status === 500 || response.status === 400;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureLetterReleaseServe() {
+  if (letterReleaseReady && (await letterReleaseResponds())) {
+    return;
+  }
+  const envBody = [
+    '# Local e2e only. Fake letter-release private key; hosted refuses this fingerprint.',
+    `LETTER_RELEASE_PRIVATE_KEY_HEX=${FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX}`,
+    '',
+  ].join('\n');
+  const functionsEnvPath = join(APP_ROOT, 'supabase', 'functions', '.env');
+  const supabaseEnvPath = join(APP_ROOT, 'supabase', '.env');
+  writeFileSync(functionsEnvPath, envBody, { encoding: 'utf8' });
+  writeFileSync(supabaseEnvPath, envBody, { encoding: 'utf8' });
+  progress('Starting letter-release Edge Function serve.');
+  const log = join(ARTIFACTS, 'letter-release.log');
+  const child = spawn(
+    'npx',
+    ['supabase', 'functions', 'serve', 'letter-release', '--env-file', functionsEnvPath],
+    {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        LETTER_RELEASE_PRIVATE_KEY_HEX: FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX,
+      },
+      stdio: ['ignore', 'ignore', 'ignore'],
+      detached: true,
+    },
+  );
+  child.unref();
+  appendFileSync(log, `spawned letter-release pid=${child.pid}\n`);
+  const started = Date.now();
+  while (Date.now() - started < 90000) {
+    if (await letterReleaseResponds()) {
+      letterReleaseReady = true;
+      progress('letter-release Edge Function is ready.');
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error('letter-release Edge Function did not become ready on :54321.');
+}
+
+function markDueLettersPastTrigger() {
+  const spaceId = e2eFamilySpaceId();
+  sqlOnE2eFamily(
+    `UPDATE public.letters
+       SET trigger_at = now() - interval '1 day',
+           updated_at = now()
+     WHERE family_space_id = '${spaceId}'
+       AND status = 'sealed';`,
+  );
+  sqlOnE2eFamily(`SELECT public.mark_due_letters();`);
+}
+
 await ensureMetro();
 
 const total = selected.length;
@@ -2484,45 +2556,96 @@ try {
     }
 
     if (test.number === 60) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 60 needs 2 simulators (E2E_DEVICES=2) for Test 2 recipient steps.');
+      }
       step(60, 1, 'Announced letter listed for author', () => {
         maestro({
           flow: flow('60_announced_vs_surprise.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'author', E2E_STAY: '1' },
         });
       });
-      step(60, 2, 'Recipient sees announced only', () =>
-        result('skip', 'needs Test 2 simulator for recipient view'),
-      );
-      step(60, 3, 'Announced stub hides body', () =>
-        result('skip', 'needs Test 2 simulator for recipient view'),
-      );
+      step(60, 2, 'Recipient sees announced only', () => {
+        maestro({
+          flow: flow('60_announced_vs_surprise.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_list', E2E_STAY: '1' },
+        });
+      });
+      step(60, 3, 'Announced stub hides body', () => {
+        maestro({
+          flow: flow('60_announced_vs_surprise.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_stub', E2E_STAY: '1' },
+        });
+      });
     }
 
     if (test.number === 61) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 61 needs 2 simulators (E2E_DEVICES=2) for recipient after withdraw.');
+      }
       step(61, 1, 'Edit reseals with new code', () => {
         maestro({
           flow: flow('61_edit_withdraw_letter.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
         });
       });
-      step(61, 2, 'Withdraw removes letter', () =>
-        result('skip', 'full edit/withdraw path needs seeded sealed letter'),
-      );
+      step(61, 2, 'Withdraw removes letter', () => {
+        maestro({
+          flow: flow('61_edit_withdraw_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'withdraw', E2E_STAY: '1' },
+        });
+        const gone = dbCheck(['assert-letter-withdrawn', '--family', E2E_FAMILY_NAME]);
+        if (!gone.ok) {
+          throw new Error(gone.error || 'assert-letter-withdrawn failed');
+        }
+        maestro({
+          flow: flow('61_edit_withdraw_letter.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_gone', E2E_STAY: '1' },
+        });
+      });
     }
 
     if (test.number === 62) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 62 needs 2 simulators (E2E_DEVICES=2) for recipient open.');
+      }
+      await ensureLetterReleaseServe();
       step(62, 1, 'Due letter appears for recipient', () => {
         maestro({
           flow: flow('62_date_release_automatic.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'seal', E2E_STAY: '1' },
+        });
+        markDueLettersPastTrigger();
+        maestro({
+          flow: flow('62_date_release_automatic.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_ready', E2E_STAY: '1' },
         });
       });
-      step(62, 2, 'Open with fake release key', () =>
-        result('skip', 'needs past trigger_at seed and letter-release serve'),
-      );
+      step(62, 2, 'Open with fake release key', () => {
+        const fingerprint = dbCheck(['letter-fingerprint', '--family', E2E_FAMILY_NAME]);
+        if (!fingerprint.ok || !fingerprint.stdout) {
+          throw new Error(fingerprint.error || 'letter-fingerprint missing');
+        }
+        const sealCode = fingerprint.stdout.trim();
+        maestro({
+          flow: flow('62_date_release_automatic.yaml'),
+          device: deviceB,
+          env: {
+            ...signInEnv(secrets, 2),
+            PHASE: 'open',
+            SEAL_CODE: sealCode,
+            E2E_STAY: '1',
+          },
+        });
+      });
     }
 
     if (test.number === 63) {

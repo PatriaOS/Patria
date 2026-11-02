@@ -1,30 +1,169 @@
 # PHONE_TESTS: 62
 # AREAS: letters, keys
-# Slice A gate: writer can open Letters. Full past-trigger open is seeded in e2e.mjs when ready.
+# PHASE=seal: Test 1 seals a surprise letter with voice (e2e.mjs then past-triggers it).
+# PHASE=recipient_ready: Test 2 sees Opening.
+# PHASE=open: Test 2 opens, reads body, plays voice, seal code matches SEAL_CODE.
 appId: app.patria.dev
 ---
 - runFlow:
-    file: subflows/sign_in.yaml
-- tapOn:
-    id: "vault"
-- extendedWaitUntil:
-    visible:
-      id: "screen-vault"
-    timeout: 20000
-- scrollUntilVisible:
-    element:
-      id: "letters-entry"
-    direction: DOWN
-    timeout: 15000
-- tapOn:
-    id: "letters-entry"
-- extendedWaitUntil:
-    visible:
-      id: "screen-letters"
-    timeout: 20000
-- extendedWaitUntil:
-    visible:
-      id: "write-letter"
-    timeout: 20000
-- assertVisible:
-    id: "write-letter"
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'seal'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 20000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-from"
+      - eraseText
+      - inputText: "Test 1"
+      - hideKeyboard
+      - tapOn:
+          id: "letter-body"
+      - inputText: "A past-trigger letter body."
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "letter-record-voice"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-record-voice"
+      - extendedWaitUntil:
+          visible: "0:20"
+          timeout: 15000
+      - scrollUntilVisible:
+          element:
+            id: "letter-date-1y"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-date-1y"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 45000
+      - assertVisible: "Your letter is sealed"
+      - extendedWaitUntil:
+          visible:
+            id: "letter-seal-code"
+          timeout: 10000
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+      - assertVisible: "For Test 2"
+- runFlow:
+    when:
+      true: ${PHASE == 'recipient_ready'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - assertVisible: "A letter from Test 1"
+      - assertVisible: "Opening"
+- runFlow:
+    when:
+      true: ${PHASE == 'open'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - tapOn: "A letter from Test 1"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-detail"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible:
+            id: "open-letter"
+          timeout: 20000
+      - tapOn:
+          id: "open-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "letter-opened-body"
+          timeout: 45000
+      - assertVisible: "A past-trigger letter body."
+      - extendedWaitUntil:
+          visible:
+            id: "letter-voice-note"
+          timeout: 20000
+      - tapOn:
+          id: "letter-voice-play"
+      - assertVisible:
+          id: "letter-voice-play"
+      - assertVisible:
+          text: ".*${SEAL_CODE}.*"
+      - assertVisible:
+          id: "fingerprint-${SEAL_CODE}"

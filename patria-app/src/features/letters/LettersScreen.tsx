@@ -206,7 +206,12 @@ export function LettersScreen() {
           )}
           onPress={() => router.push(routes.letterDetail(row.id))}
           testID={`letter-recv-${row.id}`}
-          trailing={<StatusPill label={statusLabel(row)} />}
+          trailing={
+            <StatusPill
+              testID={`letter-recv-status-${row.id}`}
+              label={statusLabel(row)}
+            />
+          }
         />
       ))}
     </Screen>
