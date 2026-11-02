@@ -7,6 +7,12 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-02 — Letters migrations on hosted
+
+Pushed `20261101180000_letters_slice_a` and `20261101190000_letter_recipient_devices` to the linked hosted project. Local and hosted migration lists match; RLS enabled and forced on all seven letter tables. Family time zones after backfill: one from Sync schedule (`America/Chicago`); none from the America/New_York fallback. Letters stay Coming soon until the real release public key is set.
+
+**Backlog:** when a family’s time zone came from the fallback (`America/New_York` with no matching Sync schedule zone), ask its admin to confirm the zone the next time they open Patria.
+
 ## 2026-11-02 — Letters trust docs, hosted seal gate, fail-shot device
 
 Trust docs (How Patria / Privacy) document Letters to the Future; `trust:content` regenerated. Hosted production builds refuse to seal when the release public key is missing or the known fake key — Letters shows Coming soon. e2e failure screenshots use the Simulator that last ran Maestro (not always device A).
