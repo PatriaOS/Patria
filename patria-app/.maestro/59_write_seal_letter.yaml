@@ -35,7 +35,7 @@ appId: app.patria.dev
 - tapOn:
     id: "letter-body"
 - inputText: "A letter for your future self."
-- hideKeyboard
+- tapOn: "Who is this for?"
 - scrollUntilVisible:
     element:
       id: "letter-record-voice"

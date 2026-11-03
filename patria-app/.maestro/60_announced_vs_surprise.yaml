@@ -50,7 +50,7 @@ appId: app.patria.dev
       - tapOn:
           id: "letter-body"
       - inputText: "A surprise letter they must not see yet."
-      - hideKeyboard
+      - tapOn: "Who is this for?"
       - scrollUntilVisible:
           element:
             id: "letter-date-1y"
@@ -94,11 +94,17 @@ appId: app.patria.dev
       - tapOn:
           id: "letter-body"
       - inputText: "An announced letter for later."
-      - hideKeyboard
+      - tapOn: "Who is this for?"
       - scrollUntilVisible:
           element:
-            id: "visibility-announced"
+            id: "letter-visibility"
           direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-visibility"
+      - extendedWaitUntil:
+          visible:
+            id: "visibility-announced"
           timeout: 10000
       - tapOn:
           id: "visibility-announced"

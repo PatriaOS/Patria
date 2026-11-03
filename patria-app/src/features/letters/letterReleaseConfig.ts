@@ -1,6 +1,9 @@
 // SECURITY REVIEW REQUIRED
 import { releasePublicKeyFromHex } from '../../lib/crypto/letterReleaseKey';
-import { FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX as EDGE_FAKE_PUBLIC } from '../../../supabase/functions/letter-release/release';
+import {
+  FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX as EDGE_FAKE_PUBLIC,
+  isHosted,
+} from '../../../supabase/functions/letter-release/release';
 
 /**
  * Fixed FAKE compressed P-256 public key for local runs and tests. The matching
@@ -9,11 +12,18 @@ import { FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX as EDGE_FAKE_PUBLIC } from '../../..
  */
 export const FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX = EDGE_FAKE_PUBLIC;
 
-function allowFakeLetterReleaseKey(): boolean {
-  return (
-    process.env.EXPO_PUBLIC_E2E === '1' ||
-    (typeof __DEV__ !== 'undefined' && __DEV__ === true)
-  );
+/**
+ * Fake / missing release keys are only for a local Supabase stack or e2e.
+ * Expo Go sets __DEV__ true even against hosted — never treat __DEV__ alone as
+ * permission to seal with the fake key.
+ */
+export function allowFakeLetterReleaseKey(
+  supabaseUrl: string | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL,
+): boolean {
+  if (process.env.EXPO_PUBLIC_E2E === '1') {
+    return true;
+  }
+  return !isHosted({ supabaseUrl, deploymentId: undefined });
 }
 
 /** True when the hex is the known local/CI fake public key (case-insensitive). */
@@ -24,13 +34,14 @@ export function isFakeLetterReleasePublicKeyHex(hex: string | undefined): boolea
 
 /**
  * Hosted must not seal until a real (non-fake) release public key is configured.
- * Local and e2e may use the fake key; production builds never do.
+ * Local stacks and e2e may use the fake key; Expo Go against hosted must not.
  */
 export function letterReleaseReadyForSealing(
   hex: string | undefined = process.env.EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX,
+  supabaseUrl: string | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL,
 ): boolean {
   const value = hex?.trim();
-  const allowFake = allowFakeLetterReleaseKey();
+  const allowFake = allowFakeLetterReleaseKey(supabaseUrl);
   if (!value) {
     return allowFake;
   }
@@ -47,9 +58,10 @@ export function letterReleaseReadyForSealing(
 
 export function getLetterReleasePublicKey(
   hex: string | undefined = process.env.EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX,
+  supabaseUrl: string | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL,
 ): Uint8Array {
   const value = hex?.trim();
-  const allowFake = allowFakeLetterReleaseKey();
+  const allowFake = allowFakeLetterReleaseKey(supabaseUrl);
 
   if (value) {
     if (isFakeLetterReleasePublicKeyHex(value) && !allowFake) {
@@ -59,8 +71,8 @@ export function getLetterReleasePublicKey(
   }
 
   // Local / phone e2e: Metro often starts with EXPO_NO_DOTENV and may omit this
-  // public key from .env.e2e.local. The documented fake key is safe on device;
-  // hosted Edge refuses it by fingerprint. Never fall back in production builds.
+  // public key from .env.e2e.local. The documented fake key is safe on a local
+  // stack; hosted Edge refuses it by fingerprint. Never fall back on hosted.
   if (allowFake) {
     return releasePublicKeyFromHex(FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX);
   }

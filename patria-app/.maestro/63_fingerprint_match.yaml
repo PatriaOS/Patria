@@ -36,7 +36,7 @@ appId: app.patria.dev
 - tapOn:
     id: "letter-body"
 - inputText: "Seal code with voice."
-- hideKeyboard
+- tapOn: "Who is this for?"
 - scrollUntilVisible:
     element:
       id: "letter-record-voice"

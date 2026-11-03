@@ -49,7 +49,7 @@ appId: app.patria.dev
       - tapOn:
           id: "letter-body"
       - inputText: "A past-trigger letter body."
-      - hideKeyboard
+      - tapOn: "Who is this for?"
       - scrollUntilVisible:
           element:
             id: "letter-record-voice"

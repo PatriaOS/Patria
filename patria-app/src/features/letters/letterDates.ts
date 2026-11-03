@@ -96,6 +96,64 @@ export function formatLetterDate(iso: string, timeZone: string): string {
   }).format(date);
 }
 
+/** Friendly open day, e.g. "Tuesday, 2 November 2027". */
+export function formatLetterOpenDay(ymd: string, timeZone: string): string {
+  if (!isValidYmd(ymd)) {
+    return ymd;
+  }
+  const iso = zonedMidnightIso(ymd, timeZone);
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(iso));
+}
+
+/**
+ * Short friendly zone label for people ("Central Time"). Keep the IANA name for
+ * accessibility hints only.
+ */
+export function friendlyTimeZoneName(timeZone: string, at = new Date()): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'longGeneric',
+    }).formatToParts(at);
+    const name = parts.find((part) => part.type === 'timeZoneName')?.value?.trim();
+    if (name) {
+      return name;
+    }
+  } catch {
+    // Fall through.
+  }
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'long',
+    }).formatToParts(at);
+    const name = parts.find((part) => part.type === 'timeZoneName')?.value?.trim();
+    if (name) {
+      return name.replace(/\s+(Standard|Daylight|Summer)\s+Time$/i, ' Time');
+    }
+  } catch {
+    // Fall through.
+  }
+  return timeZone;
+}
+
+/** Tomorrow's calendar day in the family zone (YYYY-MM-DD). */
+export function tomorrowYmd(timeZone: string, now = new Date()): string {
+  const today = calendarDayInZone(now, timeZone);
+  const parsed = parseYmd(today);
+  if (!parsed) {
+    return today;
+  }
+  const next = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d + 1));
+  return `${String(next.getUTCFullYear()).padStart(4, '0')}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`;
+}
+
 /** True once the trigger instant has passed. */
 export function triggerHasPassed(triggerAtIso: string, now = new Date()): boolean {
   return new Date(triggerAtIso).getTime() <= now.getTime();

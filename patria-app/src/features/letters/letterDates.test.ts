@@ -1,7 +1,10 @@
 import {
   addYearsToYmd,
+  formatLetterOpenDay,
+  friendlyTimeZoneName,
   isAfterToday,
   isValidYmd,
+  tomorrowYmd,
   triggerHasPassed,
   ymdInZone,
   zonedMidnightIso,
@@ -51,5 +54,22 @@ describe('letterDates', () => {
     const now = new Date('2030-01-15T12:00:00Z');
     expect(triggerHasPassed('2030-01-15T12:00:00.000Z', now)).toBe(true);
     expect(triggerHasPassed('2030-01-15T12:00:01.000Z', now)).toBe(false);
+  });
+
+  it('formats the open day with a weekday', () => {
+    expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/Tuesday/);
+    expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/November/);
+    expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/2027/);
+  });
+
+  it('names the family zone in plain words', () => {
+    expect(friendlyTimeZoneName('America/Chicago', new Date('2027-07-01T12:00:00Z'))).toMatch(
+      /Central/i,
+    );
+  });
+
+  it('picks tomorrow in the family zone', () => {
+    const now = new Date('2030-01-15T03:00:00Z'); // still Jan 14 in New York
+    expect(tomorrowYmd('America/New_York', now)).toBe('2030-01-15');
   });
 });

@@ -454,24 +454,24 @@ Write and seal, announced vs surprise, author edit and withdraw, date release wi
 
 ### 59. Write and seal a letter
 Areas: letters, vault, keys
-1. Sign in as Test 1 with keys and recovery set up, and Test 2 also ready to receive (both have opened Patria so letterbox keys exist). Open **Vault**, tap **Letters to the Future**, then **Write a letter**. Pass if you see recipient chips, From, body, Surprise/Announced, voice note and a date.
-2. Pick Test 2, leave From as your name, write a short body, tap **Record a voice note** (e2e uses the sample clip), keep **Surprise**, set the date with **In 1 year**, tap **Seal this letter**. Pass if you see **Your letter is sealed** and a **Seal code** (12 hex characters).
+1. Sign in as Test 1 with keys and recovery set up, and Test 2 also ready to receive (both have opened Patria so letterbox keys exist). Open **Vault**, tap **Letters to the Future**, then **Write a letter**. Pass if the screen header is **New letter** (no second title on the form), you see recipient chips, From, body, a **How will they find out?** field defaulting to Surprise with its one-line description, a voice label plus **Record**, and **Opens on** as a friendly date with **In 1 year** / **In 5 years** / **In 10 years** chips.
+2. Pick Test 2, leave From as your name, write a short body, tap **Record** (e2e uses the sample clip), keep **Surprise**, set the date with **In 1 year**, tap **Seal this letter**. Pass if you see **Your letter is sealed** and a **Seal code** (12 hex characters).
 3. Tap **Done**. Pass if the letter list shows a sealed letter for Test 2.
 
 ### 60. Announced vs surprise
 Areas: letters
-1. As Test 1, seal a Surprise letter and an **Announced** letter to Test 2 (e2e seals both in this test because each phone test starts from a fresh family). Pass if Test 1’s list shows the Announced letter as Announced.
+1. As Test 1, seal a Surprise letter and an **Announced** letter to Test 2 (open **How will they find out?**, choose Announced; e2e seals both in this test because each phone test starts from a fresh family). Pass if Test 1’s list shows the Announced letter as Announced.
 2. Sign in as Test 2 on the second Simulator. Open Letters. Pass if the announced letter appears with From and open date, and the surprise letter does **not** appear.
 3. Open the announced letter. Pass if you see it is waiting and **cannot** read the body yet.
 
 ### 61. Author edit and withdraw
 Areas: letters
-1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if a new seal code is shown.
+1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if the edit form matches New letter controls (no duplicate title; visibility field; date chips) and a new seal code is shown.
 2. Open that letter and tap **Withdraw this letter**, confirm. Pass if it leaves the list. Check the database: the letter row, payload and every share row are gone (events may remain). On the second Simulator as Test 2, Pass if the letter cannot be opened and does not appear.
 
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys
-1. Seal a surprise letter with a voice note; e2e then sets `trigger_at` in the past and calls `mark_due_letters`. Sign in as the recipient on the second Simulator. Pass if the letter appears as Opening / ready.
+1. Seal a surprise letter with a voice note (**Record**); e2e then sets `trigger_at` in the past and calls `mark_due_letters`. Sign in as the recipient on the second Simulator. Pass if the letter appears as Opening / ready.
 2. Tap **Open this letter**. Pass if the body matches, the voice note can be played, and the seal code matches what was shown when sealing.
 
 ### 63. Fingerprint matches on release
