@@ -1,7 +1,9 @@
 // SECURITY REVIEW REQUIRED
 // Hosted path: AWS KMS DeriveSharedSecret on an ECC_NIST_P256 KEY_AGREEMENT key.
-// The private key never leaves KMS. Not exercised in Slice A (nothing is hosted yet);
-// see docs/runbooks/letter-release-kms.md for the key setup and IAM policy.
+// The private key never leaves KMS. Credentials are LETTER_RELEASE_AWS_* only —
+// never the generic AWS_* names (those stay free for Brain). See
+// docs/runbooks/letter-release-kms.md.
+import { letterReleaseAwsEnvFromGetEnv, letterReleaseKmsClientConfig } from './kmsEnv.ts';
 import { ephemeralPublicKeyToSpki } from './release.ts';
 
 /** Returns the raw 32 byte ECDH x-coordinate. */
@@ -11,7 +13,9 @@ export async function deriveSharedSecretWithKms(
 ): Promise<Uint8Array> {
   // Loaded only on the hosted path so local runs never need the AWS SDK.
   const { KMSClient, DeriveSharedSecretCommand } = await import('@aws-sdk/client-kms');
-  const client = new KMSClient({});
+  const client = new KMSClient(
+    letterReleaseKmsClientConfig(letterReleaseAwsEnvFromGetEnv((name) => Deno.env.get(name))),
+  );
   const output = await client.send(
     new DeriveSharedSecretCommand({
       KeyId: keyId,

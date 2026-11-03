@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-03 — Letter-release KMS runbook + prefixed AWS secrets
+
+Hosted Letters still wait on Femi creating the KMS key (nothing created or deployed in this slice). Runbook rewritten for CloudShell-as-Femi-Admin (no Mac AWS CLI), full key policy with root `kms:*` lockout safety plus explicit Deny so only `patria-letter-release` can `DeriveSharedSecret`, and a public-key script that prints the 66-char compressed hex + `not_fake`. Pure `kmsEnv.ts` (Jest-safe) + `kms.ts` read only `LETTER_RELEASE_AWS_*` + `LETTER_RELEASE_KMS_KEY_ID` so Brain can own generic `AWS_*` later. Unit test covers credential env names. First phone proof remains seal-to-Test-2 dated tomorrow, open after midnight Central — no SQL `trigger_at` edits.
+
 ## 2026-11-02 — Letters polish follow-up + __DEV__ audit
 
 New/Edit letter: chevron and calendar affordances, sheet grab handle (swipe / backdrop / back), full “Eastern Time” / “Central Time” labels, `withHeader` to clear the empty gap under the stack title (Letters list too). Coming soon copy no longer mentions keys or environments. Shared `isLocalOrE2eRuntime` — design preview routes and the letter fake-key gate must not turn on from `__DEV__` alone (Expo Go). Logging helpers may still use `__DEV__`.
