@@ -2,6 +2,10 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
 import { FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX } from '../../features/letters/letterReleaseConfig';
 import {
+  letterReleaseAwsEnvFromGetEnv,
+  letterReleaseKmsClientConfig,
+} from '../../../supabase/functions/letter-release/kmsEnv';
+import {
   decideReleaseKey,
   decodePgBytea,
   FAKE_LETTER_RELEASE_PUBLIC_KEY_FINGERPRINT,
@@ -130,5 +134,63 @@ describe('letter-release Edge helpers', () => {
         privateKeyHex: 'abcd',
       }),
     ).toEqual({ kind: 'local_key_missing' });
+  });
+
+  it('builds KMS client config from LETTER_RELEASE_AWS_* only', () => {
+    const config = letterReleaseKmsClientConfig({
+      accessKeyId: ' AKIAEXAMPLE ',
+      secretAccessKey: ' secret ',
+      region: ' us-east-1 ',
+    });
+    expect(config).toEqual({
+      region: 'us-east-1',
+      credentials: { accessKeyId: 'AKIAEXAMPLE', secretAccessKey: 'secret' },
+    });
+    expect(letterReleaseKmsClientConfig({
+      accessKeyId: 'AKIAEXAMPLE',
+      secretAccessKey: 'secret',
+      region: undefined,
+    }).region).toBe('us-east-1');
+    expect(() =>
+      letterReleaseKmsClientConfig({
+        accessKeyId: undefined,
+        secretAccessKey: 'secret',
+        region: 'us-east-1',
+      }),
+    ).toThrow('letter release AWS credentials missing');
+    expect(() =>
+      letterReleaseKmsClientConfig({
+        accessKeyId: 'AKIAEXAMPLE',
+        secretAccessKey: '  ',
+        region: 'us-east-1',
+      }),
+    ).toThrow('letter release AWS credentials missing');
+
+    const names: string[] = [];
+    const env = letterReleaseAwsEnvFromGetEnv((name) => {
+      names.push(name);
+      if (name === 'LETTER_RELEASE_AWS_ACCESS_KEY_ID') {
+        return 'AKIA_LETTER';
+      }
+      if (name === 'LETTER_RELEASE_AWS_SECRET_ACCESS_KEY') {
+        return 'letter-secret';
+      }
+      if (name === 'LETTER_RELEASE_AWS_REGION') {
+        return 'us-east-1';
+      }
+      return 'should-not-read';
+    });
+    expect(names).toEqual([
+      'LETTER_RELEASE_AWS_ACCESS_KEY_ID',
+      'LETTER_RELEASE_AWS_SECRET_ACCESS_KEY',
+      'LETTER_RELEASE_AWS_REGION',
+    ]);
+    expect(names.some((n) => n === 'AWS_ACCESS_KEY_ID' || n === 'AWS_SECRET_ACCESS_KEY')).toBe(
+      false,
+    );
+    expect(letterReleaseKmsClientConfig(env)).toEqual({
+      region: 'us-east-1',
+      credentials: { accessKeyId: 'AKIA_LETTER', secretAccessKey: 'letter-secret' },
+    });
   });
 });
