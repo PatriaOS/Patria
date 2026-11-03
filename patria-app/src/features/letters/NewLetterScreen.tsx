@@ -6,8 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Modal, Platform, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Calendar } from 'lucide-react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import {
@@ -20,10 +20,12 @@ import {
   EmptyState,
   ErrorState,
   Field,
+  Icon,
   LoadingState,
   Pressable,
   Screen,
   SelectField,
+  SheetModal,
   Small,
   Title,
 } from '../../ui';
@@ -93,7 +95,6 @@ export function NewLetterScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ letterId?: string }>();
   const editId = typeof params.letterId === 'string' ? params.letterId : undefined;
   const { userId, spaceId } = useCurrentFamily();
@@ -311,7 +312,7 @@ export function NewLetterScreen() {
 
   if (!spaceId || !userId || writerQuery.isLoading || membersQuery.isLoading) {
     return (
-      <Screen testID="screen-letter-new">
+      <Screen withHeader testID="screen-letter-new">
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -319,7 +320,7 @@ export function NewLetterScreen() {
 
   if (!letterReleaseReadyForSealing()) {
     return (
-      <Screen testID="screen-letter-new">
+      <Screen withHeader testID="screen-letter-new">
         <EmptyState
           title={copy.letters.comingSoonTitle}
           message={copy.letters.comingSoonBody}
@@ -330,7 +331,7 @@ export function NewLetterScreen() {
 
   if (writerQuery.data === false) {
     return (
-      <Screen testID="screen-letter-new">
+      <Screen withHeader testID="screen-letter-new">
         <Banner message={copy.letters.notForYou} tone="warning" />
       </Screen>
     );
@@ -338,7 +339,7 @@ export function NewLetterScreen() {
 
   if (sealedFingerprint && sealedName && sealedDate) {
     return (
-      <Screen testID="screen-letter-sealed">
+      <Screen withHeader testID="screen-letter-sealed">
         <Title>{copy.letters.sealedTitle}</Title>
         <Body>
           {copy.letters.sealedBody.replace('{name}', sealedName).replace('{date}', sealedDate)}
@@ -362,7 +363,7 @@ export function NewLetterScreen() {
   }
 
   return (
-    <Screen testID="screen-letter-new">
+    <Screen withHeader testID="screen-letter-new">
       <Caption>{copy.letters.toLabel}</Caption>
       {readyMembers.length === 0 ? (
         <Banner message={copy.letters.noRecipients} tone="info" />
@@ -477,7 +478,8 @@ export function NewLetterScreen() {
             { backgroundColor: colors.surface, borderColor: colors.hairline },
           ]}
         >
-          <Body>{formatLetterOpenDay(dateYmd, timeZone)}</Body>
+          <Body style={styles.dateLabel}>{formatLetterOpenDay(dateYmd, timeZone)}</Body>
+          <Icon icon={Calendar} name="calendar" size={20} color={colors.textMuted} />
         </Pressable>
         <View
           accessible
@@ -519,45 +521,26 @@ export function NewLetterScreen() {
       ) : null}
 
       {datePickerOpen && Platform.OS === 'ios' ? (
-        <Modal
+        <SheetModal
           visible
-          transparent
-          animationType="slide"
-          onRequestClose={() => setDatePickerOpen(false)}
+          onClose={() => setDatePickerOpen(false)}
+          testID="letter-date-sheet"
+          accessibilityLabel={copy.letters.dateLabel}
         >
-          <View style={styles.pickerRoot}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.letters.done}
-              onPress={() => setDatePickerOpen(false)}
-              style={styles.pickerBackdrop}
-            />
-            <View
-              style={[
-                styles.pickerSheet,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.hairline,
-                  paddingBottom: insets.bottom + space.md,
-                },
-              ]}
-            >
-              <DateTimePicker
-                value={ymdToPickerDate(dateYmd, timeZone)}
-                mode="date"
-                display="spinner"
-                minimumDate={ymdToPickerDate(minYmd, timeZone)}
-                onChange={onPickerChange}
-                style={styles.iosPicker}
-              />
-              <Button
-                label={copy.letters.done}
-                onPress={() => setDatePickerOpen(false)}
-                testID="letter-date-done"
-              />
-            </View>
-          </View>
-        </Modal>
+          <DateTimePicker
+            value={ymdToPickerDate(dateYmd, timeZone)}
+            mode="date"
+            display="spinner"
+            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            onChange={onPickerChange}
+            style={styles.iosPicker}
+          />
+          <Button
+            label={copy.letters.done}
+            onPress={() => setDatePickerOpen(false)}
+            testID="letter-date-done"
+          />
+        </SheetModal>
       ) : null}
 
       {formError ? <ErrorState message={formError} /> : null}
@@ -598,22 +581,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     minHeight: 52,
-    justifyContent: 'center',
-  },
-  pickerRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  pickerBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'transparent',
-  },
-  pickerSheet: {
-    borderTopLeftRadius: radius.card,
-    borderTopRightRadius: radius.card,
-    borderTopWidth: 1,
-    padding: space.card,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: space.sm,
+  },
+  dateLabel: {
+    flex: 1,
   },
   iosPicker: {
     alignSelf: 'stretch',

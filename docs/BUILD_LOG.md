@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-02 — Letters polish follow-up + __DEV__ audit
+
+New/Edit letter: chevron and calendar affordances, sheet grab handle (swipe / backdrop / back), full “Eastern Time” / “Central Time” labels, `withHeader` to clear the empty gap under the stack title (Letters list too). Coming soon copy no longer mentions keys or environments. Shared `isLocalOrE2eRuntime` — design preview routes and the letter fake-key gate must not turn on from `__DEV__` alone (Expo Go). Logging helpers may still use `__DEV__`.
+
 ## 2026-11-02 — Letters write-route hosted gate + New letter polish
 
 Expo Go against hosted still opened the full New letter form because `letterReleaseReadyForSealing` treated `__DEV__` as permission to use the fake/missing release key. Gate now follows the Supabase URL (local or `EXPO_PUBLIC_E2E=1` only); the write route itself shows Coming soon (deep links included). Hosted `letters` count was 0. New/Edit letter polish: no duplicate title, visibility SelectField, calm recipient empty state, voice label + Record, native date picker with year chips, friendly zone line, Seal disabled hint. Flows 59–63 updated for the dropdown; `@react-native-community/datetimepicker` added via `expo install`.

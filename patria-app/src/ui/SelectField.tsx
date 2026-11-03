@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
+import { ChevronDown } from 'lucide-react-native';
 
 import { testIdFromLabel } from '../lib/testId';
 import { radius, space } from '../theme/tokens';
 import { useTheme } from '../theme';
+import { Icon } from './Icon';
 import { Pressable } from './Pressable';
+import { SheetModal } from './SheetModal';
 import { Body, Caption, Small } from './Text';
 
 export type SelectOption<T extends string> = {
@@ -34,7 +36,6 @@ export function SelectField<T extends string>({
   sheetTestID,
 }: Props<T>) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value) ?? options[0];
 
@@ -52,59 +53,46 @@ export function SelectField<T extends string>({
           { backgroundColor: colors.surface, borderColor: colors.hairline },
         ]}
       >
-        <Body>{selected?.label ?? ''}</Body>
+        <Body style={styles.triggerLabel}>{selected?.label ?? ''}</Body>
+        <Icon icon={ChevronDown} name="chevronDown" size={20} color={colors.textMuted} />
       </Pressable>
       {selected?.description ? <Caption tone="muted">{selected.description}</Caption> : null}
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={styles.root} testID={sheetTestID}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            onPress={() => setOpen(false)}
-            style={styles.backdrop}
-          />
-          <View
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.hairline,
-                paddingBottom: insets.bottom + space.md,
-              },
-            ]}
-          >
-            <Small tone="muted">{label}</Small>
-            {options.map((option) => {
-              const isSelected = option.value === value;
-              return (
-                <Pressable
-                  key={option.value}
-                  testID={option.testID ?? testIdFromLabel(option.label)}
-                  accessibilityRole="button"
-                  accessibilityLabel={option.label}
-                  accessibilityHint={option.description}
-                  accessibilityState={{ selected: isSelected }}
-                  onPress={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                  }}
-                  style={[
-                    styles.option,
-                    {
-                      borderColor: isSelected ? colors.primary : colors.hairline,
-                      backgroundColor: isSelected ? colors.softSurface : colors.surface,
-                    },
-                  ]}
-                >
-                  <Body>{option.label}</Body>
-                  <Caption tone="muted">{option.description}</Caption>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </Modal>
+      <SheetModal
+        visible={open}
+        onClose={() => setOpen(false)}
+        testID={sheetTestID}
+        accessibilityLabel={label}
+      >
+        <Small tone="muted">{label}</Small>
+        {options.map((option) => {
+          const isSelected = option.value === value;
+          return (
+            <Pressable
+              key={option.value}
+              testID={option.testID ?? testIdFromLabel(option.label)}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityHint={option.description}
+              accessibilityState={{ selected: isSelected }}
+              onPress={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              style={[
+                styles.option,
+                {
+                  borderColor: isSelected ? colors.primary : colors.hairline,
+                  backgroundColor: isSelected ? colors.softSurface : colors.surface,
+                },
+              ]}
+            >
+              <Body>{option.label}</Body>
+              <Caption tone="muted">{option.description}</Caption>
+            </Pressable>
+          );
+        })}
+      </SheetModal>
     </View>
   );
 }
@@ -119,22 +107,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     minHeight: 52,
-    justifyContent: 'center',
-  },
-  root: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'transparent',
-  },
-  sheet: {
-    borderTopLeftRadius: radius.card,
-    borderTopRightRadius: radius.card,
-    borderTopWidth: 1,
-    padding: space.card,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: space.sm,
+  },
+  triggerLabel: {
+    flex: 1,
   },
   option: {
     borderRadius: radius.tile,

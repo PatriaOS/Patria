@@ -467,7 +467,7 @@ Areas: letters
 ### 61. Author edit and withdraw
 Areas: letters
 1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if the edit form matches New letter controls (no duplicate title; visibility field; date chips) and a new seal code is shown.
-2. Open that letter and tap **Withdraw this letter**, confirm. Pass if it leaves the list. Check the database: the letter row, payload and every share row are gone (events may remain). On the second Simulator as Test 2, Pass if the letter cannot be opened and does not appear.
+2. Open that letter, tap **Withdraw this letter**, then confirm in the sheet. Pass if it leaves the list. Check the database: the letter row, payload and every share row are gone (events may remain). On the second Simulator as Test 2, Pass if the letter cannot be opened and does not appear.
 
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys

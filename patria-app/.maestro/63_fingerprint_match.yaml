@@ -54,7 +54,6 @@ appId: app.patria.dev
     timeout: 10000
 - tapOn:
     id: "letter-date-1y"
-- hideKeyboard
 - scrollUntilVisible:
     element:
       id: "seal-letter"

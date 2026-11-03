@@ -62,9 +62,15 @@ describe('letterDates', () => {
     expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/2027/);
   });
 
-  it('names the family zone in plain words', () => {
-    expect(friendlyTimeZoneName('America/Chicago', new Date('2027-07-01T12:00:00Z'))).toMatch(
-      /Central/i,
+  it('names the family zone with the full friendly Time word', () => {
+    expect(friendlyTimeZoneName('America/Chicago', new Date('2027-07-01T12:00:00Z'))).toBe(
+      'Central Time',
+    );
+    expect(friendlyTimeZoneName('America/New_York', new Date('2027-01-15T12:00:00Z'))).toBe(
+      'Eastern Time',
+    );
+    expect(friendlyTimeZoneName('America/New_York', new Date('2027-01-15T12:00:00Z'))).not.toBe(
+      'Eastern',
     );
   });
 

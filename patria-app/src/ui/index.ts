@@ -20,6 +20,7 @@ export { StatusPill } from './StatusPill';
 export { TabBar, TAB_KEYS, homeTabAccessibilityLabel } from './TabBar';
 export { AppText, Body, Caption, Display, DisplayItalic, Muted, Overline, Section, Small, Title } from './Text';
 export { SelectField } from './SelectField';
+export { SheetModal } from './SheetModal';
 export { TextField, TextField as Field } from './TextField';
 export { UnderlineTabs } from './UnderlineTabs';
 export type { SelectOption } from './SelectField';

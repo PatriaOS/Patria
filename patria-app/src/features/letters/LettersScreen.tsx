@@ -119,7 +119,7 @@ export function LettersScreen() {
 
   if (!spaceId || !userId || !current || keyStatusQuery.isLoading || recoveryQuery.isLoading) {
     return (
-      <Screen testID="screen-letters">
+      <Screen withHeader testID="screen-letters">
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -127,7 +127,7 @@ export function LettersScreen() {
 
   if (lettersQuery.isError) {
     return (
-      <Screen testID="screen-letters">
+      <Screen withHeader testID="screen-letters">
         <ErrorState message={copy.common.error} />
       </Screen>
     );
@@ -135,14 +135,14 @@ export function LettersScreen() {
 
   if (lettersQuery.isLoading) {
     return (
-      <Screen testID="screen-letters">
+      <Screen withHeader testID="screen-letters">
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
   }
 
   return (
-    <Screen testID="screen-letters">
+    <Screen withHeader testID="screen-letters">
       <Banner message={copy.letters.lockNote} />
       {!releaseReady ? (
         <EmptyState

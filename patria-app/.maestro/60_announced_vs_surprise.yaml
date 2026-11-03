@@ -46,7 +46,7 @@ appId: app.patria.dev
           id: "letter-from"
       - eraseText
       - inputText: "Test 1"
-      - hideKeyboard
+      - tapOn: "Who is this for?"
       - tapOn:
           id: "letter-body"
       - inputText: "A surprise letter they must not see yet."
@@ -58,7 +58,6 @@ appId: app.patria.dev
           timeout: 10000
       - tapOn:
           id: "letter-date-1y"
-      - hideKeyboard
       - scrollUntilVisible:
           element:
             id: "seal-letter"
@@ -90,7 +89,7 @@ appId: app.patria.dev
           id: "letter-from"
       - eraseText
       - inputText: "Test 1"
-      - hideKeyboard
+      - tapOn: "Who is this for?"
       - tapOn:
           id: "letter-body"
       - inputText: "An announced letter for later."
@@ -115,7 +114,6 @@ appId: app.patria.dev
           timeout: 10000
       - tapOn:
           id: "letter-date-1y"
-      - hideKeyboard
       - scrollUntilVisible:
           element:
             id: "seal-letter"

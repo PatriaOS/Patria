@@ -752,7 +752,7 @@ export const copy = {
     write: 'Write a letter',
     comingSoonTitle: 'Coming soon',
     comingSoonBody:
-      'Letters to the Future will open here once Patria’s release key is set up for this environment. Nothing is sealed against a test key on hosted Patria.',
+      "Letters to the Future is almost ready. Soon you'll be able to write letters here that open on a day you choose.",
     emptyTitle: 'No letters yet',
     emptyBody: 'Write to someone in your family. It stays sealed until the day you pick.',
     notForYou: 'Letters are for family members who hold the family key and have set up recovery.',

@@ -111,8 +111,26 @@ export function formatLetterOpenDay(ymd: string, timeZone: string): string {
   }).format(new Date(iso));
 }
 
+const US_ZONE_STEM =
+  /^(Eastern|Central|Pacific|Mountain|Alaska|Hawaii|Hawaii-Aleutian|Atlantic)$/i;
+
+/** Prefer a full friendly label ("Central Time"), never a bare "Central". */
+function withTimeWord(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (/\bTime$/i.test(trimmed)) {
+    return trimmed.replace(/\s+(Standard|Daylight|Summer)\s+Time$/i, ' Time');
+  }
+  if (US_ZONE_STEM.test(trimmed)) {
+    return `${trimmed} Time`;
+  }
+  return trimmed;
+}
+
 /**
- * Short friendly zone label for people ("Central Time"). Keep the IANA name for
+ * Friendly zone label for people ("Central Time"). Keep the IANA name for
  * accessibility hints only.
  */
 export function friendlyTimeZoneName(timeZone: string, at = new Date()): string {
@@ -123,7 +141,7 @@ export function friendlyTimeZoneName(timeZone: string, at = new Date()): string 
     }).formatToParts(at);
     const name = parts.find((part) => part.type === 'timeZoneName')?.value?.trim();
     if (name) {
-      return name;
+      return withTimeWord(name);
     }
   } catch {
     // Fall through.
@@ -135,7 +153,7 @@ export function friendlyTimeZoneName(timeZone: string, at = new Date()): string 
     }).formatToParts(at);
     const name = parts.find((part) => part.type === 'timeZoneName')?.value?.trim();
     if (name) {
-      return name.replace(/\s+(Standard|Daylight|Summer)\s+Time$/i, ' Time');
+      return withTimeWord(name);
     }
   } catch {
     // Fall through.

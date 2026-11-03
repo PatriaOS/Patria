@@ -1,9 +1,7 @@
 // SECURITY REVIEW REQUIRED
 import { releasePublicKeyFromHex } from '../../lib/crypto/letterReleaseKey';
-import {
-  FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX as EDGE_FAKE_PUBLIC,
-  isHosted,
-} from '../../../supabase/functions/letter-release/release';
+import { isLocalOrE2eRuntime } from '../../lib/localOrE2eRuntime';
+import { FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX as EDGE_FAKE_PUBLIC } from '../../../supabase/functions/letter-release/release';
 
 /**
  * Fixed FAKE compressed P-256 public key for local runs and tests. The matching
@@ -20,10 +18,7 @@ export const FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX = EDGE_FAKE_PUBLIC;
 export function allowFakeLetterReleaseKey(
   supabaseUrl: string | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL,
 ): boolean {
-  if (process.env.EXPO_PUBLIC_E2E === '1') {
-    return true;
-  }
-  return !isHosted({ supabaseUrl, deploymentId: undefined });
+  return isLocalOrE2eRuntime(supabaseUrl);
 }
 
 /** True when the hex is the known local/CI fake public key (case-insensitive). */

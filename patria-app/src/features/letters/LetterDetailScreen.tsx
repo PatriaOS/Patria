@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import {
   Banner,
@@ -12,6 +11,7 @@ import {
   ErrorState,
   LoadingState,
   Screen,
+  SheetModal,
   Title,
 } from '../../ui';
 import { copy } from '../../lib/copy';
@@ -42,6 +42,7 @@ export function LetterDetailScreen() {
   const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [matches, setMatches] = useState<boolean | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -75,29 +76,19 @@ export function LetterDetailScreen() {
     membersQuery.data?.find((m) => m.userId === letter?.recipientId)?.displayName ??
     copy.letters.formerMember;
 
-  const onWithdraw = () => {
-    Alert.alert(copy.letters.withdraw, copy.letters.withdrawConfirm, [
-      { text: copy.common.cancel, style: 'cancel' },
-      {
-        text: copy.letters.withdraw,
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setBusy(true);
-            try {
-              await withdrawLetter(letterId);
-              await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
-              router.replace(routes.letters);
-            } catch (error) {
-              logFailedAction(error);
-              setOpenError(copy.letters.withdrawFailed);
-            } finally {
-              setBusy(false);
-            }
-          })();
-        },
-      },
-    ]);
+  const runWithdraw = async () => {
+    setConfirmWithdraw(false);
+    setBusy(true);
+    try {
+      await withdrawLetter(letterId);
+      await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+      router.replace(routes.letters);
+    } catch (error) {
+      logFailedAction(error);
+      setOpenError(copy.letters.withdrawFailed);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const onReread = async () => {
@@ -171,7 +162,7 @@ export function LetterDetailScreen() {
 
   if (letterQuery.isLoading) {
     return (
-      <Screen testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
+      <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -179,7 +170,7 @@ export function LetterDetailScreen() {
 
   if (!letter) {
     return (
-      <Screen testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
+      <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <ErrorState message={copy.common.error} />
       </Screen>
     );
@@ -189,7 +180,7 @@ export function LetterDetailScreen() {
 
   if (isRecipient && letter.status === 'sealed' && letter.visibility === 'announced') {
     return (
-      <Screen testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
+      <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <Title>
           {copy.letters.announcedStubTitle.replace('{name}', letter.fromLabel)}
         </Title>
@@ -200,7 +191,7 @@ export function LetterDetailScreen() {
 
   if (isRecipient && (letter.status === 'pending' || letter.status === 'released')) {
     return (
-      <Screen testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
+      <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <Title>{copy.letters.pendingTitle}</Title>
         <Caption>{copy.letters.pendingFrom.replace('{name}', letter.fromLabel)}</Caption>
         {openedBody ? (
@@ -238,14 +229,14 @@ export function LetterDetailScreen() {
 
   if (!isAuthor) {
     return (
-      <Screen testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
+      <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <ErrorState message={copy.common.error} />
       </Screen>
     );
   }
 
   return (
-    <Screen testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
+    <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
       <Title>{copy.letters.forLine.replace('{name}', recipientName)}</Title>
       <Caption>
         {copy.letters.opensOn.replace('{date}', openDate)} ·{' '}
@@ -310,12 +301,37 @@ export function LetterDetailScreen() {
           <Button
             label={copy.letters.withdraw}
             variant="danger"
-            onPress={onWithdraw}
+            onPress={() => setConfirmWithdraw(true)}
             busy={busy}
             testID="withdraw-letter"
           />
         ) : null}
       </ButtonStack>
+
+      <SheetModal
+        visible={confirmWithdraw}
+        onClose={() => setConfirmWithdraw(false)}
+        testID="withdraw-letter-confirm"
+        accessibilityLabel={copy.letters.withdraw}
+      >
+        <Title>{copy.letters.withdraw}</Title>
+        <Body>{copy.letters.withdrawConfirm}</Body>
+        <ButtonStack>
+          <Button
+            label={copy.letters.withdraw}
+            variant="danger"
+            onPress={() => void runWithdraw()}
+            busy={busy}
+            testID="withdraw-letter-confirm-yes"
+          />
+          <Button
+            label={copy.common.cancel}
+            variant="secondary"
+            onPress={() => setConfirmWithdraw(false)}
+            testID="withdraw-letter-confirm-cancel"
+          />
+        </ButtonStack>
+      </SheetModal>
     </Screen>
   );
 }
