@@ -26,7 +26,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["READ_CALENDAR", "WRITE_CALENDAR"],
+      "permissions": [
+        "READ_CALENDAR",
+        "WRITE_CALENDAR"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -72,7 +75,8 @@
           "writeOnlyAccess": true,
           "writeOnlyCalendarPermission": "Patria adds a Family Sync event to your calendar when you tap Add to my calendar."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

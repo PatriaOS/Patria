@@ -82,6 +82,15 @@ const ICONS: Record<string, IconNode[]> = {
     { tag: 'path', d: 'M18 6 6 18' },
     { tag: 'path', d: 'm6 6 12 12' },
   ],
+  /** Lucide ChevronDown — select / disclosure affordance. */
+  chevronDown: [{ tag: 'path', d: 'm6 9 6 6 6-6' }],
+  /** Lucide Calendar — date field affordance. */
+  calendar: [
+    { tag: 'path', d: 'M8 2v4' },
+    { tag: 'path', d: 'M16 2v4' },
+    { tag: 'rect', x: 3, y: 4, width: 18, height: 18, rx: 2 },
+    { tag: 'path', d: 'M3 10h18' },
+  ],
   sparkles: [
     {
       tag: 'path',

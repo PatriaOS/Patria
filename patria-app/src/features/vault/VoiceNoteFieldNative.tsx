@@ -27,6 +27,8 @@ export function VoiceNoteFieldNative({
   onRecorded,
   onRemove,
   recordTestID,
+  hideCaption = false,
+  recordLabel,
 }: VoiceNoteFieldProps) {
   const recorder = useAudioRecorder(VAULT_RECORDING_OPTIONS as RecordingOptions);
   const recorderState = useAudioRecorderState(recorder);
@@ -115,7 +117,7 @@ export function VoiceNoteFieldNative({
 
   return (
     <View>
-      <Caption>{copy.vault.record}</Caption>
+      {hideCaption ? null : <Caption>{copy.vault.record}</Caption>}
       {hasNote ? (
         <Caption>{formatVoiceTimer(durationSeconds)}</Caption>
       ) : recorderState.isRecording ? (
@@ -124,7 +126,7 @@ export function VoiceNoteFieldNative({
       {error ? <ErrorState message={error} /> : null}
       {!hasNote && !recorderState.isRecording ? (
         <Button
-          label={copy.vault.record}
+          label={recordLabel ?? copy.vault.record}
           variant="secondary"
           onPress={() => void startRecording()}
           busy={busy}

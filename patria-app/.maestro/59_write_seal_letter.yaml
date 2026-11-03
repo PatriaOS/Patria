@@ -35,7 +35,7 @@ appId: app.patria.dev
 - tapOn:
     id: "letter-body"
 - inputText: "A letter for your future self."
-- hideKeyboard
+- tapOn: "Who is this for?"
 - scrollUntilVisible:
     element:
       id: "letter-record-voice"
@@ -53,7 +53,6 @@ appId: app.patria.dev
     timeout: 10000
 - tapOn:
     id: "letter-date-1y"
-- hideKeyboard
 - scrollUntilVisible:
     element:
       id: "seal-letter"

@@ -44,7 +44,7 @@ export type SealLetterResult =
   | {
       ok: false;
       reason: 'recipient_not_ready' | 'too_large' | 'failed';
-      /** Short diagnostic for e2e / __DEV__ only — never shown in production UI. */
+      /** Short diagnostic for e2e only — never shown in production UI. */
       detail?: string;
     };
 

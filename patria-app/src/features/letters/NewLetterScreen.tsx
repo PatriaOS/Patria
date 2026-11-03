@@ -1,9 +1,13 @@
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { View } from 'react-native';
+import { Calendar } from 'lucide-react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import {
@@ -13,10 +17,16 @@ import {
   ButtonStack,
   Caption,
   ChoiceChip,
+  EmptyState,
   ErrorState,
   Field,
+  Icon,
   LoadingState,
+  Pressable,
   Screen,
+  SelectField,
+  SheetModal,
+  Small,
   Title,
 } from '../../ui';
 import { copy } from '../../lib/copy';
@@ -25,14 +35,20 @@ import { randomUuid } from '../../lib/crypto/random';
 import { fetchMembers, fetchOwnDisplayName } from '../../lib/family';
 import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
+import { useTheme } from '../../theme';
+import { radius, space } from '../../theme/tokens';
 import { VoiceNoteField } from '../vault/VoiceNoteField';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import { defaultTimezone } from '../sync/syncLabels';
 import {
   addYearsToYmd,
   formatLetterDate,
+  formatLetterOpenDay,
+  friendlyTimeZoneName,
   isAfterToday,
   isValidYmd,
+  tomorrowYmd,
+  ymdInZone,
   zonedMidnightIso,
 } from './letterDates';
 import {
@@ -48,21 +64,43 @@ import { sealLetterOnDevice } from './letterSeal';
 const schema = z.object({
   // Empty is OK until seal — we fill From with the member's name when it loads.
   fromLabel: z.string().trim().max(80),
-  body: z.string().trim().min(1).max(20000),
+  body: z.string().trim().max(20000),
   dateYmd: z.string().trim().min(1),
 });
 
 type FormValues = z.infer<typeof schema>;
 
+function ymdToPickerDate(ymd: string, timeZone: string): Date {
+  try {
+    return new Date(zonedMidnightIso(ymd, timeZone));
+  } catch {
+    return new Date();
+  }
+}
+
+function pickerDateToYmd(date: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
 export function NewLetterScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ letterId?: string }>();
   const editId = typeof params.letterId === 'string' ? params.letterId : undefined;
   const { userId, spaceId } = useCurrentFamily();
   const [letterId] = useState(() => editId ?? randomUuid());
   const [recipientId, setRecipientId] = useState<string | null>(null);
-  const [visibility, setVisibility] = useState<LetterVisibility | null>(null);
+  const [visibility, setVisibility] = useState<LetterVisibility>('surprise');
   const [sealing, setSealing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [sealedFingerprint, setSealedFingerprint] = useState<string | null>(null);
@@ -70,6 +108,7 @@ export function NewLetterScreen() {
   const [sealedName, setSealedName] = useState<string | null>(null);
   const [voicePlain, setVoicePlain] = useState<Uint8Array | null>(null);
   const [voiceDuration, setVoiceDuration] = useState<number | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -122,8 +161,10 @@ export function NewLetterScreen() {
       return new Date().toISOString().slice(0, 10);
     }
   }, [timeZone]);
+  const minYmd = tomorrowYmd(timeZone);
+  const zoneLabel = friendlyTimeZoneName(timeZone);
 
-  const { control, handleSubmit, setValue, getValues } = useForm<FormValues>({
+  const { control, handleSubmit, setValue, getValues, watch } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       fromLabel: '',
@@ -131,6 +172,8 @@ export function NewLetterScreen() {
       dateYmd: addYearsToYmd(todayYmd, 1),
     },
   });
+  const bodyValue = watch('body');
+  const dateYmd = watch('dateYmd');
 
   useEffect(() => {
     if (nameQuery.data && !getValues('fromLabel') && !existingQuery.data) {
@@ -139,8 +182,23 @@ export function NewLetterScreen() {
   }, [nameQuery.data, existingQuery.data, getValues, setValue]);
 
   const existing = existingQuery.data?.authorId === userId ? existingQuery.data : undefined;
-  const effectiveVisibility: LetterVisibility =
-    visibility ?? existing?.visibility ?? 'surprise';
+
+  useEffect(() => {
+    if (!existing) {
+      return;
+    }
+    setVisibility(existing.visibility);
+    if (existing.triggerAt) {
+      try {
+        setValue('dateYmd', ymdInZone(existing.triggerAt, timeZone));
+      } catch {
+        // Keep the form default.
+      }
+    }
+    if (existing.fromLabel) {
+      setValue('fromLabel', existing.fromLabel);
+    }
+  }, [existing, setValue, timeZone]);
 
   const candidates = useMemo(() => {
     return (membersQuery.data ?? []).filter((m) => m.userId !== userId);
@@ -161,9 +219,17 @@ export function NewLetterScreen() {
   });
 
   const readyMembers = candidates.filter((m) => readyQuery.data?.[m.userId]);
+  const notReadyMembers = candidates.filter((m) => readyQuery.data && !readyQuery.data[m.userId]);
   // Default to the first ready recipient without an effect (lint: no setState in effect).
   const effectiveRecipientId =
     recipientId ?? existing?.recipientId ?? readyMembers[0]?.userId ?? null;
+  const hasContent = Boolean(bodyValue?.trim()) || Boolean(voicePlain && voiceDuration);
+  const sealBlockedReason = !effectiveRecipientId
+    ? copy.letters.sealNeedRecipient
+    : !hasContent
+      ? copy.letters.sealNeedContent
+      : null;
+  const canSeal = !sealing && !sealBlockedReason;
 
   const onSeal = handleSubmit(async (values) => {
     setFormError(null);
@@ -172,13 +238,15 @@ export function NewLetterScreen() {
       return;
     }
     if (!spaceId || !userId || !effectiveRecipientId) {
-      setFormError(copy.letters.sealFailed);
+      setFormError(copy.letters.sealNeedRecipient);
+      return;
+    }
+    if (!values.body.trim() && !(voicePlain && voiceDuration)) {
+      setFormError(copy.letters.sealNeedContent);
       return;
     }
     if (!isValidYmd(values.dateYmd) || !isAfterToday(values.dateYmd, timeZone)) {
-      setFormError(
-        !isValidYmd(values.dateYmd) ? copy.letters.dateInvalid : copy.letters.dateInPast,
-      );
+      setFormError(copy.letters.dateInPast);
       return;
     }
     setSealing(true);
@@ -190,9 +258,9 @@ export function NewLetterScreen() {
         authorId: userId,
         recipientId: effectiveRecipientId,
         fromLabel: values.fromLabel.trim() || existing?.fromLabel || nameQuery.data || 'Family',
-        visibility: effectiveVisibility,
+        visibility,
         triggerAt,
-        body: values.body,
+        body: values.body.trim(),
         voicePlain,
         voiceDurationSeconds: voiceDuration,
         previousVersion: existing?.version,
@@ -227,9 +295,24 @@ export function NewLetterScreen() {
     }
   });
 
+  const onPickerChange = (event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      setDatePickerOpen(false);
+    }
+    if (event.type === 'dismissed' || !selected) {
+      return;
+    }
+    const next = pickerDateToYmd(selected, timeZone);
+    if (isAfterToday(next, timeZone)) {
+      setValue('dateYmd', next);
+    } else {
+      setValue('dateYmd', minYmd);
+    }
+  };
+
   if (!spaceId || !userId || writerQuery.isLoading || membersQuery.isLoading) {
     return (
-      <Screen testID="screen-letter-new" >
+      <Screen withHeader testID="screen-letter-new">
         <LoadingState message={copy.common.loading} />
       </Screen>
     );
@@ -237,15 +320,18 @@ export function NewLetterScreen() {
 
   if (!letterReleaseReadyForSealing()) {
     return (
-      <Screen testID="screen-letter-new">
-        <Banner message={copy.letters.releaseNotReady} tone="warning" />
+      <Screen withHeader testID="screen-letter-new">
+        <EmptyState
+          title={copy.letters.comingSoonTitle}
+          message={copy.letters.comingSoonBody}
+        />
       </Screen>
     );
   }
 
   if (writerQuery.data === false) {
     return (
-      <Screen testID="screen-letter-new" >
+      <Screen withHeader testID="screen-letter-new">
         <Banner message={copy.letters.notForYou} tone="warning" />
       </Screen>
     );
@@ -253,7 +339,7 @@ export function NewLetterScreen() {
 
   if (sealedFingerprint && sealedName && sealedDate) {
     return (
-      <Screen testID="screen-letter-sealed" >
+      <Screen withHeader testID="screen-letter-sealed">
         <Title>{copy.letters.sealedTitle}</Title>
         <Body>
           {copy.letters.sealedBody.replace('{name}', sealedName).replace('{date}', sealedDate)}
@@ -277,16 +363,12 @@ export function NewLetterScreen() {
   }
 
   return (
-    <Screen
-      testID="screen-letter-new"
-      
-    >
-      <Title>{editId ? copy.letters.editTitle : copy.letters.newTitle}</Title>
+    <Screen withHeader testID="screen-letter-new">
       <Caption>{copy.letters.toLabel}</Caption>
       {readyMembers.length === 0 ? (
-        <Banner message={copy.letters.noRecipients} tone="warning" />
+        <Banner message={copy.letters.noRecipients} tone="info" />
       ) : (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <View style={styles.chipRow}>
           {readyMembers.map((m) => (
             <ChoiceChip
               key={m.userId}
@@ -298,6 +380,14 @@ export function NewLetterScreen() {
           ))}
         </View>
       )}
+      {readyMembers.length > 0 && notReadyMembers.length > 0 ? (
+        <Caption tone="muted">
+          {copy.letters.notReadyYet.replace(
+            '{names}',
+            notReadyMembers.map((m) => m.displayName).join(', '),
+          )}
+        </Caption>
+      ) : null}
 
       <Controller
         control={control}
@@ -309,7 +399,6 @@ export function NewLetterScreen() {
             onChangeText={onChange}
             error={fieldState.error ? copy.letters.fromHint : undefined}
             testID="letter-from"
-            
           />
         )}
       />
@@ -317,100 +406,189 @@ export function NewLetterScreen() {
       <Controller
         control={control}
         name="body"
-        render={({ field: { value, onChange }, fieldState }) => (
+        render={({ field: { value, onChange } }) => (
           <Field
             label={copy.letters.bodyLabel}
             value={value}
             onChangeText={onChange}
             multiline
             placeholder={copy.letters.bodyPlaceholder}
-            error={fieldState.error ? copy.letters.bodyLabel : undefined}
             testID="letter-body"
           />
         )}
       />
 
-      <Caption>{copy.letters.voiceOptional}</Caption>
-      <VoiceNoteField
-        durationSeconds={voiceDuration}
-        recordTestID="letter-record-voice"
-        onRecorded={(draft) => {
-          if (voicePlain) {
-            wipe(voicePlain);
-          }
-          setVoicePlain(draft.plain);
-          setVoiceDuration(draft.durationSeconds);
-        }}
-        onRemove={() => {
-          if (voicePlain) {
-            wipe(voicePlain);
-          }
-          setVoicePlain(null);
-          setVoiceDuration(null);
-        }}
-      />
-
-      <Caption>{copy.letters.howTheyFind}</Caption>
-      <ChoiceChip
-        label={copy.letters.surprise}
-        selected={effectiveVisibility === 'surprise'}
-        onPress={() => setVisibility('surprise')}
-        testID="visibility-surprise"
-      />
-      <Caption>{copy.letters.surpriseHint}</Caption>
-      <ChoiceChip
-        label={copy.letters.announced}
-        selected={effectiveVisibility === 'announced'}
-        onPress={() => setVisibility('announced')}
-        testID="visibility-announced"
-      />
-      <Caption>{copy.letters.announcedHint}</Caption>
-
-      <Controller
-        control={control}
-        name="dateYmd"
-        render={({ field: { value, onChange } }) => (
-          <Field
-            label={copy.letters.dateLabel}
-            value={value}
-            onChangeText={onChange}
-            placeholder={copy.letters.datePlaceholder}
-            testID="letter-date"
+      <View style={styles.voiceBlock}>
+        <Caption>{copy.letters.voiceOptional}</Caption>
+        <ButtonStack>
+          <VoiceNoteField
+            durationSeconds={voiceDuration}
+            hideCaption
+            recordLabel={copy.letters.recordVoice}
+            recordTestID="letter-record-voice"
+            onRecorded={(draft) => {
+              if (voicePlain) {
+                wipe(voicePlain);
+              }
+              setVoicePlain(draft.plain);
+              setVoiceDuration(draft.durationSeconds);
+            }}
+            onRemove={() => {
+              if (voicePlain) {
+                wipe(voicePlain);
+              }
+              setVoicePlain(null);
+              setVoiceDuration(null);
+            }}
           />
-        )}
+        </ButtonStack>
+      </View>
+
+      <SelectField
+        label={copy.letters.howTheyFind}
+        value={visibility}
+        testID="letter-visibility"
+        sheetTestID="letter-visibility-sheet"
+        onChange={setVisibility}
+        options={[
+          {
+            value: 'surprise',
+            label: copy.letters.surprise,
+            description: copy.letters.surpriseHint,
+            testID: 'visibility-surprise',
+          },
+          {
+            value: 'announced',
+            label: copy.letters.announced,
+            description: copy.letters.announcedHint,
+            testID: 'visibility-announced',
+          },
+        ]}
       />
-      <Caption>{copy.letters.dateHint.replace('{zone}', timeZone)}</Caption>
-      <ButtonStack>
-        <Button
-          label={copy.letters.inOneYear}
-          variant="ghost"
-          onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 1))}
-          testID="letter-date-1y"
+
+      <View style={styles.field}>
+        <Small tone="muted">{copy.letters.dateLabel}</Small>
+        <Pressable
+          testID="letter-date"
+          accessibilityRole="button"
+          accessibilityLabel={`${copy.letters.dateLabel}: ${formatLetterOpenDay(dateYmd, timeZone)}`}
+          onPress={() => setDatePickerOpen(true)}
+          style={[
+            styles.dateTrigger,
+            { backgroundColor: colors.surface, borderColor: colors.hairline },
+          ]}
+        >
+          <Body style={styles.dateLabel}>{formatLetterOpenDay(dateYmd, timeZone)}</Body>
+          <Icon icon={Calendar} name="calendar" size={20} color={colors.textMuted} />
+        </Pressable>
+        <View
+          accessible
+          accessibilityLabel={copy.letters.dateHint.replace('{zone}', zoneLabel)}
+          accessibilityHint={timeZone}
+        >
+          <Caption tone="muted">{copy.letters.dateHint.replace('{zone}', zoneLabel)}</Caption>
+        </View>
+        <View style={styles.chipRow}>
+          <ChoiceChip
+            label={copy.letters.inOneYear}
+            selected={dateYmd === addYearsToYmd(todayYmd, 1)}
+            onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 1))}
+            testID="letter-date-1y"
+          />
+          <ChoiceChip
+            label={copy.letters.inFiveYears}
+            selected={dateYmd === addYearsToYmd(todayYmd, 5)}
+            onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 5))}
+            testID="letter-date-5y"
+          />
+          <ChoiceChip
+            label={copy.letters.inTenYears}
+            selected={dateYmd === addYearsToYmd(todayYmd, 10)}
+            onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 10))}
+            testID="letter-date-10y"
+          />
+        </View>
+      </View>
+
+      {datePickerOpen && Platform.OS === 'android' ? (
+        <DateTimePicker
+          value={ymdToPickerDate(dateYmd, timeZone)}
+          mode="date"
+          display="default"
+          minimumDate={ymdToPickerDate(minYmd, timeZone)}
+          onChange={onPickerChange}
         />
-        <Button
-          label={copy.letters.inFiveYears}
-          variant="ghost"
-          onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 5))}
-          testID="letter-date-5y"
-        />
-        <Button
-          label={copy.letters.inTenYears}
-          variant="ghost"
-          onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 10))}
-          testID="letter-date-10y"
-        />
-      </ButtonStack>
+      ) : null}
+
+      {datePickerOpen && Platform.OS === 'ios' ? (
+        <SheetModal
+          visible
+          onClose={() => setDatePickerOpen(false)}
+          testID="letter-date-sheet"
+          accessibilityLabel={copy.letters.dateLabel}
+        >
+          <DateTimePicker
+            value={ymdToPickerDate(dateYmd, timeZone)}
+            mode="date"
+            display="spinner"
+            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            onChange={onPickerChange}
+            style={styles.iosPicker}
+          />
+          <Button
+            label={copy.letters.done}
+            onPress={() => setDatePickerOpen(false)}
+            testID="letter-date-done"
+          />
+        </SheetModal>
+      ) : null}
 
       {formError ? <ErrorState message={formError} /> : null}
 
-      <Button
-        label={editId ? copy.letters.resealed : copy.letters.seal}
-        onPress={() => void onSeal()}
-        busy={sealing}
-        disabled={!effectiveRecipientId || sealing}
-        testID="seal-letter"
-        
-      />
+      <ButtonStack>
+        <Button
+          label={editId ? copy.letters.resealed : copy.letters.seal}
+          onPress={() => void onSeal()}
+          busy={sealing}
+          disabled={!canSeal}
+          testID="seal-letter"
+        />
+        {sealBlockedReason ? (
+          <Caption tone="muted" testID="seal-letter-hint">
+            {sealBlockedReason}
+          </Caption>
+        ) : null}
+      </ButtonStack>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
+  voiceBlock: {
+    gap: space.xs,
+  },
+  field: {
+    gap: space.xs,
+  },
+  dateTrigger: {
+    borderRadius: radius.tile,
+    borderWidth: 1,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  dateLabel: {
+    flex: 1,
+  },
+  iosPicker: {
+    alignSelf: 'stretch',
+  },
+});

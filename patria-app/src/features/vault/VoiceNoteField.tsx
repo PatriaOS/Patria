@@ -18,6 +18,10 @@ export type VoiceNoteFieldProps = {
   onRemove: () => void;
   /** Optional test id for the record button (letters reuse this field). */
   recordTestID?: string;
+  /** Hide the built-in caption when the parent already shows a label. */
+  hideCaption?: boolean;
+  /** Override the record button label (defaults to “Record a voice note”). */
+  recordLabel?: string;
 };
 
 // E2E replaces only the microphone. onRecorded still encrypts through prepareVaultAudio.
@@ -26,6 +30,8 @@ function VoiceNoteFieldE2e({
   onRecorded,
   onRemove,
   recordTestID,
+  hideCaption = false,
+  recordLabel,
 }: VoiceNoteFieldProps) {
   const [previewPlain, setPreviewPlain] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +63,12 @@ function VoiceNoteFieldE2e({
 
   return (
     <View>
-      <Caption>{copy.vault.record}</Caption>
+      {hideCaption ? null : <Caption>{copy.vault.record}</Caption>}
       {hasNote ? <Caption>{formatVoiceTimer(durationSeconds)}</Caption> : null}
       {error ? <ErrorState message={error} /> : null}
       {!hasNote ? (
         <Button
-          label={copy.vault.record}
+          label={recordLabel ?? copy.vault.record}
           variant="secondary"
           onPress={() => void startRecording()}
           busy={busy}

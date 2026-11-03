@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { copy } from '../../lib/copy';
+import { isLocalOrE2eRuntime } from '../../lib/localOrE2eRuntime';
 import { useTheme, type ResolvedScheme } from '../../theme';
 import { space } from '../../theme/tokens';
 import {
@@ -35,7 +36,8 @@ import {
 } from '../../ui';
 
 export function DesignGalleryScreen() {
-  if (!__DEV__) {
+  // Expo Go is always __DEV__; design shortcuts only on local/e2e stacks.
+  if (!isLocalOrE2eRuntime()) {
     return <Redirect href="/" />;
   }
   return <GalleryBody />;
