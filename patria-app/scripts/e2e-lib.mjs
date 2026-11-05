@@ -141,7 +141,8 @@ export function scenarioForTest(testNumber) {
     testNumber === 60 ||
     testNumber === 61 ||
     testNumber === 62 ||
-    testNumber === 63
+    testNumber === 63 ||
+    testNumber === 64
   ) {
     return 'admin-elders';
   }

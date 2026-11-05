@@ -7,6 +7,35 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Rebase B0 on letters-release-fix: restore seal_letter GUC
+
+After rebase, `20261105120000` replaced `seal_letter` without B0’s `patria.allow_letter_trigger_change` set_config. New migration `20261105150000` restores it (still `IS DISTINCT FROM` on author).
+
+## 2026-11-05 — Rebase B0 on letters-release-fix: restore seal_letter GUC
+
+After rebase, `20261105120000` replaced `seal_letter` without B0’s `patria.allow_letter_trigger_change` set_config. New migration `20261105150000` restores it (still `IS DISTINCT FROM` on author).
+
+## 2026-11-05 — Keep author≠recipient CHECK; backlog future-self letters
+
+Decision: keep `letters_author_ne_recipient` (`IS DISTINCT FROM`). Compose already omits self. Backlog: “Letters to your future self” as its own small design (no author CEK copy; stays sealed until the date). Hosted dry-run safety (even though the CHECK was already in Slice A):
+
+```sql
+SELECT count(*) AS self_letters FROM public.letters WHERE author_id = recipient_id;
+-- must be 0 before db push
+```
+
+## 2026-11-05 — Letters test 64: automate recipient has no Change open day
+
+Step 2 was a manual skip. Author seals Announced so Test 2 can open the stub on the second Simulator; assert no Change open day control. No skips on core steps.
+
+## 2026-11-05 — Letters B0 review fixes: no client UPDATE, picker TZ, locale, Edit title
+
+App never UPDATEs `letters` (insert draft only); revoke all authenticated UPDATE. pgTAP covers protected columns + recipient/other. Open-day wheel uses device-local calendar for display and saves midnight in the family zone; formatLetterOpenDay uses the device locale; edit stack title is “Edit letter”; test 61 asserts seal code on changed screen equals detail. D43: new Slice B columns stay non-updatable unless the PR justifies a grant.
+
+## 2026-11-05 — Letters B0 follow-up: trigger_at column revoke + letters seed + opened title
+
+`set_letter_open_date` / `seal_letter` already use `set_config(..., true)` (transaction-scoped). pgTAP now proves an authenticated client cannot `UPDATE trigger_at` even after setting the allow GUC; `REVOKE UPDATE (trigger_at, trigger_kind)` on `letters` from `authenticated` so the GUC alone is not enough. Fix letters e2e seed: test 64 was missing from `scenarioForTest` / recovery seed (scenario stayed `admin`, so member-test-2 was never on Family) — 59–64 now share `admin-elders` + recovery + `seedLetIn` with a hard `verify_member`. After open, recipient detail title becomes “A letter from {name}” (asserted in test 62).
+
 ## 2026-11-05 — letter-release: IS DISTINCT FROM + not_allowed client body
 
 Claim/mark/seal/withdraw recipient and author comparisons use `IS DISTINCT FROM` so a future NULL `recipient_id` cannot slip past `<>`. Client HTTP body collapses `not_found` / `not_recipient` / `recipient_left` / `bad_status` to `not_allowed` (403); `not_due` stays distinct after the recipient check. Server logs keep the precise reason. pgTAP covers NULL recipient → `not_recipient`.
@@ -18,6 +47,10 @@ Cause: hosted `LETTER_RELEASE_KMS_KEY_ID` held the 66-char public hex (secret di
 ## 2026-11-05 — Letters hosted open: safe reason codes (diagnosis)
 
 Hosted release test: cron moved a letter to Opening; Test 2 open showed “We couldn’t open this letter.” B0 paused. `letter-release` returns/logs short reason codes with letter id only. App UI stays generic; `__DEV__` console gets the reason via `logFailedAction`.
+
+## 2026-11-04 — Letters Slice B0 polish (open date + seal-code copy + loud cron)
+
+Before `set_letter_open_date`: confirmed `trigger_at` is **not** in any letter AAD or the seal code (fingerprint is content hash only), so a date-only change does not re-wrap `shareP`. Author-only RPC while sealed; BEFORE UPDATE trigger blocks direct `trigger_at` / `trigger_kind` changes unless the RPC sets a one-shot GUC (cleared after update). pg_cron schedule for `patria-mark-due-letters` now fails the migration if the extension is missing (Slice A skipped quietly). UI: “Your seal code changed” after edit/reseal; open day shows weekday+year on date step, confirm, list, and detail; Change open day sheet on detail. D43 records the rest of Slice B (keepers hold shareP, early release server-side, age DOB privacy, child custody-only). No hosted migrate. Stop for review before B1.
 
 ## 2026-11-03 — Letter-release KMS runbook + prefixed AWS secrets
 

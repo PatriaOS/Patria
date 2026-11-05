@@ -1,0 +1,171 @@
+# PHONE_TESTS: 64
+# AREAS: letters
+# PHASE=author: seal announced, Change open day no-op save keeps date, seal code unchanged.
+# PHASE=recipient: Test 2 opens the stub; no Change open day control.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'author'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 30000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-from"
+      - eraseText
+      - inputText: "Test 1"
+      - tapOn: "Who is this for?"
+      - tapOn:
+          id: "letter-body"
+      - inputText: "Change the open day only."
+      - tapOn: "Who is this for?"
+      # Announced so Test 2 can open the stub in PHASE=recipient.
+      - scrollUntilVisible:
+          element:
+            id: "letter-visibility"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-visibility"
+      - extendedWaitUntil:
+          visible:
+            id: "visibility-announced"
+          timeout: 10000
+      - tapOn:
+          id: "visibility-announced"
+      - scrollUntilVisible:
+          element:
+            id: "letter-date-1y"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-date-1y"
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 45000
+      - extendedWaitUntil:
+          visible:
+            id: "letter-seal-code"
+          timeout: 10000
+      - copyTextFrom:
+          id: "letter-seal-code"
+      - evalScript: ${output.sealCode = (maestro.copiedText || '').replace(/^.*:\s*/, '').trim()}
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+      - tapOn:
+          text: "For Test 2.*"
+      - extendedWaitUntil:
+          visible:
+            id: "change-open-date"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible:
+            id: "letter-open-day"
+          timeout: 10000
+      - copyTextFrom:
+          id: "letter-open-day"
+      - evalScript: ${output.openDayBefore = maestro.copiedText}
+      - takeScreenshot: b0-letter-detail-change-open-date
+      - tapOn:
+          id: "change-open-date"
+      - extendedWaitUntil:
+          visible:
+            id: "change-open-date-sheet"
+          timeout: 10000
+      - extendedWaitUntil:
+          visible:
+            id: "change-open-date-preview"
+          timeout: 10000
+      # Preview label must match the wheel (family open day); save with no change keeps it.
+      - assertVisible:
+          id: "change-open-date-preview"
+      - takeScreenshot: b0-change-open-date-sheet
+      - tapOn:
+          id: "change-open-date-save"
+      - extendedWaitUntil:
+          visible:
+            id: "change-open-date"
+          timeout: 20000
+      - assertVisible:
+          id: "change-open-date"
+      - copyTextFrom:
+          id: "letter-open-day"
+      - assertTrue: ${maestro.copiedText == output.openDayBefore}
+      - assertVisible:
+          id: "fingerprint-${output.sealCode}"
+      - takeScreenshot: b0-letter-detail-after-date-change
+- runFlow:
+    when:
+      true: ${PHASE == 'recipient'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 20000
+      - tapOn:
+          text: "A letter from Test 1.*"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-detail"
+          timeout: 15000
+      - assertVisible: "A letter from Test 1"
+      - assertNotVisible:
+          id: "change-open-date"
+      - assertNotVisible: "Change open day"

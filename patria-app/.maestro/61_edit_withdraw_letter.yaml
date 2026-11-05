@@ -104,17 +104,32 @@ appId: app.patria.dev
           visible:
             id: "screen-letter-sealed"
           timeout: 45000
-      - assertVisible: "Your letter is sealed"
+      - assertVisible: "Your seal code changed"
+      - assertVisible: "Edit letter"
       - extendedWaitUntil:
           visible:
             id: "letter-seal-code"
           timeout: 10000
+      - copyTextFrom:
+          id: "letter-seal-code"
+      - evalScript: ${output.editSealCode = (maestro.copiedText || '').replace(/^.*:\s*/, '').trim()}
+      - takeScreenshot: b0-seal-code-changed
       - tapOn:
           id: "letter-sealed-done"
       - extendedWaitUntil:
           visible:
             id: "screen-letters"
           timeout: 15000
+      - tapOn:
+          text: "For Test 2.*"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-detail"
+          timeout: 15000
+      - assertVisible:
+          id: "fingerprint-${output.editSealCode}"
+      - assertVisible:
+          text: ".*${output.editSealCode}.*"
 - runFlow:
     when:
       true: ${PHASE == 'withdraw'}

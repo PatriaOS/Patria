@@ -188,6 +188,17 @@ export async function withdrawLetter(letterId: string): Promise<void> {
   }
 }
 
+/** Author-only. While sealed, change the open day without resealing body or shares. */
+export async function setLetterOpenDate(letterId: string, triggerAt: string): Promise<void> {
+  const { error } = await supabase.rpc('set_letter_open_date', {
+    p_letter_id: letterId,
+    p_trigger_at: triggerAt,
+  });
+  if (error) {
+    throw error;
+  }
+}
+
 export async function leaveFamilyWithLetters(input: {
   spaceId: string;
   withdrawLetterIds: string[];

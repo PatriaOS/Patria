@@ -157,6 +157,8 @@ appId: app.patria.dev
             id: "letter-opened-body"
           timeout: 45000
       - assertVisible: "A past-trigger letter body."
+      - assertVisible: "A letter from Test 1"
+      - assertNotVisible: "A letter is waiting for you"
       - extendedWaitUntil:
           visible:
             id: "letter-voice-note"

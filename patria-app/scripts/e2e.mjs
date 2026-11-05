@@ -651,32 +651,22 @@ function seedLetIn(memberN, device) {
 }
 
 function seedLettersReady() {
-  // e2e-setup seeds recovery rows for Test 1 and Test 2 (writer + recipient gates).
-  // Here: family key wraps, let-in for the recipient, then open Home so letterbox keys exist.
+  // e2e-setup must use admin-elders for 59–64 so Test 2 is on Family before this runs.
+  // Family key wraps, let-in for the recipient, then Home so letterbox keys exist.
   // Test 3 is only a SQL recovery contact — no phone let-in needed for seal/open.
   seedAdminKeys();
   const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
-  // Test 1 is already on device A from seedAdminKeys — stay signed in for let-in
-  // (a full sign-out mid-seed has been flaky when Sync/Needs you chrome is open).
-  const waiting = tryMaestro({
+  seedLetIn(2, other);
+  // Prove member-test-2 is on Family (no silent skip if invite/let-in failed).
+  maestro({
     flow: flow('09_let_in.yaml'),
-    device: other,
-    env: { ...signInEnv(secrets, 2), PHASE: 'waiting' },
+    device: deviceA,
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'verify_member',
+      MEMBER_ID: 'member-test-2',
+    },
   });
-  if (waiting.ok) {
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device: deviceA,
-      env: { ...signInEnv(secrets, 1), PHASE: 'let_in', E2E_STAY: '1' },
-    });
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device: other,
-      env: { ...signInEnv(secrets, 2), PHASE: 'keys_ready', E2E_STAY: '1' },
-    });
-  } else {
-    seedLetIn(2, other);
-  }
   // Home (and Letters) call ensureLetterboxKey once personal/family keys are ready.
   signInOnDevice(1, deviceA);
   signInOnDevice(2, other);
@@ -684,13 +674,13 @@ function seedLettersReady() {
 
 function seedBeforeYouStart(testNumber) {
   if (
-    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64].includes(
       testNumber,
     )
   ) {
     return;
   }
-  if ([59, 60, 61, 62, 63].includes(testNumber)) {
+  if ([59, 60, 61, 62, 63, 64].includes(testNumber)) {
     seedLettersReady();
     return;
   }
@@ -994,7 +984,7 @@ try {
     }
 
     if (
-      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64].includes(
         test.number,
       )
     ) {
@@ -2594,11 +2584,17 @@ try {
         throw new Error('Test 61 needs 2 simulators (E2E_DEVICES=2) for recipient after withdraw.');
       }
       step(61, 1, 'Edit reseals with new code', () => {
+        // Flow copies the code from "Your seal code changed" and asserts the
+        // same code on letter detail before Done returns to the list.
         maestro({
           flow: flow('61_edit_withdraw_letter.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
         });
+        const fingerprint = dbCheck(['letter-fingerprint', '--family', E2E_FAMILY_NAME]);
+        if (!fingerprint.ok || !fingerprint.stdout) {
+          throw new Error(fingerprint.error || 'letter-fingerprint missing after edit');
+        }
       });
       step(61, 2, 'Withdraw removes letter', () => {
         maestro({
@@ -2661,6 +2657,26 @@ try {
           flow: flow('63_fingerprint_match.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 64) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 64 needs 2 simulators (E2E_DEVICES=2) for recipient step.');
+      }
+      step(64, 1, 'Author changes open day while sealed', () => {
+        maestro({
+          flow: flow('64_change_open_date.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'author', E2E_STAY: '1' },
+        });
+      });
+      step(64, 2, 'Recipient has no Change open day control', () => {
+        maestro({
+          flow: flow('64_change_open_date.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient', E2E_STAY: '1' },
         });
       });
     }
