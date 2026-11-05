@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Letters test 64: automate recipient has no Change open day
+
+Step 2 was a manual skip. Author seals Announced so Test 2 can open the stub on the second Simulator; assert no Change open day control. No skips on core steps.
+
 ## 2026-11-05 — Letters B0 review fixes: no client UPDATE, picker TZ, locale, Edit title
 
 App never UPDATEs `letters` (insert draft only); revoke all authenticated UPDATE. pgTAP covers protected columns + recipient/other. Open-day wheel uses device-local calendar for display and saves midnight in the family zone; formatLetterOpenDay uses the device locale; edit stack title is “Edit letter”; test 61 asserts seal code on changed screen equals detail. D43: new Slice B columns stay non-updatable unless the PR justifies a grant.

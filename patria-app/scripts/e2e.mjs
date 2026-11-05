@@ -2662,15 +2662,22 @@ try {
     }
 
     if (test.number === 64) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 64 needs 2 simulators (E2E_DEVICES=2) for recipient step.');
+      }
       step(64, 1, 'Author changes open day while sealed', () => {
         maestro({
           flow: flow('64_change_open_date.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'author', E2E_STAY: '1' },
         });
       });
-      step(64, 2, 'Recipient has no change-open-date control (manual)', () => {
-        result('skip');
+      step(64, 2, 'Recipient has no Change open day control', () => {
+        maestro({
+          flow: flow('64_change_open_date.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient', E2E_STAY: '1' },
+        });
       });
     }
     } catch (error) {

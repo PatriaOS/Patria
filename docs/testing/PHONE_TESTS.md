@@ -471,8 +471,8 @@ Areas: letters
 
 ### 64. Author changes open day while sealed
 Areas: letters
-1. As Test 1, seal a letter to Test 2. Open it, tap **Change open day**. Pass if the sheet preview matches the wheel (family time zone, not device/UTC) and the earliest day is tomorrow in the family zone. Save without changing: Pass if the open day on detail is unchanged. Then change to a later day and Save: Pass if detail and list show the new open day and the seal code is unchanged.
-2. (manual) As Test 2, confirm there is no **Change open day** control.
+1. As Test 1, seal an **Announced** letter to Test 2. Open it, tap **Change open day**. Pass if the sheet preview matches the wheel (family time zone, not device/UTC) and the earliest day is tomorrow in the family zone. Save without changing: Pass if the open day on detail is unchanged and the seal code is unchanged.
+2. On the second Simulator as Test 2, open that letter. Pass if the waiting stub shows and there is no **Change open day** control.
 
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys
