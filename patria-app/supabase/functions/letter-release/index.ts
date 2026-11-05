@@ -12,6 +12,7 @@ import { resolveLetterReleaseKmsKeyId } from './kmsEnv.ts';
 import {
   classifyLetterReleaseClaimError,
   classifyLetterReleaseOpenError,
+  clientLetterReleaseClaimError,
   decideReleaseKey,
   decodePgBytea,
   openShareWithKmsSecret,
@@ -103,15 +104,24 @@ Deno.serve(async (req) => {
     p_recipient_id: user.id,
   });
   if (claimError) {
-    const reason = classifyLetterReleaseClaimError(
+    const detail = classifyLetterReleaseClaimError(
       claimError.code,
       typeof claimError.message === 'string' ? claimError.message : undefined,
     );
-    return replyWithLetter(reason === 'not_found' ? 404 : 403, reason, letterId);
+    // Log the precise reason; client body is only not_due or not_allowed.
+    console.error('letter-release', detail, letterId);
+    return new Response(JSON.stringify({ error: clientLetterReleaseClaimError(detail) }), {
+      status: 403,
+      headers: HEADERS,
+    });
   }
   const row = Array.isArray(claimed) ? claimed[0] : claimed;
   if (!row?.ephemeral_public || !row?.sealed_share) {
-    return replyWithLetter(404, 'not_found', letterId);
+    console.error('letter-release', 'not_found', letterId);
+    return new Response(JSON.stringify({ error: 'not_allowed' }), {
+      status: 403,
+      headers: HEADERS,
+    });
   }
 
   // 4. Open shareP in memory and hand it to the recipient.

@@ -10,6 +10,7 @@ import {
 import {
   classifyLetterReleaseClaimError,
   classifyLetterReleaseOpenError,
+  clientLetterReleaseClaimError,
   decideReleaseKey,
   decodePgBytea,
   FAKE_LETTER_RELEASE_PUBLIC_KEY_FINGERPRINT,
@@ -266,5 +267,14 @@ describe('letter-release Edge helpers', () => {
     expect(classifyLetterReleaseClaimError('42501', 'bad_status')).toBe('bad_status');
     expect(classifyLetterReleaseClaimError('42501', 'Not allowed')).toBe('claim_refused');
     expect(classifyLetterReleaseClaimError(undefined, 'Not found')).toBe('not_found');
+  });
+
+  it('returns not_allowed to the client for existence/ownership probes; keeps not_due', () => {
+    expect(clientLetterReleaseClaimError('not_found')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('not_recipient')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('recipient_left')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('bad_status')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('claim_refused')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('not_due')).toBe('not_due');
   });
 });

@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(37);
+SELECT plan(38);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -568,6 +568,23 @@ SELECT throws_ok(
   '42501',
   'bad_status',
   'claim on draft is bad_status'
+);
+RESET ROLE;
+
+-- NULL recipient_id (Slice B) must not pass <> as equal; IS DISTINCT FROM → not_recipient.
+ALTER TABLE public.letters ALTER COLUMN recipient_id DROP NOT NULL;
+UPDATE public.letters
+SET recipient_id = NULL
+WHERE id = 'e4444444-4444-4444-4444-444444444444';
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+  $$SELECT * FROM public.claim_letter_patria_share(
+    'e4444444-4444-4444-4444-444444444444',
+    'c3333333-3333-3333-3333-333333333333'
+  )$$,
+  '42501',
+  'not_recipient',
+  'claim with NULL recipient_id is not_recipient (IS DISTINCT FROM)'
 );
 RESET ROLE;
 

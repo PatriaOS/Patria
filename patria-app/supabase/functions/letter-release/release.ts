@@ -212,6 +212,7 @@ export type LetterReleaseReasonCode =
   | 'not_due'
   | 'recipient_left'
   | 'bad_status'
+  | 'not_allowed'
   | 'claim_refused'
   | 'bad_share'
   | 'kms_denied'
@@ -272,7 +273,8 @@ export function classifyLetterReleaseOpenError(error: unknown): LetterReleaseRea
 
 /**
  * Classify claim_letter_patria_share failures from SQL exception messages
- * (not_recipient / not_due / recipient_left / bad_status).
+ * (not_recipient / not_due / recipient_left / bad_status). Log these in detail;
+ * use clientLetterReleaseClaimError for the HTTP body.
  */
 export function classifyLetterReleaseClaimError(
   code: string | undefined,
@@ -298,6 +300,29 @@ export function classifyLetterReleaseClaimError(
     return 'bad_status';
   }
   return 'claim_refused';
+}
+
+/**
+ * What the Edge Function returns to the client. Existence / ownership probes
+ * collapse to not_allowed. not_due stays distinct only after the recipient check
+ * passed in SQL (claim raises not_due only then).
+ */
+export function clientLetterReleaseClaimError(
+  detail: LetterReleaseReasonCode,
+): LetterReleaseReasonCode {
+  if (detail === 'not_due') {
+    return 'not_due';
+  }
+  if (
+    detail === 'not_found' ||
+    detail === 'not_recipient' ||
+    detail === 'recipient_left' ||
+    detail === 'bad_status' ||
+    detail === 'claim_refused'
+  ) {
+    return 'not_allowed';
+  }
+  return detail;
 }
 
 // ASN.1 SubjectPublicKeyInfo header for an uncompressed prime256v1 point (65 bytes follow).

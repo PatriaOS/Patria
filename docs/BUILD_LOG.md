@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — letter-release: IS DISTINCT FROM + not_allowed client body
+
+Claim/mark/seal/withdraw recipient and author comparisons use `IS DISTINCT FROM` so a future NULL `recipient_id` cannot slip past `<>`. Client HTTP body collapses `not_found` / `not_recipient` / `recipient_left` / `bad_status` to `not_allowed` (403); `not_due` stays distinct after the recipient check. Server logs keep the precise reason. pgTAP covers NULL recipient → `not_recipient`.
+
 ## 2026-11-05 — Letters hosted open: wrong KMS_KEY_ID shape + safe reasons
 
 Cause: hosted `LETTER_RELEASE_KMS_KEY_ID` held the 66-char public hex (secret digest = SHA-256 of that hex). CloudTrail `NotFoundException` / Invalid keyId; IAM was fine; public key fingerprint matched. Femi resets the secret to the 36-char key UUID. Branch `letters-release-fix`: validate key id (UUID / ARN / `alias/…`) → `env_invalid` before AWS; map `NotFoundException` → `kms_not_found`; logs are reason + letter id only (never keyId or AWS body); claim RPC splits `not_recipient` / `not_due` / `recipient_left` / `bad_status` with pgTAP; runbook warns key id ≠ public hex and digest must differ. No hosted function deploy from this PR until Femi approves.
