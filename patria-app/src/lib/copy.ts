@@ -808,6 +808,9 @@ export const copy = {
     sealedTitle: 'Your letter is sealed',
     sealedBody:
       'Only {name} can open it, on {date}. Keep this code. It is shown again when they open it, so you can tell nothing changed.',
+    sealCodeChangedTitle: 'Your seal code changed',
+    sealCodeChangedBody:
+      'You changed the letter, so it has a new seal code. Keep this code. It is shown again when they open it, so you can tell nothing changed. Opens {date}.',
     fingerprintLabel: 'Seal code',
     done: 'Done',
     discard: 'Discard',
@@ -815,6 +818,9 @@ export const copy = {
     reread: 'Read my letter',
     hideLetter: 'Hide my letter',
     edit: 'Edit',
+    changeOpenDate: 'Change open day',
+    changeOpenDateSave: 'Save open day',
+    changeOpenDateFailed: 'We couldn’t change the open day. Please try again.',
     withdraw: 'Withdraw this letter',
     withdrawConfirm:
       'Withdraw this letter? It will be deleted for good and the person it was for will never see it.',

@@ -300,6 +300,21 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 * **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
 * Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.
 
+## D43. Letters Slice B rules (4 November 2026)
+
+LEG02 Slice B (keepers, age, early release, child/guardian) builds after Slice A. Slice B0 polish ships first.
+
+* **Keeper boxes hold `shareP` (Patria half), not the CEK.** Two of three keepers can substitute for KMS release; the recipient or guardian still needs `shareR`. Keepers alone must never decrypt content (unit tests: 2 keepers fail; 2 keepers + recipient succeed).
+* **Keeper eligibility:** three distinct adults with a letterbox, none the author, recipient, or guardian. Guardian must be a recorded guardian of that child (existing child/guardian data), enforced in `seal_letter` and pgTAP.
+* **Keepers** optional for adult letters; required for child letters and when early release is on.
+* **Early release** is server-side only: `mark_due_letters` promotes to `pending` only when `wait_ends_at` (request + 7×24h UTC) has passed, a second distinct keeper approved, and there is no cancel. `letter-release` checks letter state in the database, never client input. Keeper boxes only via SECURITY DEFINER RPC to keepers when policy allows. Record request/approve/cancel/keeper-open events for author and keepers. After author cancel, 30-day cooldown before a new request.
+* **Age triggers:** `seal_letter` computes `trigger_at` server-side so the author never reads the recipient’s DOB. `profiles.date_of_birth` readable only by self and admins. Refuse if already past the chosen age. Freeze snapshot rules still apply; DOB edits cannot open early.
+* **Open date change:** `trigger_at` is **not** bound into content AAD or the seal code (content hash only). Date letters may change `trigger_at` via `set_letter_open_date` without re-wrapping shares. Age letters may change age with server recompute + freeze. If a future change binds `trigger_at` into AAD, re-wrap `shareP` and show seal-code-changed copy.
+* **Child handover:** custody only in Slice B (columns + guardian opens at due if no child account). Transfer deferred to GROW01. Tell the author at seal.
+* **Keeper leaves:** author gets Needs you to replace them (reseal keeper rows).
+* **UI:** D32 components only; Simulator screenshots of new/changed screens before merge. No new components without approval.
+* **Hosted:** no Slice B migrations or deploys until Femi approves. Local e2e may advance time in SQL only.
+
 ## D42. Letters to the Future — dual open paths (1 November 2026)
 
 LEG02. Sealed letters are unreadable by anyone, including Patria, before release. No AI. Video and life-event triggers wait. Slice A ships first; Slice B is a second PR.

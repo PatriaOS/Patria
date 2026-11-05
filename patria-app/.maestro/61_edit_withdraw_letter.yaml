@@ -104,7 +104,8 @@ appId: app.patria.dev
           visible:
             id: "screen-letter-sealed"
           timeout: 45000
-      - assertVisible: "Your letter is sealed"
+      - assertVisible: "Your seal code changed"
+      - takeScreenshot: b0-seal-code-changed
       - extendedWaitUntil:
           visible:
             id: "letter-seal-code"

@@ -873,7 +873,9 @@ stateDiagram-v2
 | Life event never happens | Author can set a fallback date (for example "or at 35"). |
 | Recipient no longer in the family space | Delivered by secure email link after identity check. |
 
-**Slice A (D42).** Date triggers and the automatic open path only (recipient letterbox + Patria P-256 ECDH release share). Surprise / Announced, author edit and withdraw, optional voice (5 minutes), fingerprint, fake local release key. Age triggers, keepers, early release, and child/guardian delivery wait for Slice B. Life events and video wait later. No AI.
+**Slice A (D42).** Date triggers and the automatic open path only (recipient letterbox + Patria P-256 ECDH release share). Surprise / Announced, author edit and withdraw, optional voice (5 minutes), fingerprint, fake local release key. Life events and video wait later. No AI.
+
+**Slice B0 (D43).** Polish: seal-code-changed copy after edit; open day with weekday+year; author-only `set_letter_open_date` while sealed (pgTAP); `pg_cron` schedule fails loudly if missing. Keepers, age, early release, child/guardian wait for later B slices.
 
 **Acceptance criteria (definition of done)**
 
@@ -882,6 +884,10 @@ stateDiagram-v2
 * [x] Tamper evident hash is shown on release and matches the sealed version (Slice A phone tests 59+).
 * [x] Surprise recipients see no letter row before release; announced recipients see From and open date only (pgTAP).
 * [x] Withdraw destroys content and shares; letter_events remain (pgTAP).
+* [x] After edit, author sees “Your seal code changed” with the new code (B0).
+* [x] Date step and confirm show weekday and year (B0).
+* [x] Only the author can change the opening date while sealed (B0 RLS/pgTAP).
+* [x] `patria-mark-due-letters` migration fails if `pg_cron` is missing (B0).
 
 **Data captured:** Encrypted letter, recipients, trigger, confirmer, state history.
 

@@ -42,7 +42,6 @@ import { useCurrentFamily } from '../family/useCurrentFamily';
 import { defaultTimezone } from '../sync/syncLabels';
 import {
   addYearsToYmd,
-  formatLetterDate,
   formatLetterOpenDay,
   friendlyTimeZoneName,
   isAfterToday,
@@ -106,6 +105,7 @@ export function NewLetterScreen() {
   const [sealedFingerprint, setSealedFingerprint] = useState<string | null>(null);
   const [sealedDate, setSealedDate] = useState<string | null>(null);
   const [sealedName, setSealedName] = useState<string | null>(null);
+  const [sealCodeChanged, setSealCodeChanged] = useState(false);
   const [voicePlain, setVoicePlain] = useState<Uint8Array | null>(null);
   const [voiceDuration, setVoiceDuration] = useState<number | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -284,8 +284,12 @@ export function NewLetterScreen() {
       const name =
         readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
         copy.letters.formerMember;
+      const previousCode = existing?.fingerprint?.trim() ?? '';
+      setSealCodeChanged(
+        Boolean(editId && previousCode && previousCode !== result.fingerprint),
+      );
       setSealedName(name);
-      setSealedDate(formatLetterDate(triggerAt, timeZone));
+      setSealedDate(formatLetterOpenDay(values.dateYmd, timeZone));
       setSealedFingerprint(result.fingerprint);
     } catch (error) {
       logFailedAction(error);
@@ -340,9 +344,15 @@ export function NewLetterScreen() {
   if (sealedFingerprint && sealedName && sealedDate) {
     return (
       <Screen withHeader testID="screen-letter-sealed">
-        <Title>{copy.letters.sealedTitle}</Title>
+        <Title>
+          {sealCodeChanged ? copy.letters.sealCodeChangedTitle : copy.letters.sealedTitle}
+        </Title>
         <Body>
-          {copy.letters.sealedBody.replace('{name}', sealedName).replace('{date}', sealedDate)}
+          {sealCodeChanged
+            ? copy.letters.sealCodeChangedBody.replace('{date}', sealedDate)
+            : copy.letters.sealedBody
+                .replace('{name}', sealedName)
+                .replace('{date}', sealedDate)}
         </Body>
         <View
           testID="letter-seal-code"

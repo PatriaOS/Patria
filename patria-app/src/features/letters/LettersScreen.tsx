@@ -20,7 +20,7 @@ import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { isVaultWriterRole } from '../../lib/roles';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import { canWriteVault } from '../vault/VaultScreen';
-import { formatLetterDate } from './letterDates';
+import { formatLetterOpenDay, ymdInZone } from './letterDates';
 import { fetchFamilyTimezone, fetchLetters, type LetterRow } from './letterApi';
 import { letterReleaseReadyForSealing } from './letterReleaseConfig';
 import { ensureLetterboxKey } from './letterboxEnsure';
@@ -186,7 +186,7 @@ export function LettersScreen() {
           title={copy.letters.forLine.replace('{name}', memberName(row.recipientId))}
           body={copy.letters.opensOn.replace(
             '{date}',
-            formatLetterDate(row.triggerAt, timeZone),
+            formatLetterOpenDay(ymdInZone(row.triggerAt, timeZone), timeZone),
           )}
           onPress={() => router.push(routes.letterDetail(row.id))}
           testID={`letter-${row.id}`}
@@ -213,7 +213,7 @@ export function LettersScreen() {
           title={copy.letters.announcedStubTitle.replace('{name}', row.fromLabel)}
           body={copy.letters.opensOn.replace(
             '{date}',
-            formatLetterDate(row.triggerAt, timeZone),
+            formatLetterOpenDay(ymdInZone(row.triggerAt, timeZone), timeZone),
           )}
           onPress={() => router.push(routes.letterDetail(row.id))}
           testID={`letter-recv-${row.id}`}

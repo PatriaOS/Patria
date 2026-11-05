@@ -1,6 +1,10 @@
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 
 import {
   Banner,
@@ -20,14 +24,42 @@ import { fetchMembers } from '../../lib/family';
 import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { useCurrentFamily } from '../family/useCurrentFamily';
-import { formatLetterDate } from './letterDates';
+import {
+  formatLetterOpenDay,
+  isAfterToday,
+  tomorrowYmd,
+  ymdInZone,
+  zonedMidnightIso,
+} from './letterDates';
 import {
   fetchFamilyTimezone,
   fetchLetter,
+  setLetterOpenDate,
   withdrawLetter,
 } from './letterApi';
 import { LetterVoicePlayback } from './LetterVoicePlayback';
 import { openLetterAsAuthor, openLetterAsRecipient } from './letterOpen';
+
+function ymdToPickerDate(ymd: string, timeZone: string): Date {
+  try {
+    return new Date(zonedMidnightIso(ymd, timeZone));
+  } catch {
+    return new Date();
+  }
+}
+
+function pickerDateToYmd(date: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
 
 export function LetterDetailScreen() {
   const router = useRouter();
@@ -43,6 +75,9 @@ export function LetterDetailScreen() {
   const [matches, setMatches] = useState<boolean | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+  const [changeDateOpen, setChangeDateOpen] = useState(false);
+  const [changeDateYmd, setChangeDateYmd] = useState<string | null>(null);
+  const [changeDateError, setChangeDateError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -70,6 +105,7 @@ export function LetterDetailScreen() {
 
   const letter = letterQuery.data;
   const timeZone = tzQuery.data ?? 'America/New_York';
+  const minYmd = tomorrowYmd(timeZone);
   const isAuthor = letter?.authorId === userId;
   const isRecipient = letter?.recipientId === userId;
   const recipientName =
@@ -86,6 +122,46 @@ export function LetterDetailScreen() {
     } catch (error) {
       logFailedAction(error);
       setOpenError(copy.letters.withdrawFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openChangeDate = () => {
+    if (!letter) {
+      return;
+    }
+    setChangeDateError(null);
+    setChangeDateYmd(ymdInZone(letter.triggerAt, timeZone));
+    setChangeDateOpen(true);
+  };
+
+  const onChangeDatePicker = (event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      // keep sheet open until Save
+    }
+    if (event.type === 'dismissed' || !selected) {
+      return;
+    }
+    const next = pickerDateToYmd(selected, timeZone);
+    setChangeDateYmd(isAfterToday(next, timeZone) ? next : minYmd);
+  };
+
+  const saveOpenDate = async () => {
+    if (!changeDateYmd || !isAfterToday(changeDateYmd, timeZone)) {
+      setChangeDateError(copy.letters.dateInPast);
+      return;
+    }
+    setBusy(true);
+    setChangeDateError(null);
+    try {
+      await setLetterOpenDate(letterId, zonedMidnightIso(changeDateYmd, timeZone));
+      await queryClient.invalidateQueries({ queryKey: ['letter', letterId] });
+      await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+      setChangeDateOpen(false);
+    } catch (error) {
+      logFailedAction(error);
+      setChangeDateError(copy.letters.changeOpenDateFailed);
     } finally {
       setBusy(false);
     }
@@ -176,7 +252,7 @@ export function LetterDetailScreen() {
     );
   }
 
-  const openDate = formatLetterDate(letter.triggerAt, timeZone);
+  const openDate = formatLetterOpenDay(ymdInZone(letter.triggerAt, timeZone), timeZone);
 
   if (isRecipient && letter.status === 'sealed' && letter.visibility === 'announced') {
     return (
@@ -290,12 +366,20 @@ export function LetterDetailScreen() {
           />
         ) : null}
         {letter.status === 'sealed' && !letter.recipientLeftAt ? (
-          <Button
-            label={copy.letters.edit}
-            variant="secondary"
-            onPress={() => router.push(routes.letterNew(letter.id))}
-            testID="edit-letter"
-          />
+          <>
+            <Button
+              label={copy.letters.edit}
+              variant="secondary"
+              onPress={() => router.push(routes.letterNew(letter.id))}
+              testID="edit-letter"
+            />
+            <Button
+              label={copy.letters.changeOpenDate}
+              variant="secondary"
+              onPress={openChangeDate}
+              testID="change-open-date"
+            />
+          </>
         ) : null}
         {letter.status === 'draft' || letter.status === 'sealed' ? (
           <Button
@@ -332,6 +416,60 @@ export function LetterDetailScreen() {
           />
         </ButtonStack>
       </SheetModal>
+
+      <SheetModal
+        visible={changeDateOpen}
+        onClose={() => setChangeDateOpen(false)}
+        testID="change-open-date-sheet"
+        accessibilityLabel={copy.letters.changeOpenDate}
+      >
+        <Title>{copy.letters.changeOpenDate}</Title>
+        {changeDateYmd ? (
+          <Body testID="change-open-date-preview">
+            {formatLetterOpenDay(changeDateYmd, timeZone)}
+          </Body>
+        ) : null}
+        {changeDateYmd && Platform.OS === 'android' ? (
+          <DateTimePicker
+            value={ymdToPickerDate(changeDateYmd, timeZone)}
+            mode="date"
+            display="default"
+            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            onChange={onChangeDatePicker}
+          />
+        ) : null}
+        {changeDateYmd && Platform.OS === 'ios' ? (
+          <DateTimePicker
+            value={ymdToPickerDate(changeDateYmd, timeZone)}
+            mode="date"
+            display="spinner"
+            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            onChange={onChangeDatePicker}
+            style={styles.iosPicker}
+          />
+        ) : null}
+        {changeDateError ? <ErrorState message={changeDateError} /> : null}
+        <ButtonStack>
+          <Button
+            label={copy.letters.changeOpenDateSave}
+            onPress={() => void saveOpenDate()}
+            busy={busy}
+            testID="change-open-date-save"
+          />
+          <Button
+            label={copy.common.cancel}
+            variant="secondary"
+            onPress={() => setChangeDateOpen(false)}
+            testID="change-open-date-cancel"
+          />
+        </ButtonStack>
+      </SheetModal>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  iosPicker: {
+    alignSelf: 'stretch',
+  },
+});

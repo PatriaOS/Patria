@@ -19,6 +19,10 @@ Cause: hosted `LETTER_RELEASE_KMS_KEY_ID` held the 66-char public hex (secret di
 
 Hosted release test: cron moved a letter to Opening; Test 2 open showed “We couldn’t open this letter.” B0 paused. `letter-release` returns/logs short reason codes with letter id only. App UI stays generic; `__DEV__` console gets the reason via `logFailedAction`.
 
+## 2026-11-04 — Letters Slice B0 polish (open date + seal-code copy + loud cron)
+
+Before `set_letter_open_date`: confirmed `trigger_at` is **not** in any letter AAD or the seal code (fingerprint is content hash only), so a date-only change does not re-wrap `shareP`. Author-only RPC while sealed; BEFORE UPDATE trigger blocks direct `trigger_at` / `trigger_kind` changes unless the RPC sets a one-shot GUC (cleared after update). pg_cron schedule for `patria-mark-due-letters` now fails the migration if the extension is missing (Slice A skipped quietly). UI: “Your seal code changed” after edit/reseal; open day shows weekday+year on date step, confirm, list, and detail; Change open day sheet on detail. D43 records the rest of Slice B (keepers hold shareP, early release server-side, age DOB privacy, child custody-only). No hosted migrate. Stop for review before B1.
+
 ## 2026-11-03 — Letter-release KMS runbook + prefixed AWS secrets
 
 Hosted Letters still wait on Femi creating the KMS key (nothing created or deployed in this slice). Runbook rewritten for CloudShell-as-Femi-Admin (no Mac AWS CLI), full key policy with root `kms:*` lockout safety plus explicit Deny so only `patria-letter-release` can `DeriveSharedSecret`, and a public-key script that prints the 66-char compressed hex + `not_fake`. Pure `kmsEnv.ts` (Jest-safe) + `kms.ts` read only `LETTER_RELEASE_AWS_*` + `LETTER_RELEASE_KMS_KEY_ID` so Brain can own generic `AWS_*` later. Unit test covers credential env names. First phone proof remains seal-to-Test-2 dated tomorrow, open after midnight Central — no SQL `trigger_at` edits.

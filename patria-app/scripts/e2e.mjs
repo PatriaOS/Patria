@@ -684,13 +684,13 @@ function seedLettersReady() {
 
 function seedBeforeYouStart(testNumber) {
   if (
-    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64].includes(
       testNumber,
     )
   ) {
     return;
   }
-  if ([59, 60, 61, 62, 63].includes(testNumber)) {
+  if ([59, 60, 61, 62, 63, 64].includes(testNumber)) {
     seedLettersReady();
     return;
   }
@@ -994,7 +994,7 @@ try {
     }
 
     if (
-      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63].includes(
+      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64].includes(
         test.number,
       )
     ) {
@@ -2662,6 +2662,19 @@ try {
           device: deviceA,
           env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
         });
+      });
+    }
+
+    if (test.number === 64) {
+      step(64, 1, 'Author changes open day while sealed', () => {
+        maestro({
+          flow: flow('64_change_open_date.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+      step(64, 2, 'Recipient has no change-open-date control (manual)', () => {
+        result('skip');
       });
     }
     } catch (error) {
