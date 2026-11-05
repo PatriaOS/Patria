@@ -7,6 +7,14 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Rebase B0 on letters-release-fix: restore seal_letter GUC
+
+After rebase, `20261105120000` replaced `seal_letter` without B0’s `patria.allow_letter_trigger_change` set_config. New migration `20261105150000` restores it (still `IS DISTINCT FROM` on author).
+
+## 2026-11-05 — Rebase B0 on letters-release-fix: restore seal_letter GUC
+
+After rebase, `20261105120000` replaced `seal_letter` without B0’s `patria.allow_letter_trigger_change` set_config. New migration `20261105150000` restores it (still `IS DISTINCT FROM` on author).
+
 ## 2026-11-05 — Keep author≠recipient CHECK; backlog future-self letters
 
 Decision: keep `letters_author_ne_recipient` (`IS DISTINCT FROM`). Compose already omits self. Backlog: “Letters to your future self” as its own small design (no author CEK copy; stays sealed until the date). Hosted dry-run safety (even though the CHECK was already in Slice A):
