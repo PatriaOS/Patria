@@ -13,6 +13,7 @@ import {
 } from '../../lib/crypto/letterEnvelope';
 import { combineLetterCek } from '../../lib/crypto/letterSplit';
 import { loadPersonalKeyIfPresent } from '../../lib/crypto/personalKey';
+import { logFailedAction } from '../../lib/devLog';
 import { loadOwnLetterboxPrivateKey } from './letterboxEnsure';
 import {
   claimPatriaShareP,
@@ -176,7 +177,9 @@ export async function openLetterAsRecipient(input: {
       letter,
       voicePlain: withVoice.voicePlain,
     };
-  } catch {
+  } catch (error) {
+    // UI stays generic ("We couldn't open this letter."); reason code is dev-only.
+    logFailedAction(error);
     return { ok: false, reason: 'failed' };
   } finally {
     wipe(letterboxPrivate);

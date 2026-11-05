@@ -7,6 +7,14 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Letters hosted open: wrong KMS_KEY_ID shape + safe reasons
+
+Cause: hosted `LETTER_RELEASE_KMS_KEY_ID` held the 66-char public hex (secret digest = SHA-256 of that hex). CloudTrail `NotFoundException` / Invalid keyId; IAM was fine; public key fingerprint matched. Femi resets the secret to the 36-char key UUID. Branch `letters-release-fix`: validate key id (UUID / ARN / `alias/…`) → `env_invalid` before AWS; map `NotFoundException` → `kms_not_found`; logs are reason + letter id only (never keyId or AWS body); claim RPC splits `not_recipient` / `not_due` / `recipient_left` / `bad_status` with pgTAP; runbook warns key id ≠ public hex and digest must differ. No hosted function deploy from this PR until Femi approves.
+
+## 2026-11-05 — Letters hosted open: safe reason codes (diagnosis)
+
+Hosted release test: cron moved a letter to Opening; Test 2 open showed “We couldn’t open this letter.” B0 paused. `letter-release` returns/logs short reason codes with letter id only. App UI stays generic; `__DEV__` console gets the reason via `logFailedAction`.
+
 ## 2026-11-03 — Letter-release KMS runbook + prefixed AWS secrets
 
 Hosted Letters still wait on Femi creating the KMS key (nothing created or deployed in this slice). Runbook rewritten for CloudShell-as-Femi-Admin (no Mac AWS CLI), full key policy with root `kms:*` lockout safety plus explicit Deny so only `patria-letter-release` can `DeriveSharedSecret`, and a public-key script that prints the 66-char compressed hex + `not_fake`. Pure `kmsEnv.ts` (Jest-safe) + `kms.ts` read only `LETTER_RELEASE_AWS_*` + `LETTER_RELEASE_KMS_KEY_ID` so Brain can own generic `AWS_*` later. Unit test covers credential env names. First phone proof remains seal-to-Test-2 dated tomorrow, open after midnight Central — no SQL `trigger_at` edits.

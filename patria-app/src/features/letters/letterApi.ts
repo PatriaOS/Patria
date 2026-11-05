@@ -306,16 +306,37 @@ export async function fetchFamilyTimezone(spaceId: string): Promise<string | nul
   return data ? String((data as { timezone: string }).timezone) : null;
 }
 
+async function letterReleaseReasonFromInvokeError(error: unknown): Promise<string> {
+  if (error && typeof error === 'object' && 'context' in error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      try {
+        const body = (await context.json()) as { error?: unknown };
+        if (typeof body?.error === 'string' && body.error.trim()) {
+          return body.error.trim();
+        }
+      } catch {
+        // ignore parse failures — fall through
+      }
+    }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return 'invoke_failed';
+  }
+  return 'invoke_failed';
+}
+
+/** Calls hosted/local letter-release. Throws Error whose message is a safe reason code. */
 export async function claimPatriaShareP(letterId: string): Promise<string> {
   const { data, error } = await supabase.functions.invoke('letter-release', {
     body: { letter_id: letterId },
   });
   if (error) {
-    throw error;
+    throw new Error(await letterReleaseReasonFromInvokeError(error));
   }
   const payload = data as { share_p_hex?: string; error?: string } | null;
   if (!payload?.share_p_hex) {
-    throw new Error(payload?.error ?? 'release failed');
+    throw new Error(payload?.error?.trim() || 'open_failed');
   }
   return payload.share_p_hex;
 }
