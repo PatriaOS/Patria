@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(11);
+SELECT plan(14);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -213,8 +213,29 @@ SELECT throws_ok(
     SET trigger_at = now() + interval '300 days'
     WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
   '42501',
-  'Not allowed',
+  NULL,
   'authenticated cannot UPDATE trigger_at directly'
+);
+-- Allow flag is transaction-scoped (set_config third arg true). Even with it on,
+-- column privileges still block a client UPDATE of trigger_at.
+SELECT lives_ok(
+  $sql$SELECT set_config('patria.allow_letter_trigger_change', '1', true)$sql$,
+  'authenticated may set the allow GUC in this transaction'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters
+    SET trigger_at = now() + interval '350 days'
+    WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501',
+  NULL,
+  'authenticated cannot UPDATE trigger_at even after set_config allow flag'
+);
+SELECT ok(
+  position(
+    $$set_config('patria.allow_letter_trigger_change', '1', true)$$
+    in pg_get_functiondef('public.set_letter_open_date(uuid,timestamptz)'::regprocedure)
+  ) > 0,
+  'set_letter_open_date uses set_config(..., true) so the allow flag is transaction scoped'
 );
 SELECT throws_ok(
   $sql$SELECT public.set_letter_open_date(

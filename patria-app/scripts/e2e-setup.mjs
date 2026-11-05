@@ -305,7 +305,8 @@ if (
   testNumber === 60 ||
   testNumber === 61 ||
   testNumber === 62 ||
-  testNumber === 63
+  testNumber === 63 ||
+  testNumber === 64
 ) {
   const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
   const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));
@@ -329,7 +330,8 @@ if (
     testNumber === 60 ||
     testNumber === 61 ||
     testNumber === 62 ||
-    testNumber === 63
+    testNumber === 63 ||
+    testNumber === 64
   ) {
     sql(
       dbUrl,

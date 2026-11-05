@@ -833,6 +833,8 @@ export const copy = {
     announcedStubTitle: 'A letter from {name}',
     announcedStubBody: 'It opens {date}.',
     pendingTitle: 'A letter is waiting for you',
+    /** After the recipient opens — same shape as announcedStubTitle. */
+    openedTitle: 'A letter from {name}',
     pendingFrom: 'From {name}',
     openLetter: 'Open this letter',
     opening: 'Opening',

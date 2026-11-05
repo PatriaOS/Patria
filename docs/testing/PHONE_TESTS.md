@@ -477,7 +477,7 @@ Areas: letters
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys
 1. Seal a surprise letter with a voice note (**Record**); e2e then sets `trigger_at` in the past and calls `mark_due_letters`. Sign in as the recipient on the second Simulator. Pass if the letter appears as Opening / ready.
-2. Tap **Open this letter**. Pass if the body matches, the voice note can be played, and the seal code matches what was shown when sealing.
+2. Tap **Open this letter**. Pass if the body matches, the voice note can be played, the title becomes **A letter from Test 1** (no longer “A letter is waiting for you”), the seal code line remains, and the seal code matches what was shown when sealing.
 
 ### 63. Fingerprint matches on release
 Areas: letters

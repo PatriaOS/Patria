@@ -875,7 +875,7 @@ stateDiagram-v2
 
 **Slice A (D42).** Date triggers and the automatic open path only (recipient letterbox + Patria P-256 ECDH release share). Surprise / Announced, author edit and withdraw, optional voice (5 minutes), fingerprint, fake local release key. Life events and video wait later. No AI.
 
-**Slice B0 (D43).** Polish: seal-code-changed copy after edit; open day with weekday+year; author-only `set_letter_open_date` while sealed (pgTAP); `pg_cron` schedule fails loudly if missing. Keepers, age, early release, child/guardian wait for later B slices.
+**Slice B0 (D43).** Polish: seal-code-changed copy after edit; open day with weekday+year; author-only `set_letter_open_date` while sealed (pgTAP); `trigger_at` column UPDATE revoked from authenticated (GUC alone cannot bypass); after open, title is “A letter from {name}”; `pg_cron` schedule fails loudly if missing. Keepers, age, early release, child/guardian wait for later B slices.
 
 **Acceptance criteria (definition of done)**
 
@@ -887,6 +887,8 @@ stateDiagram-v2
 * [x] After edit, author sees “Your seal code changed” with the new code (B0).
 * [x] Date step and confirm show weekday and year (B0).
 * [x] Only the author can change the opening date while sealed (B0 RLS/pgTAP).
+* [x] Authenticated clients cannot UPDATE `trigger_at` even after setting the allow GUC (B0 column revoke + pgTAP).
+* [x] After the recipient opens, the detail title is “A letter from {name}” with the seal code line kept (B0).
 * [x] `patria-mark-due-letters` migration fails if `pg_cron` is missing (B0).
 
 **Data captured:** Encrypted letter, recipients, trigger, confirmer, state history.

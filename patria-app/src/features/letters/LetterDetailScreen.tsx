@@ -268,8 +268,14 @@ export function LetterDetailScreen() {
   if (isRecipient && (letter.status === 'pending' || letter.status === 'released')) {
     return (
       <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
-        <Title>{copy.letters.pendingTitle}</Title>
-        <Caption>{copy.letters.pendingFrom.replace('{name}', letter.fromLabel)}</Caption>
+        <Title>
+          {openedBody
+            ? copy.letters.openedTitle.replace('{name}', letter.fromLabel)
+            : copy.letters.pendingTitle}
+        </Title>
+        {openedBody ? null : (
+          <Caption>{copy.letters.pendingFrom.replace('{name}', letter.fromLabel)}</Caption>
+        )}
         {openedBody ? (
           <>
             <Body testID="letter-opened-body">{openedBody}</Body>
