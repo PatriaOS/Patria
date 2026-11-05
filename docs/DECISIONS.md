@@ -338,6 +338,7 @@ LEG02. Sealed letters are unreadable by anyone, including Patria, before release
 * **Author leaves:** for each sealed letter, keep or withdraw (default keep). Kept letters still release automatically; author share is dropped. Never silent-delete (unlike Only me).
 * **Hash:** SHA-256 of text ciphertext plus any voice blob; short fingerprint shown at seal and on release.
 * **Who can write:** adults with keys and recovery (D25 / `vault_writer_ready`). One recipient per letter in Slice A.
+* **Not to yourself (for now):** `letters_author_ne_recipient` is `CHECK (author_id IS DISTINCT FROM recipient_id)` (NULL-safe for Slice B custody). Compose already omits the author from recipients. **Backlog — Letters to your future self:** own small design later (no author CEK copy so it stays sealed until the open day; drop or relax the CHECK then).
 * **Notifications:** in-app Needs you only; push later.
 
 ### Honest limits (plain words)

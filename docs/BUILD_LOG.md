@@ -7,6 +7,15 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Keep author≠recipient CHECK; backlog future-self letters
+
+Decision: keep `letters_author_ne_recipient` (`IS DISTINCT FROM`). Compose already omits self. Backlog: “Letters to your future self” as its own small design (no author CEK copy; stays sealed until the date). Hosted dry-run safety (even though the CHECK was already in Slice A):
+
+```sql
+SELECT count(*) AS self_letters FROM public.letters WHERE author_id = recipient_id;
+-- must be 0 before db push
+```
+
 ## 2026-11-05 — Letters test 64: automate recipient has no Change open day
 
 Step 2 was a manual skip. Author seals Announced so Test 2 can open the stub on the second Simulator; assert no Change open day control. No skips on core steps.

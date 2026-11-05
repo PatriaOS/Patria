@@ -877,6 +877,8 @@ stateDiagram-v2
 
 **Slice B0 (D43).** Polish: seal-code-changed copy after edit; open day with weekday+year; author-only `set_letter_open_date` while sealed (pgTAP); `trigger_at` column UPDATE revoked from authenticated (GUC alone cannot bypass); after open, title is “A letter from {name}”; `pg_cron` schedule fails loudly if missing. Keepers, age, early release, child/guardian wait for later B slices.
 
+**Backlog (own design, not Slice B keepers):** Letters to your future self — author is also recipient; no author CEK copy so the letter stays sealed until the open day; requires relaxing `letters_author_ne_recipient` after a dedicated design pass.
+
 **Acceptance criteria (definition of done)**
 
 * [ ] Sealed content is unreadable by anyone, including Patria, before release (verified by security review).
