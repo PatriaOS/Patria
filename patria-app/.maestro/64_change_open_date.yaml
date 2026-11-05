@@ -78,6 +78,13 @@ appId: app.patria.dev
     visible:
       id: "change-open-date"
     timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "letter-open-day"
+    timeout: 10000
+- copyTextFrom:
+    id: "letter-open-day"
+- evalScript: ${output.openDayBefore = maestro.copiedText}
 - takeScreenshot: b0-letter-detail-change-open-date
 - tapOn:
     id: "change-open-date"
@@ -89,6 +96,9 @@ appId: app.patria.dev
     visible:
       id: "change-open-date-preview"
     timeout: 10000
+# Preview label must match the wheel (family open day); save with no change keeps it.
+- assertVisible:
+    id: "change-open-date-preview"
 - takeScreenshot: b0-change-open-date-sheet
 - tapOn:
     id: "change-open-date-save"
@@ -98,4 +108,7 @@ appId: app.patria.dev
     timeout: 20000
 - assertVisible:
     id: "change-open-date"
+- copyTextFrom:
+    id: "letter-open-day"
+- assertTrue: ${maestro.copiedText == output.openDayBefore}
 - takeScreenshot: b0-letter-detail-after-date-change

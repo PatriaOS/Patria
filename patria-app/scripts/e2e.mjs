@@ -2584,11 +2584,17 @@ try {
         throw new Error('Test 61 needs 2 simulators (E2E_DEVICES=2) for recipient after withdraw.');
       }
       step(61, 1, 'Edit reseals with new code', () => {
+        // Flow copies the code from "Your seal code changed" and asserts the
+        // same code on letter detail before Done returns to the list.
         maestro({
           flow: flow('61_edit_withdraw_letter.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
         });
+        const fingerprint = dbCheck(['letter-fingerprint', '--family', E2E_FAMILY_NAME]);
+        if (!fingerprint.ok || !fingerprint.stdout) {
+          throw new Error(fingerprint.error || 'letter-fingerprint missing after edit');
+        }
       });
       step(61, 2, 'Withdraw removes letter', () => {
         maestro({

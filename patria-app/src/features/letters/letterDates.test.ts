@@ -4,9 +4,11 @@ import {
   friendlyTimeZoneName,
   isAfterToday,
   isValidYmd,
+  pickerDateToYmd,
   tomorrowYmd,
   triggerHasPassed,
   ymdInZone,
+  ymdToPickerDate,
   zonedMidnightIso,
 } from './letterDates';
 
@@ -56,10 +58,23 @@ describe('letterDates', () => {
     expect(triggerHasPassed('2030-01-15T12:00:01.000Z', now)).toBe(false);
   });
 
-  it('formats the open day with a weekday', () => {
+  it('formats the open day with a weekday in the device locale', () => {
     expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/Tuesday/);
     expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/November/);
     expect(formatLetterOpenDay('2027-11-02', 'America/Chicago')).toMatch(/2027/);
+  });
+
+  it('maps picker dates by device-local calendar so the wheel matches the label', () => {
+    const ymd = '2027-11-05';
+    const picker = ymdToPickerDate(ymd);
+    expect(picker.getFullYear()).toBe(2027);
+    expect(picker.getMonth()).toBe(10);
+    expect(picker.getDate()).toBe(5);
+    expect(pickerDateToYmd(picker)).toBe(ymd);
+    // Saving still uses family-zone midnight, not the picker's local instant.
+    expect(zonedMidnightIso(pickerDateToYmd(picker), 'America/Chicago')).toBe(
+      '2027-11-05T05:00:00.000Z',
+    );
   });
 
   it('names the family zone with the full friendly Time word', () => {

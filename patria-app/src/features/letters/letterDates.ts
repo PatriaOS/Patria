@@ -96,19 +96,42 @@ export function formatLetterDate(iso: string, timeZone: string): string {
   }).format(date);
 }
 
-/** Friendly open day, e.g. "Tuesday, 2 November 2027". */
+/**
+ * Friendly open day in the device locale (US: "Friday, November 5, 2027").
+ * `ymd` is the calendar day in the family zone; formatting uses that zone's midnight.
+ */
 export function formatLetterOpenDay(ymd: string, timeZone: string): string {
   if (!isValidYmd(ymd)) {
     return ymd;
   }
   const iso = zonedMidnightIso(ymd, timeZone);
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(undefined, {
     timeZone,
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   }).format(new Date(iso));
+}
+
+/**
+ * DateTimePicker shows the device-local calendar of a Date. Build noon local so
+ * the spinner matches `ymd` on any device; save with zonedMidnightIso(family TZ).
+ */
+export function ymdToPickerDate(ymd: string): Date {
+  const parsed = parseYmd(ymd);
+  if (!parsed) {
+    return new Date();
+  }
+  return new Date(parsed.y, parsed.m - 1, parsed.d, 12, 0, 0, 0);
+}
+
+/** Read the device-local calendar day the DateTimePicker is showing. */
+export function pickerDateToYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
 const US_ZONE_STEM =

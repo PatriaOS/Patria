@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Letters B0 review fixes: no client UPDATE, picker TZ, locale, Edit title
+
+App never UPDATEs `letters` (insert draft only); revoke all authenticated UPDATE. pgTAP covers protected columns + recipient/other. Open-day wheel uses device-local calendar for display and saves midnight in the family zone; formatLetterOpenDay uses the device locale; edit stack title is “Edit letter”; test 61 asserts seal code on changed screen equals detail. D43: new Slice B columns stay non-updatable unless the PR justifies a grant.
+
 ## 2026-11-05 — Letters B0 follow-up: trigger_at column revoke + letters seed + opened title
 
 `set_letter_open_date` / `seal_letter` already use `set_config(..., true)` (transaction-scoped). pgTAP now proves an authenticated client cannot `UPDATE trigger_at` even after setting the allow GUC; `REVOKE UPDATE (trigger_at, trigger_kind)` on `letters` from `authenticated` so the GUC alone is not enough. Fix letters e2e seed: test 64 was missing from `scenarioForTest` / recovery seed (scenario stayed `admin`, so member-test-2 was never on Family) — 59–64 now share `admin-elders` + recovery + `seedLetIn` with a hard `verify_member`. After open, recipient detail title becomes “A letter from {name}” (asserted in test 62).

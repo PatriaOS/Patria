@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(14);
+SELECT plan(31);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -290,6 +290,92 @@ SELECT throws_ok(
   '42501',
   'Not allowed',
   'author cannot change open date after pending'
+);
+
+-- App only INSERTs drafts; no authenticated UPDATE on any letters column.
+-- Put the letter back to sealed for author UPDATE probes (postgres role).
+RESET ROLE;
+UPDATE public.letters
+SET status = 'sealed', pending_at = NULL
+WHERE id = 'e0b00000-0000-0000-0000-000000000001';
+
+SELECT tests_jwt('a1111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET status = 'released' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE status'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET version = 99 WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE version'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET recipient_id = 'c3333333-3333-3333-3333-333333333333' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE recipient_id'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET author_id = 'b2222222-2222-2222-2222-222222222222' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE author_id'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET family_space_id = family_space_id WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE family_space_id'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET content_hash = 'x' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE content_hash'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET fingerprint = 'x' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE fingerprint'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET recipient_left_at = now() WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE recipient_left_at'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET sealed_at = now() WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE sealed_at'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET pending_at = now() WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE pending_at'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET released_at = now() WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE released_at'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET withdrawn_at = now() WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE withdrawn_at'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET from_label = 'Hacked' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE from_label directly'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET id = 'e0b00000-0000-0000-0000-000000000099' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE id'
+);
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET created_at = now() WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'author cannot UPDATE created_at'
+);
+RESET ROLE;
+
+SELECT tests_jwt('b2222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET from_label = 'Hacked' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'recipient cannot UPDATE any letters column'
+);
+RESET ROLE;
+
+SELECT tests_jwt('c3333333-3333-3333-3333-333333333333');
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $sql$UPDATE public.letters SET from_label = 'Hacked' WHERE id = 'e0b00000-0000-0000-0000-000000000001'$sql$,
+  '42501', NULL, 'other member cannot UPDATE any letters column'
 );
 RESET ROLE;
 

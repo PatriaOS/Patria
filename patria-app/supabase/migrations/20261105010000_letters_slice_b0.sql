@@ -71,7 +71,7 @@ BEGIN
   END IF;
 
   SELECT * INTO letter FROM public.letters WHERE id = p_letter_id FOR UPDATE;
-  IF NOT FOUND OR letter.author_id <> me THEN
+  IF NOT FOUND OR letter.author_id IS DISTINCT FROM me THEN
     RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
   END IF;
   IF letter.status NOT IN ('draft', 'sealed') THEN
@@ -176,7 +176,7 @@ BEGIN
   END IF;
 
   SELECT * INTO letter FROM public.letters WHERE id = p_letter_id FOR UPDATE;
-  IF NOT FOUND OR letter.author_id <> me THEN
+  IF NOT FOUND OR letter.author_id IS DISTINCT FROM me THEN
     RAISE EXCEPTION 'Not allowed' USING ERRCODE = '42501';
   END IF;
   IF letter.status <> 'sealed' THEN

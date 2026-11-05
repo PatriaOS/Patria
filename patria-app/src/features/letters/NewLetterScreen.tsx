@@ -3,7 +3,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Calendar } from 'lucide-react-native';
@@ -46,8 +46,10 @@ import {
   friendlyTimeZoneName,
   isAfterToday,
   isValidYmd,
+  pickerDateToYmd,
   tomorrowYmd,
   ymdInZone,
+  ymdToPickerDate,
   zonedMidnightIso,
 } from './letterDates';
 import {
@@ -69,35 +71,21 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function ymdToPickerDate(ymd: string, timeZone: string): Date {
-  try {
-    return new Date(zonedMidnightIso(ymd, timeZone));
-  } catch {
-    return new Date();
-  }
-}
-
-function pickerDateToYmd(date: Date, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(date);
-  } catch {
-    return date.toISOString().slice(0, 10);
-  }
-}
-
 export function NewLetterScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
   const params = useLocalSearchParams<{ letterId?: string }>();
   const editId = typeof params.letterId === 'string' ? params.letterId : undefined;
   const { userId, spaceId } = useCurrentFamily();
   const [letterId] = useState(() => editId ?? randomUuid());
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: editId ? copy.letters.editTitle : copy.letters.newTitle,
+    });
+  }, [editId, navigation]);
   const [recipientId, setRecipientId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<LetterVisibility>('surprise');
   const [sealing, setSealing] = useState(false);
@@ -306,7 +294,7 @@ export function NewLetterScreen() {
     if (event.type === 'dismissed' || !selected) {
       return;
     }
-    const next = pickerDateToYmd(selected, timeZone);
+    const next = pickerDateToYmd(selected);
     if (isAfterToday(next, timeZone)) {
       setValue('dateYmd', next);
     } else {
@@ -522,10 +510,10 @@ export function NewLetterScreen() {
 
       {datePickerOpen && Platform.OS === 'android' ? (
         <DateTimePicker
-          value={ymdToPickerDate(dateYmd, timeZone)}
-          mode="date"
-          display="default"
-          minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            value={ymdToPickerDate(dateYmd)}
+            mode="date"
+            display="default"
+            minimumDate={ymdToPickerDate(minYmd)}
           onChange={onPickerChange}
         />
       ) : null}
@@ -538,10 +526,10 @@ export function NewLetterScreen() {
           accessibilityLabel={copy.letters.dateLabel}
         >
           <DateTimePicker
-            value={ymdToPickerDate(dateYmd, timeZone)}
-            mode="date"
-            display="spinner"
-            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+          value={ymdToPickerDate(dateYmd)}
+          mode="date"
+          display="spinner"
+          minimumDate={ymdToPickerDate(minYmd)}
             onChange={onPickerChange}
             style={styles.iosPicker}
           />

@@ -1,29 +1,15 @@
--- Authenticated clients must not UPDATE trigger_at / trigger_kind even if they
--- call set_config('patria.allow_letter_trigger_change', '1', true). Table-level
--- UPDATE overrides column REVOKE, so replace it with an explicit column list that
--- omits those two. SECURITY DEFINER RPCs (seal_letter, set_letter_open_date) run
--- as the function owner and keep full privileges.
+-- Authenticated clients must not UPDATE any letters column directly.
+-- The app only INSERTs drafts; every change goes through SECURITY DEFINER RPCs
+-- (seal_letter, set_letter_open_date, withdraw_letter, claim/mark via service_role).
+-- Table-level UPDATE previously overrode column REVOKE and let a client change
+-- status / trigger_at / hashes after setting the allow GUC.
 
 REVOKE UPDATE ON TABLE public.letters FROM authenticated;
 
-GRANT UPDATE (
-  id,
-  family_space_id,
-  author_id,
-  recipient_id,
-  from_label,
-  visibility,
-  status,
-  version,
-  keepers_may_release_early,
-  content_hash,
-  fingerprint,
-  voice_object_path,
-  recipient_left_at,
-  sealed_at,
-  pending_at,
-  released_at,
-  withdrawn_at,
-  created_at,
-  updated_at
-) ON TABLE public.letters TO authenticated;
+-- Keep INSERT (draft create) and SELECT / DELETE as already granted by Slice A.
+-- DELETE is unused by the app (withdraw_letter is definer); leave it for now.
+
+COMMENT ON TABLE public.letters IS
+  'Letters to the Future. Authenticated: SELECT/INSERT drafts only; no UPDATE. '
+  'All mutations after insert use SECURITY DEFINER RPCs. Slice B: new columns '
+  'are not updatable by authenticated unless justified in the PR.';

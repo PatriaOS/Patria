@@ -466,12 +466,12 @@ Areas: letters
 
 ### 61. Author edit and withdraw
 Areas: letters
-1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if the edit form matches New letter controls (no duplicate title; visibility field; date chips) and the success screen says **Your seal code changed** with the new seal code.
+1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if the nav title is **Edit letter**, the edit form matches New letter controls (no duplicate title; visibility field; date chips), the success screen says **Your seal code changed** with the new seal code, and that same code appears on the letter detail screen after Done.
 2. Open that letter, tap **Withdraw this letter**, then confirm in the sheet. Pass if it leaves the list. Check the database: the letter row, payload and every share row are gone (events may remain). On the second Simulator as Test 2, Pass if the letter cannot be opened and does not appear.
 
 ### 64. Author changes open day while sealed
 Areas: letters
-1. As Test 1, seal a letter to Test 2. Open it, tap **Change open day**, pick a later day (weekday+year shown in the sheet), tap **Save open day**. Pass if the detail and list show the new open day and the seal code is unchanged.
+1. As Test 1, seal a letter to Test 2. Open it, tap **Change open day**. Pass if the sheet preview matches the wheel (family time zone, not device/UTC) and the earliest day is tomorrow in the family zone. Save without changing: Pass if the open day on detail is unchanged. Then change to a later day and Save: Pass if detail and list show the new open day and the seal code is unchanged.
 2. (manual) As Test 2, confirm there is no **Change open day** control.
 
 ### 62. Date release with automatic path (fake key)

@@ -26,6 +26,8 @@ import { routes } from '../../lib/navigation';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import {
   formatLetterOpenDay,
+  pickerDateToYmd,
+  ymdToPickerDate,
   isAfterToday,
   tomorrowYmd,
   ymdInZone,
@@ -40,26 +42,6 @@ import {
 import { LetterVoicePlayback } from './LetterVoicePlayback';
 import { openLetterAsAuthor, openLetterAsRecipient } from './letterOpen';
 
-function ymdToPickerDate(ymd: string, timeZone: string): Date {
-  try {
-    return new Date(zonedMidnightIso(ymd, timeZone));
-  } catch {
-    return new Date();
-  }
-}
-
-function pickerDateToYmd(date: Date, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(date);
-  } catch {
-    return date.toISOString().slice(0, 10);
-  }
-}
 
 export function LetterDetailScreen() {
   const router = useRouter();
@@ -143,7 +125,7 @@ export function LetterDetailScreen() {
     if (event.type === 'dismissed' || !selected) {
       return;
     }
-    const next = pickerDateToYmd(selected, timeZone);
+    const next = pickerDateToYmd(selected);
     setChangeDateYmd(isAfterToday(next, timeZone) ? next : minYmd);
   };
 
@@ -320,7 +302,7 @@ export function LetterDetailScreen() {
   return (
     <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
       <Title>{copy.letters.forLine.replace('{name}', recipientName)}</Title>
-      <Caption>
+      <Caption testID="letter-open-day">
         {copy.letters.opensOn.replace('{date}', openDate)} ·{' '}
         {letter.visibility === 'announced'
           ? copy.letters.announcedBadge
@@ -437,19 +419,19 @@ export function LetterDetailScreen() {
         ) : null}
         {changeDateYmd && Platform.OS === 'android' ? (
           <DateTimePicker
-            value={ymdToPickerDate(changeDateYmd, timeZone)}
+            value={ymdToPickerDate(changeDateYmd)}
             mode="date"
             display="default"
-            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            minimumDate={ymdToPickerDate(minYmd)}
             onChange={onChangeDatePicker}
           />
         ) : null}
         {changeDateYmd && Platform.OS === 'ios' ? (
           <DateTimePicker
-            value={ymdToPickerDate(changeDateYmd, timeZone)}
+            value={ymdToPickerDate(changeDateYmd)}
             mode="date"
             display="spinner"
-            minimumDate={ymdToPickerDate(minYmd, timeZone)}
+            minimumDate={ymdToPickerDate(minYmd)}
             onChange={onChangeDatePicker}
             style={styles.iosPicker}
           />
