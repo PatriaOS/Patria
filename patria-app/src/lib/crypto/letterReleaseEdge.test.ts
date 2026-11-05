@@ -4,8 +4,13 @@ import { FAKE_LETTER_RELEASE_PUBLIC_KEY_HEX } from '../../features/letters/lette
 import {
   letterReleaseAwsEnvFromGetEnv,
   letterReleaseKmsClientConfig,
+  parseLetterReleaseKmsKeyId,
+  resolveLetterReleaseKmsKeyId,
 } from '../../../supabase/functions/letter-release/kmsEnv';
 import {
+  classifyLetterReleaseClaimError,
+  classifyLetterReleaseOpenError,
+  clientLetterReleaseClaimError,
   decideReleaseKey,
   decodePgBytea,
   FAKE_LETTER_RELEASE_PUBLIC_KEY_FINGERPRINT,
@@ -21,6 +26,12 @@ import {
   sealSharePToReleasePublicKey,
 } from './letterReleaseKey';
 import { randomKey32 } from './random';
+
+const SAMPLE_KMS_KEY_UUID = '12345678-1234-1234-1234-1234567890ab';
+const SAMPLE_KMS_KEY_ARN =
+  'arn:aws:kms:us-east-1:731776047389:key/12345678-1234-1234-1234-1234567890ab';
+const SAMPLE_PUBLIC_HEX =
+  '03ca1057fffbed5969b9619fc60d57877b24f95dbeb0844593b417d3cdeeeedc56';
 
 // The fake pair from .env.example. Public only here; the private half is a local test fixture.
 const FAKE_PRIVATE_HEX = '78c5bcc55c54ed015e7452df3b55a395401c17c2088049bcd1a9c678dca33a85';
@@ -101,9 +112,9 @@ describe('letter-release Edge helpers', () => {
         supabaseUrl: 'https://abc.supabase.co',
         deploymentId: undefined,
         privateKeyHex: bytesToHex(other.secretKey),
-        kmsKeyId: 'arn:aws:kms:test',
+        kmsKeyId: SAMPLE_KMS_KEY_ARN,
       }),
-    ).toEqual({ kind: 'kms', keyId: 'arn:aws:kms:test' });
+    ).toEqual({ kind: 'kms', keyId: SAMPLE_KMS_KEY_ARN });
     expect(
       decideReleaseKey({
         supabaseUrl: 'https://abc.supabase.co',
@@ -111,6 +122,41 @@ describe('letter-release Edge helpers', () => {
         privateKeyHex: undefined,
       }),
     ).toEqual({ kind: 'kms_not_configured' });
+    expect(
+      decideReleaseKey({
+        supabaseUrl: 'https://abc.supabase.co',
+        deploymentId: undefined,
+        privateKeyHex: undefined,
+        kmsKeyInvalid: true,
+      }),
+    ).toEqual({ kind: 'env_invalid' });
+  });
+
+  it('accepts only KMS key UUID, ARN, or alias/<name> for LETTER_RELEASE_KMS_KEY_ID', () => {
+    expect(parseLetterReleaseKmsKeyId(`  ${SAMPLE_KMS_KEY_UUID}  `)).toBe(SAMPLE_KMS_KEY_UUID);
+    expect(parseLetterReleaseKmsKeyId(SAMPLE_KMS_KEY_ARN)).toBe(SAMPLE_KMS_KEY_ARN);
+    expect(parseLetterReleaseKmsKeyId('alias/patria-letter-release')).toBe(
+      'alias/patria-letter-release',
+    );
+    expect(
+      parseLetterReleaseKmsKeyId(
+        'arn:aws:kms:us-east-1:731776047389:alias/patria-letter-release',
+      ),
+    ).toBe('arn:aws:kms:us-east-1:731776047389:alias/patria-letter-release');
+    expect(parseLetterReleaseKmsKeyId(`"${SAMPLE_KMS_KEY_UUID}"`)).toBe(SAMPLE_KMS_KEY_UUID);
+    expect(parseLetterReleaseKmsKeyId(SAMPLE_PUBLIC_HEX)).toBeNull();
+    expect(parseLetterReleaseKmsKeyId(`KEY_ID=${SAMPLE_KMS_KEY_UUID}`)).toBeNull();
+    expect(parseLetterReleaseKmsKeyId(` ${SAMPLE_KMS_KEY_UUID} `)).toBe(SAMPLE_KMS_KEY_UUID);
+    expect(parseLetterReleaseKmsKeyId(`${SAMPLE_KMS_KEY_UUID} trailing`)).toBeNull();
+    expect(parseLetterReleaseKmsKeyId('')).toBeNull();
+    expect(parseLetterReleaseKmsKeyId(undefined)).toBeNull();
+
+    expect(resolveLetterReleaseKmsKeyId(SAMPLE_PUBLIC_HEX)).toEqual({ status: 'invalid' });
+    expect(resolveLetterReleaseKmsKeyId(undefined)).toEqual({ status: 'missing' });
+    expect(resolveLetterReleaseKmsKeyId(SAMPLE_KMS_KEY_UUID)).toEqual({
+      status: 'ok',
+      keyId: SAMPLE_KMS_KEY_UUID,
+    });
   });
 
   it('uses the local key only on a local stack', () => {
@@ -192,5 +238,43 @@ describe('letter-release Edge helpers', () => {
       region: 'us-east-1',
       credentials: { accessKeyId: 'AKIA_LETTER', secretAccessKey: 'letter-secret' },
     });
+  });
+
+  it('maps open/KMS failures to safe reason codes (never raw AWS bodies)', () => {
+    expect(classifyLetterReleaseOpenError(new Error('letter release AWS credentials missing'))).toBe(
+      'env_missing',
+    );
+    const denied = new Error('User is not authorized to perform: kms:DeriveSharedSecret');
+    denied.name = 'AccessDeniedException';
+    expect(classifyLetterReleaseOpenError(denied)).toBe('kms_denied');
+    const missing = new Error('Invalid keyId abc');
+    missing.name = 'NotFoundException';
+    expect(classifyLetterReleaseOpenError(missing)).toBe('kms_not_found');
+    expect(classifyLetterReleaseOpenError(new Error('unwrap failed'))).toBe('unwrap_failed');
+    expect(classifyLetterReleaseOpenError(new Error('invalid public key'))).toBe('bad_share');
+    expect(classifyLetterReleaseOpenError(new Error('KMS returned no shared secret'))).toBe(
+      'kms_error',
+    );
+    expect(classifyLetterReleaseOpenError(new Error('something else'))).toBe('open_failed');
+    expect(classifyLetterReleaseOpenError('not-an-error')).toBe('open_failed');
+  });
+
+  it('maps claim_letter_patria_share failures to safe reason codes', () => {
+    expect(classifyLetterReleaseClaimError('P0002', 'Not found')).toBe('not_found');
+    expect(classifyLetterReleaseClaimError('42501', 'not_recipient')).toBe('not_recipient');
+    expect(classifyLetterReleaseClaimError('42501', 'not_due')).toBe('not_due');
+    expect(classifyLetterReleaseClaimError('42501', 'recipient_left')).toBe('recipient_left');
+    expect(classifyLetterReleaseClaimError('42501', 'bad_status')).toBe('bad_status');
+    expect(classifyLetterReleaseClaimError('42501', 'Not allowed')).toBe('claim_refused');
+    expect(classifyLetterReleaseClaimError(undefined, 'Not found')).toBe('not_found');
+  });
+
+  it('returns not_allowed to the client for existence/ownership probes; keeps not_due', () => {
+    expect(clientLetterReleaseClaimError('not_found')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('not_recipient')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('recipient_left')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('bad_status')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('claim_refused')).toBe('not_allowed');
+    expect(clientLetterReleaseClaimError('not_due')).toBe('not_due');
   });
 });

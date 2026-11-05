@@ -88,21 +88,29 @@ export type ReleaseKeyDecision =
   | { kind: 'kms'; keyId: string }
   | { kind: 'refuse_fake_key_on_hosted' }
   | { kind: 'kms_not_configured' }
+  | { kind: 'env_invalid' }
   | { kind: 'local_key_missing' };
 
 /**
  * Decide which key may open Patria's half.
  * - Hosted: refuse the known fake key by public-key fingerprint (not merely "env is set").
  *   Never use an env private key on hosted; only AWS KMS DeriveSharedSecret.
+ *   Pass kmsKeyId already parsed by parseLetterReleaseKmsKeyId (see kmsEnv), or set
+ *   kmsKeyInvalid when the raw secret was present but not a UUID/ARN/alias.
  * - Local: the fake private key from supabase/functions/.env.
  */
-export function decideReleaseKey(env: ReleaseEnv): ReleaseKeyDecision {
+export function decideReleaseKey(
+  env: ReleaseEnv & { kmsKeyInvalid?: boolean },
+): ReleaseKeyDecision {
   const hex = env.privateKeyHex?.trim();
   if (isHosted(env)) {
     if (hex && isFakeReleasePrivateKey(hex)) {
       return { kind: 'refuse_fake_key_on_hosted' };
     }
-    const keyId = env.kmsKeyId?.trim();
+    if (env.kmsKeyInvalid) {
+      return { kind: 'env_invalid' };
+    }
+    const keyId = env.kmsKeyId?.trim() ?? '';
     return keyId ? { kind: 'kms', keyId } : { kind: 'kms_not_configured' };
   }
   if (!hex) {
@@ -186,6 +194,135 @@ export function openSharePLocal(input: {
 
 export function shareToHex(share: Uint8Array): string {
   return bytesToHex(share);
+}
+
+/** Safe Edge/app reason codes — never include keys, shares, content, keyIds, or raw AWS bodies. */
+export type LetterReleaseReasonCode =
+  | 'method'
+  | 'hosted_refuse_fake_key'
+  | 'kms_not_configured'
+  | 'env_missing'
+  | 'env_invalid'
+  | 'release_key_missing'
+  | 'unauthorized'
+  | 'bad_body'
+  | 'letter_id_required'
+  | 'not_found'
+  | 'not_recipient'
+  | 'not_due'
+  | 'recipient_left'
+  | 'bad_status'
+  | 'not_allowed'
+  | 'claim_refused'
+  | 'bad_share'
+  | 'kms_denied'
+  | 'kms_not_found'
+  | 'kms_error'
+  | 'unwrap_failed'
+  | 'mark_failed'
+  | 'open_failed'
+  | 'invoke_failed';
+
+/**
+ * Map a caught open/KMS failure to a safe reason code.
+ * Uses only short name/message fragments — never log the full AWS error body or keyId.
+ */
+export function classifyLetterReleaseOpenError(error: unknown): LetterReleaseReasonCode {
+  if (!(error instanceof Error)) {
+    return 'open_failed';
+  }
+  const name = error.name.toLowerCase();
+  const message = error.message.toLowerCase();
+  if (message.includes('credentials missing')) {
+    return 'env_missing';
+  }
+  // Prefer exception name so we never need to echo AWS's "Invalid keyId …" text.
+  if (name.includes('notfound') || message.includes('invalid keyid')) {
+    return 'kms_not_found';
+  }
+  if (
+    name.includes('accessdenied') ||
+    message.includes('accessdenied') ||
+    message.includes('access denied') ||
+    message.includes('not authorized') ||
+    message.includes('unauthorizedoperation') ||
+    (message.includes('kms') && message.includes('denied'))
+  ) {
+    return 'kms_denied';
+  }
+  if (message === 'unwrap failed') {
+    return 'unwrap_failed';
+  }
+  if (
+    message.includes('invalid public key') ||
+    message.includes('invalid bytea') ||
+    message.includes('invalid shared secret')
+  ) {
+    return 'bad_share';
+  }
+  if (
+    name.includes('kms') ||
+    message.includes('kms') ||
+    message.includes('shared secret') ||
+    message.includes('derive')
+  ) {
+    return 'kms_error';
+  }
+  return 'open_failed';
+}
+
+/**
+ * Classify claim_letter_patria_share failures from SQL exception messages
+ * (not_recipient / not_due / recipient_left / bad_status). Log these in detail;
+ * use clientLetterReleaseClaimError for the HTTP body.
+ */
+export function classifyLetterReleaseClaimError(
+  code: string | undefined,
+  message: string | undefined,
+): LetterReleaseReasonCode {
+  if (code === 'P0002') {
+    return 'not_found';
+  }
+  const lower = (message ?? '').toLowerCase();
+  if (lower.includes('not found')) {
+    return 'not_found';
+  }
+  if (lower.includes('not_recipient')) {
+    return 'not_recipient';
+  }
+  if (lower.includes('recipient_left')) {
+    return 'recipient_left';
+  }
+  if (lower.includes('not_due')) {
+    return 'not_due';
+  }
+  if (lower.includes('bad_status')) {
+    return 'bad_status';
+  }
+  return 'claim_refused';
+}
+
+/**
+ * What the Edge Function returns to the client. Existence / ownership probes
+ * collapse to not_allowed. not_due stays distinct only after the recipient check
+ * passed in SQL (claim raises not_due only then).
+ */
+export function clientLetterReleaseClaimError(
+  detail: LetterReleaseReasonCode,
+): LetterReleaseReasonCode {
+  if (detail === 'not_due') {
+    return 'not_due';
+  }
+  if (
+    detail === 'not_found' ||
+    detail === 'not_recipient' ||
+    detail === 'recipient_left' ||
+    detail === 'bad_status' ||
+    detail === 'claim_refused'
+  ) {
+    return 'not_allowed';
+  }
+  return detail;
 }
 
 // ASN.1 SubjectPublicKeyInfo header for an uncompressed prime256v1 point (65 bytes follow).

@@ -148,6 +148,27 @@ export function openSharePWithDerivedSecret(
   }
 }
 
+/**
+ * True when hex is a 66-character compressed SEC1 P-256 public key (02/03 + 32-byte x).
+ * This is the format EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX and Edge unwrap expect.
+ * KMS GetPublicKey returns SPKI DER — convert with the runbook script before comparing.
+ */
+export function isCompressedLetterReleasePublicKeyHex(hex: string | undefined): boolean {
+  const value = hex?.trim().toLowerCase() ?? '';
+  if (!/^[0-9a-f]{66}$/.test(value)) {
+    return false;
+  }
+  if (value[0] !== '0' || (value[1] !== '2' && value[1] !== '3')) {
+    return false;
+  }
+  try {
+    releasePublicKeyFromHex(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function releasePublicKeyFromHex(hex: string): Uint8Array {
   const bytes = hexToBytes(hex);
   requireLength(bytes, P256_COMPRESSED_PUBLIC_BYTES);

@@ -241,6 +241,15 @@ PY
 Secrets are **prefixed** so Brain can later use generic `AWS_*` without collision.
 `letter-release` reads **only** these names (see `kms.ts`).
 
+**`LETTER_RELEASE_KMS_KEY_ID` is the KMS key id, not the public key.**
+
+- Use the **36-character UUID** from the KMS console (Key ID), or
+  `alias/patria-letter-release`, or the full key/alias ARN.
+- Do **not** paste the **66-character compressed public hex** from §3. That hex
+  belongs only in the app as `EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX`. Putting
+  it in this secret makes DeriveSharedSecret fail with `NotFoundException`
+  (“Invalid keyId”). Edge now rejects that shape as `env_invalid` before calling AWS.
+
 From **`patria-app`** on the Mac (values entered with `read -rs` so they do not
 land in shell history). Linked project: `olcfghdmsgdnfvglxddh`.
 
@@ -249,8 +258,18 @@ cd patria-app
 
 read -rs "LETTER_RELEASE_AWS_ACCESS_KEY_ID?Access key ID: "; echo
 read -rs "LETTER_RELEASE_AWS_SECRET_ACCESS_KEY?Secret access key: "; echo
-read -rs "LETTER_RELEASE_KMS_KEY_ID?KMS key id or alias: "; echo
-# Suggested: alias/patria-letter-release
+# Key ID = 36-char UUID from KMS console (or alias/patria-letter-release).
+# NOT the 66-char public hex from §3.
+read -rs "LETTER_RELEASE_KMS_KEY_ID?KMS key UUID or alias: "; echo
+
+# Guard: secret digest must NOT equal SHA-256 of the public hex string.
+PUBLIC_HEX="$(grep -E '^EXPO_PUBLIC_LETTER_RELEASE_PUBLIC_KEY_HEX=' .env | cut -d= -f2- | tr -d '"' | tr -d "'")"
+PUB_DIGEST="$(printf '%s' "$PUBLIC_HEX" | shasum -a 256 | awk '{print $1}')"
+# After secrets set, compare in Dashboard → Edge Functions → Secrets digests, or:
+# printf '%s' "$LETTER_RELEASE_KMS_KEY_ID" | shasum -a 256
+# That digest must differ from $PUB_DIGEST. If they match, you pasted the public hex.
+echo "Public hex SHA-256 (must differ from LETTER_RELEASE_KMS_KEY_ID secret digest): $PUB_DIGEST"
+unset PUBLIC_HEX
 
 npx supabase secrets set \
   "LETTER_RELEASE_AWS_ACCESS_KEY_ID=${LETTER_RELEASE_AWS_ACCESS_KEY_ID}" \
@@ -324,8 +343,10 @@ No SQL edits of `trigger_at`. No hosted test-only shortcuts.
    `letter-release` → KMS DeriveSharedSecret.
 
 Fail signals: still Coming soon → public hex / Metro; open fails with
-`kms_not_configured` or `hosted_refuse_fake_key` → secrets; still `sealed` after
-midnight + 15 minutes → cron.
+`kms_not_configured`, `env_invalid` (key id was public hex or junk),
+`kms_not_found` (wrong UUID/alias), or `hosted_refuse_fake_key` → secrets;
+still `sealed` after midnight + 15 minutes → cron. Function logs show
+`letter-release <reason> <letter_id>` only — never the keyId or AWS error body.
 
 ---
 

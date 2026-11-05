@@ -3,47 +3,68 @@
 // (shareP) and returns it to the signed-in recipient only. The recipient combines it
 // with the half their own phone holds. Patria never sees the letter.
 //
-// Logs carry the letter id and an error name, never content, keys or names.
+// Logs carry the letter id and a safe reason code, never content, keys, shares,
+// names, or full AWS error bodies.
 import { createClient } from '@supabase/supabase-js';
 
 import { deriveSharedSecretWithKms } from './kms.ts';
+import { resolveLetterReleaseKmsKeyId } from './kmsEnv.ts';
 import {
+  classifyLetterReleaseClaimError,
+  classifyLetterReleaseOpenError,
+  clientLetterReleaseClaimError,
   decideReleaseKey,
   decodePgBytea,
   openShareWithKmsSecret,
   openSharePLocal,
   shareToHex,
+  type LetterReleaseReasonCode,
 } from './release.ts';
 
 const HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function reply(status: number, body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), { status, headers: HEADERS });
+function reply(status: number, error: LetterReleaseReasonCode): Response {
+  // Reason code only — never keyId, AWS bodies, keys, shares, or letter content.
+  console.error('letter-release', error);
+  return new Response(JSON.stringify({ error }), { status, headers: HEADERS });
+}
+
+function replyWithLetter(status: number, error: LetterReleaseReasonCode, letterId: string): Response {
+  console.error('letter-release', error, letterId);
+  return new Response(JSON.stringify({ error }), { status, headers: HEADERS });
+}
+
+function replyOk(body: Record<string, unknown>): Response {
+  return new Response(JSON.stringify(body), { status: 200, headers: HEADERS });
 }
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
-    return reply(405, { error: 'method' });
+    return reply(405, 'method');
   }
 
   // 1. Which key may open Patria's half here? Hosted refuses the fake key outright.
+  // Validate LETTER_RELEASE_KMS_KEY_ID shape before AWS (never log the raw secret).
+  const kmsResolved = resolveLetterReleaseKmsKeyId(Deno.env.get('LETTER_RELEASE_KMS_KEY_ID'));
   const decision = decideReleaseKey({
     supabaseUrl: Deno.env.get('SUPABASE_URL'),
     deploymentId: Deno.env.get('DENO_DEPLOYMENT_ID'),
     privateKeyHex: Deno.env.get('LETTER_RELEASE_PRIVATE_KEY_HEX'),
-    kmsKeyId: Deno.env.get('LETTER_RELEASE_KMS_KEY_ID'),
+    kmsKeyId: kmsResolved.status === 'ok' ? kmsResolved.keyId : undefined,
+    kmsKeyInvalid: kmsResolved.status === 'invalid',
   });
   if (decision.kind === 'refuse_fake_key_on_hosted') {
-    console.error('letter-release: refusing fake release key on hosted');
-    return reply(503, { error: 'hosted_refuse_fake_key' });
+    return reply(503, 'hosted_refuse_fake_key');
   }
   if (decision.kind === 'kms_not_configured') {
-    console.error('letter-release: KMS not configured');
-    return reply(503, { error: 'kms_not_configured' });
+    return reply(503, 'kms_not_configured');
+  }
+  if (decision.kind === 'env_invalid') {
+    return reply(503, 'env_invalid');
   }
   if (decision.kind === 'local_key_missing') {
-    return reply(500, { error: 'release_key_missing' });
+    return reply(500, 'release_key_missing');
   }
 
   // 2. Who is asking? (verify_jwt already checked the signature; this names the user.)
@@ -60,7 +81,7 @@ Deno.serve(async (req) => {
     error: userError,
   } = await userClient.auth.getUser();
   if (userError || !user) {
-    return reply(401, { error: 'unauthorized' });
+    return reply(401, 'unauthorized');
   }
 
   let letterId = '';
@@ -68,10 +89,10 @@ Deno.serve(async (req) => {
     const body = await req.json();
     letterId = typeof body?.letter_id === 'string' ? body.letter_id : '';
   } catch {
-    return reply(400, { error: 'bad_body' });
+    return reply(400, 'bad_body');
   }
   if (!UUID.test(letterId)) {
-    return reply(400, { error: 'letter_id_required' });
+    return reply(400, 'letter_id_required');
   }
 
   // 3. Only the letter's recipient, only after trigger_at, only if they have not left.
@@ -83,12 +104,24 @@ Deno.serve(async (req) => {
     p_recipient_id: user.id,
   });
   if (claimError) {
-    console.error('letter-release claim refused', letterId, claimError.code ?? 'unknown');
-    return reply(claimError.code === 'P0002' ? 404 : 403, { error: 'not_allowed' });
+    const detail = classifyLetterReleaseClaimError(
+      claimError.code,
+      typeof claimError.message === 'string' ? claimError.message : undefined,
+    );
+    // Log the precise reason; client body is only not_due or not_allowed.
+    console.error('letter-release', detail, letterId);
+    return new Response(JSON.stringify({ error: clientLetterReleaseClaimError(detail) }), {
+      status: 403,
+      headers: HEADERS,
+    });
   }
   const row = Array.isArray(claimed) ? claimed[0] : claimed;
   if (!row?.ephemeral_public || !row?.sealed_share) {
-    return reply(404, { error: 'not_found' });
+    console.error('letter-release', 'not_found', letterId);
+    return new Response(JSON.stringify({ error: 'not_allowed' }), {
+      status: 403,
+      headers: HEADERS,
+    });
   }
 
   // 4. Open shareP in memory and hand it to the recipient.
@@ -98,7 +131,18 @@ Deno.serve(async (req) => {
     const sealedShare = decodePgBytea(row.sealed_share);
     const version = Number(row.version);
     if (decision.kind === 'kms') {
-      const sharedSecret = await deriveSharedSecretWithKms(decision.keyId, ephemeralPublic);
+      let sharedSecret: Uint8Array;
+      try {
+        sharedSecret = await deriveSharedSecretWithKms(decision.keyId, ephemeralPublic);
+      } catch (error) {
+        // Classify then discard the AWS error — never log message, keyId, or body.
+        const reason = classifyLetterReleaseOpenError(error);
+        return replyWithLetter(
+          reason === 'env_missing' || reason === 'env_invalid' ? 503 : 500,
+          reason,
+          letterId,
+        );
+      }
       try {
         shareP = openShareWithKmsSecret({ sharedSecret, sealedShare, letterId, version });
       } finally {
@@ -119,19 +163,14 @@ Deno.serve(async (req) => {
       p_recipient_id: user.id,
     });
     if (markError) {
-      console.error('letter-release mark failed', letterId, markError.code ?? 'unknown');
-      return reply(403, { error: 'not_allowed' });
+      return replyWithLetter(403, 'mark_failed', letterId);
     }
 
     console.log('letter-release ok', letterId);
-    return reply(200, { share_p_hex: shareToHex(shareP) });
+    return replyOk({ share_p_hex: shareToHex(shareP) });
   } catch (error) {
-    console.error(
-      'letter-release open failed',
-      letterId,
-      error instanceof Error ? error.message : 'unknown',
-    );
-    return reply(500, { error: 'open_failed' });
+    const reason = classifyLetterReleaseOpenError(error);
+    return replyWithLetter(500, reason, letterId);
   } finally {
     shareP?.fill(0);
   }

@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(34);
+SELECT plan(38);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -451,8 +451,17 @@ SELECT throws_ok(
     'b2222222-2222-2222-2222-222222222222'
   )$$,
   '42501',
-  NULL,
-  'claim before trigger_at is refused'
+  'not_due',
+  'claim before trigger_at is not_due'
+);
+SELECT throws_ok(
+  $$SELECT * FROM public.claim_letter_patria_share(
+    'e1111111-1111-1111-1111-111111111111',
+    'd4444444-4444-4444-4444-444444444444'
+  )$$,
+  '42501',
+  'not_recipient',
+  'claim by non-recipient is not_recipient'
 );
 RESET ROLE;
 
@@ -522,6 +531,62 @@ SELECT is(
   'sealed',
   'recipient leave does not release the letter'
 );
+
+-- Claim refuse reasons stay strict after leave / on draft
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+  $$SELECT * FROM public.claim_letter_patria_share(
+    'e3333333-3333-3333-3333-333333333333',
+    'b2222222-2222-2222-2222-222222222222'
+  )$$,
+  '42501',
+  'recipient_left',
+  'claim after recipient left is recipient_left'
+);
+RESET ROLE;
+
+INSERT INTO public.letters (
+  id, family_space_id, author_id, recipient_id, from_label, visibility, trigger_at, status
+)
+SELECT
+  'e4444444-4444-4444-4444-444444444444',
+  space_id,
+  'a1111111-1111-1111-1111-111111111111',
+  'c3333333-3333-3333-3333-333333333333',
+  'Mum',
+  'surprise',
+  now() - interval '1 day',
+  'draft'
+FROM fx;
+
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+  $$SELECT * FROM public.claim_letter_patria_share(
+    'e4444444-4444-4444-4444-444444444444',
+    'c3333333-3333-3333-3333-333333333333'
+  )$$,
+  '42501',
+  'bad_status',
+  'claim on draft is bad_status'
+);
+RESET ROLE;
+
+-- NULL recipient_id (Slice B) must not pass <> as equal; IS DISTINCT FROM → not_recipient.
+ALTER TABLE public.letters ALTER COLUMN recipient_id DROP NOT NULL;
+UPDATE public.letters
+SET recipient_id = NULL
+WHERE id = 'e4444444-4444-4444-4444-444444444444';
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+  $$SELECT * FROM public.claim_letter_patria_share(
+    'e4444444-4444-4444-4444-444444444444',
+    'c3333333-3333-3333-3333-333333333333'
+  )$$,
+  '42501',
+  'not_recipient',
+  'claim with NULL recipient_id is not_recipient (IS DISTINCT FROM)'
+);
+RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;
