@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-05 — Edit letter prefills from author copy
+
+Hosted bug: Edit opened with an empty body. Prefill decrypts via `openLetterAsAuthor` (same path as Read my letter); voice stays attached in memory. Plaintext never logged or stored unencrypted; wiped on leave. If the personal key is locked, show a clear message and do not offer an empty editor. Seal with no content/metadata change keeps the same version and seal code (resealing same plaintext would mint a new CEK/code for no benefit). App-only; no hosted migrate or Edge deploy. Phone test 61 covers prefill + unchanged + edit.
+
 ## 2026-11-05 — Rebase B0 on letters-release-fix: restore seal_letter GUC
 
 After rebase, `20261105120000` replaced `seal_letter` without B0’s `patria.allow_letter_trigger_change` set_config. New migration `20261105150000` restores it (still `IS DISTINCT FROM` on author).

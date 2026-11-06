@@ -466,7 +466,7 @@ Areas: letters
 
 ### 61. Author edit and withdraw
 Areas: letters
-1. As Test 1, open a sealed letter, tap **Edit**, change the body, seal again. Pass if the nav title is **Edit letter**, the edit form matches New letter controls (no duplicate title; visibility field; date chips), the success screen says **Your seal code changed** with the new seal code, and that same code appears on the letter detail screen after Done.
+1. As Test 1, seal a letter, open it, tap **Edit**. Pass if **Your letter** shows the original text (decrypted on this phone). Seal again with no changes: Pass if the seal code is unchanged and the screen says nothing changed. Open **Edit** again, change the body, seal again. Pass if the nav title is **Edit letter**, the success screen says **Your seal code changed** with the new seal code, and that same code appears on the letter detail screen after Done.
 2. Open that letter, tap **Withdraw this letter**, then confirm in the sheet. Pass if it leaves the list. Check the database: the letter row, payload and every share row are gone (events may remain). On the second Simulator as Test 2, Pass if the letter cannot be opened and does not appear.
 
 ### 64. Author changes open day while sealed

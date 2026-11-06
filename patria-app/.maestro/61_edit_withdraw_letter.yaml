@@ -68,6 +68,13 @@ appId: app.patria.dev
           visible:
             id: "screen-letter-sealed"
           timeout: 45000
+      - extendedWaitUntil:
+          visible:
+            id: "letter-seal-code"
+          timeout: 10000
+      - copyTextFrom:
+          id: "letter-seal-code"
+      - evalScript: ${output.originalSealCode = (maestro.copiedText || '').replace(/^.*:\s*/, '').trim()}
       - tapOn:
           id: "letter-sealed-done"
       - extendedWaitUntil:
@@ -88,6 +95,44 @@ appId: app.patria.dev
           visible:
             id: "screen-letter-new"
           timeout: 15000
+      - assertVisible: "Edit letter"
+      - assertVisible: "A letter to edit and withdraw."
+      # Seal with no edits: version and seal code must stay the same.
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 20000
+      - assertVisible:
+          id: "letter-unchanged-kept"
+      - assertNotVisible: "Your seal code changed"
+      - assertVisible:
+          text: ".*${output.originalSealCode}.*"
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+      - tapOn:
+          text: "For Test 2.*"
+      - extendedWaitUntil:
+          visible:
+            id: "edit-letter"
+          timeout: 15000
+      - tapOn:
+          id: "edit-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - assertVisible: "A letter to edit and withdraw."
       - tapOn:
           id: "letter-body"
       - eraseText

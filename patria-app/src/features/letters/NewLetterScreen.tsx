@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Calendar } from 'lucide-react-native';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -37,9 +37,10 @@ import { logFailedAction } from '../../lib/devLog';
 import { routes } from '../../lib/navigation';
 import { useTheme } from '../../theme';
 import { radius, space } from '../../theme/tokens';
-import { VoiceNoteField } from '../vault/VoiceNoteField';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import { defaultTimezone } from '../sync/syncLabels';
+import { formatVoiceTimer } from '../vault/vaultVoice';
+import { VoiceNoteField } from '../vault/VoiceNoteField';
 import {
   addYearsToYmd,
   formatLetterOpenDay,
@@ -59,6 +60,11 @@ import {
   letterWriterReady,
   type LetterVisibility,
 } from './letterApi';
+import {
+  letterEditIsUnchanged,
+  prefillLetterForEdit,
+  type LetterEditBaseline,
+} from './letterEditPrefill';
 import { letterReleaseReadyForSealing } from './letterReleaseConfig';
 import { sealLetterOnDevice } from './letterSeal';
 
@@ -96,15 +102,23 @@ export function NewLetterScreen() {
   const [sealCodeChanged, setSealCodeChanged] = useState(false);
   const [voicePlain, setVoicePlain] = useState<Uint8Array | null>(null);
   const [voiceDuration, setVoiceDuration] = useState<number | null>(null);
+  const [voiceTouched, setVoiceTouched] = useState(false);
+  const [editBaseline, setEditBaseline] = useState<LetterEditBaseline | null>(null);
+  const [editPrefillError, setEditPrefillError] = useState<'locked' | 'failed' | null>(null);
+  const [editPrefillReady, setEditPrefillReady] = useState(!editId);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const voicePlainRef = useRef<Uint8Array | null>(null);
+  voicePlainRef.current = voicePlain;
 
   useEffect(() => {
     return () => {
-      if (voicePlain) {
-        wipe(voicePlain);
+      // SECURITY: never leave decrypted body/voice in memory after leaving Edit.
+      const plain = voicePlainRef.current;
+      if (plain) {
+        wipe(plain);
       }
     };
-  }, [voicePlain]);
+  }, []);
 
   const writerQuery = useQuery({
     queryKey: ['letterWriterReady', spaceId, userId],
@@ -172,21 +186,58 @@ export function NewLetterScreen() {
   const existing = existingQuery.data?.authorId === userId ? existingQuery.data : undefined;
 
   useEffect(() => {
-    if (!existing) {
+    if (!editId || !spaceId || !userId) {
       return;
     }
-    setVisibility(existing.visibility);
-    if (existing.triggerAt) {
-      try {
-        setValue('dateYmd', ymdInZone(existing.triggerAt, timeZone));
-      } catch {
-        // Keep the form default.
+    if (existingQuery.isLoading) {
+      return;
+    }
+    if (!existing) {
+      setEditPrefillError('failed');
+      setEditPrefillReady(true);
+      return;
+    }
+    let cancelled = false;
+    setEditPrefillReady(false);
+    setEditPrefillError(null);
+    void (async () => {
+      const result = await prefillLetterForEdit({
+        letterId: editId,
+        spaceId,
+        userId,
+        timeZone,
+        dateYmdFromTrigger: ymdInZone,
+      });
+      if (cancelled) {
+        if (result.ok && result.voicePlain) {
+          wipe(result.voicePlain);
+        }
+        return;
       }
-    }
-    if (existing.fromLabel) {
-      setValue('fromLabel', existing.fromLabel);
-    }
-  }, [existing, setValue, timeZone]);
+      if (!result.ok) {
+        // Personal key missing/locked → locked; share missing / other → failed.
+        setEditPrefillError(result.reason === 'failed' ? 'locked' : 'failed');
+        setEditPrefillReady(true);
+        return;
+      }
+      setVisibility(result.baseline.visibility);
+      setValue('fromLabel', result.baseline.fromLabel);
+      setValue('body', result.baseline.body);
+      setValue('dateYmd', result.baseline.dateYmd);
+      setRecipientId(result.baseline.recipientId);
+      if (voicePlainRef.current) {
+        wipe(voicePlainRef.current);
+      }
+      setVoicePlain(result.voicePlain);
+      setVoiceDuration(result.voiceDurationSeconds);
+      setVoiceTouched(false);
+      setEditBaseline(result.baseline);
+      setEditPrefillReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, spaceId, userId, existing, existingQuery.isLoading, timeZone, setValue]);
 
   const candidates = useMemo(() => {
     return (membersQuery.data ?? []).filter((m) => m.userId !== userId);
@@ -225,16 +276,49 @@ export function NewLetterScreen() {
       setFormError(copy.letters.releaseNotReady);
       return;
     }
+    if (editId && editPrefillError) {
+      setFormError(
+        editPrefillError === 'locked' ? copy.letters.editLocked : copy.letters.editLoadFailed,
+      );
+      return;
+    }
     if (!spaceId || !userId || !effectiveRecipientId) {
       setFormError(copy.letters.sealNeedRecipient);
       return;
     }
     if (!values.body.trim() && !(voicePlain && voiceDuration)) {
+      // Never overwrite a sealed letter with an empty accidental save.
       setFormError(copy.letters.sealNeedContent);
       return;
     }
     if (!isValidYmd(values.dateYmd) || !isAfterToday(values.dateYmd, timeZone)) {
       setFormError(copy.letters.dateInPast);
+      return;
+    }
+    const fromLabel =
+      values.fromLabel.trim() || existing?.fromLabel || nameQuery.data || 'Family';
+    if (
+      editId &&
+      editBaseline &&
+      letterEditIsUnchanged(editBaseline, {
+        body: values.body,
+        fromLabel,
+        visibility,
+        dateYmd: values.dateYmd,
+        recipientId: effectiveRecipientId,
+        voiceDurationSeconds: voiceDuration,
+        hasVoice: Boolean(voicePlain && voiceDuration),
+        voiceTouched,
+      })
+    ) {
+      // Same content and metadata: do not bump version or mint a new seal code.
+      const name =
+        readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
+        copy.letters.formerMember;
+      setSealCodeChanged(false);
+      setSealedName(name);
+      setSealedDate(formatLetterOpenDay(values.dateYmd, timeZone));
+      setSealedFingerprint(editBaseline.fingerprint);
       return;
     }
     setSealing(true);
@@ -245,13 +329,13 @@ export function NewLetterScreen() {
         familySpaceId: spaceId,
         authorId: userId,
         recipientId: effectiveRecipientId,
-        fromLabel: values.fromLabel.trim() || existing?.fromLabel || nameQuery.data || 'Family',
+        fromLabel,
         visibility,
         triggerAt,
         body: values.body.trim(),
         voicePlain,
         voiceDurationSeconds: voiceDuration,
-        previousVersion: existing?.version,
+        previousVersion: existing?.version ?? editBaseline?.version,
         createDraft: !editId,
       });
       if (!result.ok) {
@@ -269,16 +353,35 @@ export function NewLetterScreen() {
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+      await queryClient.invalidateQueries({ queryKey: ['letter', letterId] });
       const name =
         readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
         copy.letters.formerMember;
-      const previousCode = existing?.fingerprint?.trim() ?? '';
+      const previousCode =
+        editBaseline?.fingerprint?.trim() || existing?.fingerprint?.trim() || '';
       setSealCodeChanged(
         Boolean(editId && previousCode && previousCode !== result.fingerprint),
       );
       setSealedName(name);
       setSealedDate(formatLetterOpenDay(values.dateYmd, timeZone));
       setSealedFingerprint(result.fingerprint);
+      setEditBaseline((prev) =>
+        prev
+          ? {
+              ...prev,
+              body: values.body.trim(),
+              fromLabel,
+              visibility,
+              dateYmd: values.dateYmd,
+              recipientId: effectiveRecipientId,
+              hadVoice: Boolean(voicePlain && voiceDuration),
+              voiceDurationSeconds: voiceDuration,
+              fingerprint: result.fingerprint,
+              version: result.version,
+            }
+          : prev,
+      );
+      setVoiceTouched(false);
     } catch (error) {
       logFailedAction(error);
       setFormError(copy.letters.sealFailed);
@@ -302,10 +405,16 @@ export function NewLetterScreen() {
     }
   };
 
-  if (!spaceId || !userId || writerQuery.isLoading || membersQuery.isLoading) {
+  if (
+    !spaceId ||
+    !userId ||
+    writerQuery.isLoading ||
+    membersQuery.isLoading ||
+    (editId && (existingQuery.isLoading || !editPrefillReady))
+  ) {
     return (
       <Screen withHeader testID="screen-letter-new">
-        <LoadingState message={copy.common.loading} />
+        <LoadingState message={editId ? copy.letters.editLoading : copy.common.loading} />
       </Screen>
     );
   }
@@ -329,18 +438,42 @@ export function NewLetterScreen() {
     );
   }
 
+  if (editId && editPrefillError) {
+    return (
+      <Screen withHeader testID="screen-letter-new">
+        <View testID="letter-edit-locked">
+          <Banner
+            tone="warning"
+            message={
+              editPrefillError === 'locked' ? copy.letters.editLocked : copy.letters.editLoadFailed
+            }
+          />
+        </View>
+        <Button
+          label={copy.common.back}
+          variant="secondary"
+          onPress={() => router.back()}
+          testID="letter-edit-back"
+        />
+      </Screen>
+    );
+  }
+
   if (sealedFingerprint && sealedName && sealedDate) {
+    const unchangedKeep = Boolean(editId) && !sealCodeChanged && Boolean(editBaseline);
     return (
       <Screen withHeader testID="screen-letter-sealed">
         <Title>
           {sealCodeChanged ? copy.letters.sealCodeChangedTitle : copy.letters.sealedTitle}
         </Title>
-        <Body>
+        <Body testID={unchangedKeep ? 'letter-unchanged-kept' : undefined}>
           {sealCodeChanged
             ? copy.letters.sealCodeChangedBody.replace('{date}', sealedDate)
-            : copy.letters.sealedBody
-                .replace('{name}', sealedName)
-                .replace('{date}', sealedDate)}
+            : unchangedKeep
+              ? copy.letters.unchangedKept
+              : copy.letters.sealedBody
+                  .replace('{name}', sealedName)
+                  .replace('{date}', sealedDate)}
         </Body>
         <View
           testID="letter-seal-code"
@@ -418,6 +551,11 @@ export function NewLetterScreen() {
 
       <View style={styles.voiceBlock}>
         <Caption>{copy.letters.voiceOptional}</Caption>
+        {voicePlain && voiceDuration != null ? (
+          <Caption testID="letter-voice-attached">
+            {copy.letters.voiceAttached.replace('{length}', formatVoiceTimer(voiceDuration))}
+          </Caption>
+        ) : null}
         <ButtonStack>
           <VoiceNoteField
             durationSeconds={voiceDuration}
@@ -430,6 +568,7 @@ export function NewLetterScreen() {
               }
               setVoicePlain(draft.plain);
               setVoiceDuration(draft.durationSeconds);
+              setVoiceTouched(true);
             }}
             onRemove={() => {
               if (voicePlain) {
@@ -437,6 +576,7 @@ export function NewLetterScreen() {
               }
               setVoicePlain(null);
               setVoiceDuration(null);
+              setVoiceTouched(true);
             }}
           />
         </ButtonStack>

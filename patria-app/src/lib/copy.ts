@@ -771,6 +771,13 @@ export const copy = {
     voiceLine: 'Voice note {length}',
     newTitle: 'New letter',
     editTitle: 'Edit letter',
+    editLoading: 'Opening your letter…',
+    editLocked:
+      'We couldn’t open this letter on this phone. Unlock your family key, then try Edit again.',
+    editLoadFailed: 'We couldn’t open this letter to edit. Try again from the letter screen.',
+    voiceAttached: 'Voice note attached ({length})',
+    unchangedKept:
+      'Nothing changed, so the seal code stays the same. Your letter is still sealed.',
     toLabel: 'Who is this for?',
     noRecipients:
       'Nobody can receive a letter yet. Family members need to set up recovery and open Patria once after this update.',
