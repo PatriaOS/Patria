@@ -142,7 +142,10 @@ export function scenarioForTest(testNumber) {
     testNumber === 61 ||
     testNumber === 62 ||
     testNumber === 63 ||
-    testNumber === 64
+    testNumber === 64 ||
+    testNumber === 65 ||
+    testNumber === 66 ||
+    testNumber === 67
   ) {
     return 'admin-elders';
   }
@@ -662,7 +665,7 @@ export function mapFileToAreas(file) {
     areas.add('keys');
   }
   if (
-    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint/.test(
+    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint|65_add_birthday|66_seal_age|67_age_seal/.test(
       n,
     )
   ) {

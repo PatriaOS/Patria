@@ -651,7 +651,7 @@ function seedLetIn(memberN, device) {
 }
 
 function seedLettersReady() {
-  // e2e-setup must use admin-elders for 59–64 so Test 2 is on Family before this runs.
+  // e2e-setup must use admin-elders for 59–67 so Test 2 is on Family before this runs.
   // Family key wraps, let-in for the recipient, then Home so letterbox keys exist.
   // Test 3 is only a SQL recovery contact — no phone let-in needed for seal/open.
   seedAdminKeys();
@@ -674,13 +674,14 @@ function seedLettersReady() {
 
 function seedBeforeYouStart(testNumber) {
   if (
-    ![9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64].includes(
-      testNumber,
-    )
+    ![
+      9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
+      67,
+    ].includes(testNumber)
   ) {
     return;
   }
-  if ([59, 60, 61, 62, 63, 64].includes(testNumber)) {
+  if ([59, 60, 61, 62, 63, 64, 65, 66, 67].includes(testNumber)) {
     seedLettersReady();
     return;
   }
@@ -929,7 +930,7 @@ try {
     testDeadline =
       Date.now() +
       timeoutMsForTest(test.number) +
-      ([9, 10, 11, 13, 30, 34, 59, 60, 61, 62, 63].includes(test.number)
+      ([9, 10, 11, 13, 30, 34, 59, 60, 61, 62, 63, 64, 65, 66, 67].includes(test.number)
         ? 15 * 60 * 1000
         : 0);
     try {
@@ -984,9 +985,10 @@ try {
     }
 
     if (
-      [9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64].includes(
-        test.number,
-      )
+      [
+        9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
+        67,
+      ].includes(test.number)
     ) {
       try {
         seedBeforeYouStart(test.number);
@@ -2677,6 +2679,63 @@ try {
           flow: flow('64_change_open_date.yaml'),
           device: deviceB,
           env: { ...signInEnv(secrets, 2), PHASE: 'recipient', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 65) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 65 needs 2 simulators (E2E_DEVICES=2) for Test 2 Profile.');
+      }
+      step(65, 1, 'Add birthday in Profile', () => {
+        maestro({
+          flow: flow('65_add_birthday.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 66) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 66 needs 2 simulators (E2E_DEVICES=2) for Test 2 birthday.');
+      }
+      step(66, 1, 'Recipient birthday then age form shows no date', () => {
+        maestro({
+          flow: flow('66_seal_age_letter.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_birthday', E2E_STAY: '1' },
+        });
+        maestro({
+          flow: flow('66_seal_age_letter.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'author_seal', E2E_STAY: '1' },
+        });
+      });
+      step(66, 2, 'Confirm and list show birthday copy only', () => result('pass'));
+    }
+
+    if (test.number === 67) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 67 needs 2 simulators (E2E_DEVICES=2) for refusal steps.');
+      }
+      step(67, 1, 'Refuse age seal with no birthday', () => {
+        maestro({
+          flow: flow('67_age_seal_refusals.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'no_dob', E2E_STAY: '1' },
+        });
+      });
+      step(67, 2, 'Refuse age seal when already that age', () => {
+        maestro({
+          flow: flow('67_age_seal_refusals.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'set_old_birthday', E2E_STAY: '1' },
+        });
+        maestro({
+          flow: flow('67_age_seal_refusals.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'already', E2E_STAY: '1' },
         });
       });
     }

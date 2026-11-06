@@ -474,6 +474,24 @@ Areas: letters
 1. As Test 1, seal an **Announced** letter to Test 2. Open it, tap **Change open day**. Pass if the sheet preview matches the wheel (family time zone, not device/UTC) and the earliest day is tomorrow in the family zone. Save without changing: Pass if the open day on detail is unchanged and the seal code is unchanged.
 2. On the second Simulator as Test 2, open that letter. Pass if the waiting stub shows and there is no **Change open day** control.
 
+## Letters to the Future Slice B1 (D43 age triggers)
+
+Adult birthday on Profile; age letters for member recipients. Author never sees the DOB or computed date. Child recipients wait for B4.
+
+### 65. Add birthday
+Areas: letters, navigation
+1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if **Birthday** is shown. Enter `2015-06-15`, tap **Save**. Pass if **Saved.** appears.
+
+### 66. Seal an age letter
+Areas: letters
+1. On the second Simulator as Test 2, save a birthday in **Profile** (isolated; do not rely on test 65). As Test 1, write a letter to Test 2, set **Opens by** to **Age**, enter `18`. Pass if the form shows **Opens on Test 2's 18th birthday** and does **not** show a calendar date (no month name or year from the birthday).
+2. Tap **Seal this letter**. Pass if confirm and the letter list show **Test 2's 18th birthday** and never a calendar date for the author.
+
+### 67. Age seal refusals
+Areas: letters
+1. As Test 1, try to seal an age letter to Test 2 before Test 2 has a birthday. Pass if the form shows **Ask Test 2 to add their birthday in their profile first** and the letter is not sealed. Pass if Test 2 is not notified (no letter row as recipient).
+2. On the second Simulator as Test 2, save birthday `1990-01-01`. As Test 1, try age `18` again. Pass if the form shows **Test 2 is already that age or older** and the letter is not sealed.
+
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys
 1. Seal a surprise letter with a voice note (**Record**); e2e then sets `trigger_at` in the past and calls `mark_due_letters`. Sign in as the recipient on the second Simulator. Pass if the letter appears as Opening / ready.

@@ -43,6 +43,7 @@ import { formatVoiceTimer } from '../vault/vaultVoice';
 import { VoiceNoteField } from '../vault/VoiceNoteField';
 import {
   addYearsToYmd,
+  formatAgeOpenLabel,
   formatLetterOpenDay,
   friendlyTimeZoneName,
   isAfterToday,
@@ -58,6 +59,7 @@ import {
   fetchLetter,
   letterRecipientReady,
   letterWriterReady,
+  type LetterTriggerKind,
   type LetterVisibility,
 } from './letterApi';
 import {
@@ -73,9 +75,22 @@ const schema = z.object({
   fromLabel: z.string().trim().max(80),
   body: z.string().trim().max(20000),
   dateYmd: z.string().trim().min(1),
+  triggerAge: z.string().trim(),
 });
 
 type FormValues = z.infer<typeof schema>;
+
+function parseAgeInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 1 || n > 120) {
+    return null;
+  }
+  return n;
+}
 
 export function NewLetterScreen() {
   const router = useRouter();
@@ -94,6 +109,7 @@ export function NewLetterScreen() {
   }, [editId, navigation]);
   const [recipientId, setRecipientId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<LetterVisibility>('surprise');
+  const [triggerKind, setTriggerKind] = useState<LetterTriggerKind>('date');
   const [sealing, setSealing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [sealedFingerprint, setSealedFingerprint] = useState<string | null>(null);
@@ -172,10 +188,12 @@ export function NewLetterScreen() {
       fromLabel: '',
       body: '',
       dateYmd: addYearsToYmd(todayYmd, 1),
+      triggerAge: '18',
     },
   });
   const bodyValue = watch('body');
   const dateYmd = watch('dateYmd');
+  const triggerAgeRaw = watch('triggerAge');
 
   useEffect(() => {
     if (nameQuery.data && !getValues('fromLabel') && !existingQuery.data) {
@@ -221,9 +239,14 @@ export function NewLetterScreen() {
         return;
       }
       setVisibility(result.baseline.visibility);
+      setTriggerKind(result.baseline.triggerKind);
       setValue('fromLabel', result.baseline.fromLabel);
       setValue('body', result.baseline.body);
-      setValue('dateYmd', result.baseline.dateYmd);
+      if (result.baseline.triggerKind === 'date') {
+        setValue('dateYmd', result.baseline.dateYmd);
+      } else if (result.baseline.triggerAge != null) {
+        setValue('triggerAge', String(result.baseline.triggerAge));
+      }
       setRecipientId(result.baseline.recipientId);
       if (voicePlainRef.current) {
         wipe(voicePlainRef.current);
@@ -262,6 +285,14 @@ export function NewLetterScreen() {
   // Default to the first ready recipient without an effect (lint: no setState in effect).
   const effectiveRecipientId =
     recipientId ?? existing?.recipientId ?? readyMembers[0]?.userId ?? null;
+  const recipientName =
+    readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
+    copy.letters.formerMember;
+  const ageValue = parseAgeInput(triggerAgeRaw);
+  const ageOpenPreview =
+    triggerKind === 'age' && ageValue != null
+      ? formatAgeOpenLabel(recipientName, ageValue)
+      : null;
   const hasContent = Boolean(bodyValue?.trim()) || Boolean(voicePlain && voiceDuration);
   const sealBlockedReason = !effectiveRecipientId
     ? copy.letters.sealNeedRecipient
@@ -291,12 +322,22 @@ export function NewLetterScreen() {
       setFormError(copy.letters.sealNeedContent);
       return;
     }
-    if (!isValidYmd(values.dateYmd) || !isAfterToday(values.dateYmd, timeZone)) {
-      setFormError(copy.letters.dateInPast);
+    const parsedAge = parseAgeInput(values.triggerAge);
+    if (triggerKind === 'date') {
+      if (!isValidYmd(values.dateYmd) || !isAfterToday(values.dateYmd, timeZone)) {
+        setFormError(copy.letters.dateInPast);
+        return;
+      }
+    } else if (parsedAge == null) {
+      setFormError(copy.letters.ageInvalid);
       return;
     }
     const fromLabel =
       values.fromLabel.trim() || existing?.fromLabel || nameQuery.data || 'Family';
+    const openLabel =
+      triggerKind === 'age' && parsedAge != null
+        ? formatAgeOpenLabel(recipientName, parsedAge)
+        : formatLetterOpenDay(values.dateYmd, timeZone);
     if (
       editId &&
       editBaseline &&
@@ -304,7 +345,9 @@ export function NewLetterScreen() {
         body: values.body,
         fromLabel,
         visibility,
+        triggerKind,
         dateYmd: values.dateYmd,
+        triggerAge: parsedAge,
         recipientId: effectiveRecipientId,
         voiceDurationSeconds: voiceDuration,
         hasVoice: Boolean(voicePlain && voiceDuration),
@@ -312,18 +355,14 @@ export function NewLetterScreen() {
       })
     ) {
       // Same content and metadata: do not bump version or mint a new seal code.
-      const name =
-        readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
-        copy.letters.formerMember;
       setSealCodeChanged(false);
-      setSealedName(name);
-      setSealedDate(formatLetterOpenDay(values.dateYmd, timeZone));
+      setSealedName(recipientName);
+      setSealedDate(openLabel);
       setSealedFingerprint(editBaseline.fingerprint);
       return;
     }
     setSealing(true);
     try {
-      const triggerAt = zonedMidnightIso(values.dateYmd, timeZone);
       const result = await sealLetterOnDevice({
         letterId,
         familySpaceId: spaceId,
@@ -331,7 +370,10 @@ export function NewLetterScreen() {
         recipientId: effectiveRecipientId,
         fromLabel,
         visibility,
-        triggerAt,
+        triggerKind,
+        triggerAt:
+          triggerKind === 'date' ? zonedMidnightIso(values.dateYmd, timeZone) : null,
+        triggerAge: triggerKind === 'age' ? parsedAge : null,
         body: values.body.trim(),
         voicePlain,
         voiceDurationSeconds: voiceDuration,
@@ -339,6 +381,18 @@ export function NewLetterScreen() {
         createDraft: !editId,
       });
       if (!result.ok) {
+        if (result.reason === 'age_no_dob') {
+          setFormError(
+            copy.letters.ageNoDob.replace('{name}', result.recipientName ?? recipientName),
+          );
+          return;
+        }
+        if (result.reason === 'age_already') {
+          setFormError(
+            copy.letters.ageAlready.replace('{name}', result.recipientName ?? recipientName),
+          );
+          return;
+        }
         const base =
           result.reason === 'too_large'
             ? copy.letters.sealTooLarge
@@ -354,16 +408,13 @@ export function NewLetterScreen() {
       }
       await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
       await queryClient.invalidateQueries({ queryKey: ['letter', letterId] });
-      const name =
-        readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
-        copy.letters.formerMember;
       const previousCode =
         editBaseline?.fingerprint?.trim() || existing?.fingerprint?.trim() || '';
       setSealCodeChanged(
         Boolean(editId && previousCode && previousCode !== result.fingerprint),
       );
-      setSealedName(name);
-      setSealedDate(formatLetterOpenDay(values.dateYmd, timeZone));
+      setSealedName(recipientName);
+      setSealedDate(openLabel);
       setSealedFingerprint(result.fingerprint);
       setEditBaseline((prev) =>
         prev
@@ -372,7 +423,9 @@ export function NewLetterScreen() {
               body: values.body.trim(),
               fromLabel,
               visibility,
+              triggerKind,
               dateYmd: values.dateYmd,
+              triggerAge: parsedAge,
               recipientId: effectiveRecipientId,
               hadVoice: Boolean(voicePlain && voiceDuration),
               voiceDurationSeconds: voiceDuration,
@@ -604,56 +657,103 @@ export function NewLetterScreen() {
         ]}
       />
 
-      <View style={styles.field}>
-        <Small tone="muted">{copy.letters.dateLabel}</Small>
-        <Pressable
-          testID="letter-date"
-          accessibilityRole="button"
-          accessibilityLabel={`${copy.letters.dateLabel}: ${formatLetterOpenDay(dateYmd, timeZone)}`}
-          onPress={() => setDatePickerOpen(true)}
-          style={[
-            styles.dateTrigger,
-            { backgroundColor: colors.surface, borderColor: colors.hairline },
-          ]}
-        >
-          <Body style={styles.dateLabel}>{formatLetterOpenDay(dateYmd, timeZone)}</Body>
-          <Icon icon={Calendar} name="calendar" size={20} color={colors.textMuted} />
-        </Pressable>
-        <View
-          accessible
-          accessibilityLabel={copy.letters.dateHint.replace('{zone}', zoneLabel)}
-          accessibilityHint={timeZone}
-        >
-          <Caption tone="muted">{copy.letters.dateHint.replace('{zone}', zoneLabel)}</Caption>
+      <SelectField
+        label={copy.letters.opensByLabel}
+        value={triggerKind}
+        testID="letter-trigger-kind"
+        sheetTestID="letter-trigger-kind-sheet"
+        onChange={setTriggerKind}
+        options={[
+          {
+            value: 'date',
+            label: copy.letters.opensByDate,
+            description: copy.letters.opensByDateHint,
+            testID: 'trigger-kind-date',
+          },
+          {
+            value: 'age',
+            label: copy.letters.opensByAge,
+            description: copy.letters.opensByAgeHint,
+            testID: 'trigger-kind-age',
+          },
+        ]}
+      />
+
+      {triggerKind === 'date' ? (
+        <View style={styles.field}>
+          <Small tone="muted">{copy.letters.dateLabel}</Small>
+          <Pressable
+            testID="letter-date"
+            accessibilityRole="button"
+            accessibilityLabel={`${copy.letters.dateLabel}: ${formatLetterOpenDay(dateYmd, timeZone)}`}
+            onPress={() => setDatePickerOpen(true)}
+            style={[
+              styles.dateTrigger,
+              { backgroundColor: colors.surface, borderColor: colors.hairline },
+            ]}
+          >
+            <Body style={styles.dateLabel}>{formatLetterOpenDay(dateYmd, timeZone)}</Body>
+            <Icon icon={Calendar} name="calendar" size={20} color={colors.textMuted} />
+          </Pressable>
+          <View
+            accessible
+            accessibilityLabel={copy.letters.dateHint.replace('{zone}', zoneLabel)}
+            accessibilityHint={timeZone}
+          >
+            <Caption tone="muted">{copy.letters.dateHint.replace('{zone}', zoneLabel)}</Caption>
+          </View>
+          <View style={styles.chipRow}>
+            <ChoiceChip
+              label={copy.letters.inOneYear}
+              selected={dateYmd === addYearsToYmd(todayYmd, 1)}
+              onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 1))}
+              testID="letter-date-1y"
+            />
+            <ChoiceChip
+              label={copy.letters.inFiveYears}
+              selected={dateYmd === addYearsToYmd(todayYmd, 5)}
+              onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 5))}
+              testID="letter-date-5y"
+            />
+            <ChoiceChip
+              label={copy.letters.inTenYears}
+              selected={dateYmd === addYearsToYmd(todayYmd, 10)}
+              onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 10))}
+              testID="letter-date-10y"
+            />
+          </View>
         </View>
-        <View style={styles.chipRow}>
-          <ChoiceChip
-            label={copy.letters.inOneYear}
-            selected={dateYmd === addYearsToYmd(todayYmd, 1)}
-            onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 1))}
-            testID="letter-date-1y"
+      ) : (
+        <View style={styles.field}>
+          <Controller
+            control={control}
+            name="triggerAge"
+            render={({ field: { value, onChange } }) => (
+              <Field
+                label={copy.letters.ageLabel}
+                value={value}
+                onChangeText={onChange}
+                placeholder={copy.letters.agePlaceholder}
+                keyboardType="number-pad"
+                testID="letter-age"
+              />
+            )}
           />
-          <ChoiceChip
-            label={copy.letters.inFiveYears}
-            selected={dateYmd === addYearsToYmd(todayYmd, 5)}
-            onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 5))}
-            testID="letter-date-5y"
-          />
-          <ChoiceChip
-            label={copy.letters.inTenYears}
-            selected={dateYmd === addYearsToYmd(todayYmd, 10)}
-            onPress={() => setValue('dateYmd', addYearsToYmd(todayYmd, 10))}
-            testID="letter-date-10y"
-          />
+          <Caption tone="muted">{copy.letters.ageHint}</Caption>
+          {ageOpenPreview ? (
+            <Body testID="letter-age-preview">
+              {copy.letters.ageOpenLine.replace('{label}', ageOpenPreview)}
+            </Body>
+          ) : null}
         </View>
-      </View>
+      )}
 
       {datePickerOpen && Platform.OS === 'android' ? (
         <DateTimePicker
-            value={ymdToPickerDate(dateYmd)}
-            mode="date"
-            display="default"
-            minimumDate={ymdToPickerDate(minYmd)}
+          value={ymdToPickerDate(dateYmd)}
+          mode="date"
+          display="default"
+          minimumDate={ymdToPickerDate(minYmd)}
           onChange={onPickerChange}
         />
       ) : null}
@@ -666,10 +766,10 @@ export function NewLetterScreen() {
           accessibilityLabel={copy.letters.dateLabel}
         >
           <DateTimePicker
-          value={ymdToPickerDate(dateYmd)}
-          mode="date"
-          display="spinner"
-          minimumDate={ymdToPickerDate(minYmd)}
+            value={ymdToPickerDate(dateYmd)}
+            mode="date"
+            display="spinner"
+            minimumDate={ymdToPickerDate(minYmd)}
             onChange={onPickerChange}
             style={styles.iosPicker}
           />
@@ -681,7 +781,11 @@ export function NewLetterScreen() {
         </SheetModal>
       ) : null}
 
-      {formError ? <ErrorState message={formError} /> : null}
+      {formError ? (
+        <View testID="letter-form-error">
+          <ErrorState message={formError} />
+        </View>
+      ) : null}
 
       <ButtonStack>
         <Button

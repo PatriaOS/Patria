@@ -877,12 +877,15 @@ stateDiagram-v2
 
 **Slice B0 (D43).** Polish: seal-code-changed copy after edit; open day with weekday+year; author-only `set_letter_open_date` while sealed (pgTAP); `trigger_at` column UPDATE revoked from authenticated (GUC alone cannot bypass); after open, title is “A letter from {name}”; `pg_cron` schedule fails loudly if missing. Keepers, age, early release, child/guardian wait for later B slices.
 
+**Slice B1 (D43).** Adult `profiles.date_of_birth` (self + admin via RPC; no column SELECT). New letter **Opens by** Date or Age; `seal_letter` computes age `trigger_at` server-side (family TZ; Feb 29 → Mar 1); stores `trigger_kind`/`trigger_age`/`trigger_dob_snapshot`; author never receives DOB or computed date (`letters_for_api`). Refuse no birthday / already that age without notifying the recipient. Author copy “Opens on {name}'s Nth birthday”. `set_letter_age` while sealed (snapshot freeze). Child recipients wait for B4.
+
 **Backlog (own design, not Slice B keepers):** Letters to your future self — author is also recipient; no author CEK copy so the letter stays sealed until the open day; requires relaxing `letters_author_ne_recipient` after a dedicated design pass.
 
 **Acceptance criteria (definition of done)**
 
 * [ ] Sealed content is unreadable by anyone, including Patria, before release (verified by security review).
 * [x] Date triggers release within 1 hour of the trigger time (Slice A; age in Slice B).
+* [x] Age triggers compute `trigger_at` server-side from a frozen DOB snapshot; author never reads DOB or the date (B1; phone tests 65–67).
 * [x] Tamper evident hash is shown on release and matches the sealed version (Slice A phone tests 59+).
 * [x] Surprise recipients see no letter row before release; announced recipients see From and open date only (pgTAP).
 * [x] Withdraw destroys content and shares; letter_events remain (pgTAP).
@@ -892,6 +895,7 @@ stateDiagram-v2
 * [x] Authenticated clients cannot UPDATE `trigger_at` even after setting the allow GUC (B0 column revoke + pgTAP).
 * [x] After the recipient opens, the detail title is “A letter from {name}” with the seal code line kept (B0).
 * [x] `patria-mark-due-letters` migration fails if `pg_cron` is missing (B0).
+* [x] Adult birthday is readable only by self and family admins; DOB edits never move a sealed age `trigger_at` (B1 pgTAP).
 
 **Data captured:** Encrypted letter, recipients, trigger, confirmer, state history.
 

@@ -1,0 +1,30 @@
+# PHONE_TESTS: 65
+# AREAS: letters, navigation
+# Test 2 saves a birthday in Profile so age letters can be sealed to them.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "home-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-profile"
+    timeout: 10000
+- tapOn:
+    id: "menu-profile"
+- extendedWaitUntil:
+    visible:
+      id: "screen-profile"
+    timeout: 15000
+- tapOn:
+    id: "profile-birthday"
+- eraseText
+- inputText: "2015-06-15"
+- tapOn:
+    id: "profile-save"
+- extendedWaitUntil:
+    visible: "Saved."
+    timeout: 15000
+- assertVisible:
+    id: "screen-profile"

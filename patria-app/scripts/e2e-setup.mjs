@@ -306,7 +306,10 @@ if (
   testNumber === 61 ||
   testNumber === 62 ||
   testNumber === 63 ||
-  testNumber === 64
+  testNumber === 64 ||
+  testNumber === 65 ||
+  testNumber === 66 ||
+  testNumber === 67
 ) {
   const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
   const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));
@@ -331,7 +334,10 @@ if (
     testNumber === 61 ||
     testNumber === 62 ||
     testNumber === 63 ||
-    testNumber === 64
+    testNumber === 64 ||
+    testNumber === 65 ||
+    testNumber === 66 ||
+    testNumber === 67
   ) {
     sql(
       dbUrl,
@@ -345,6 +351,15 @@ if (
        ) VALUES (
          '${spaceId}', '${contactA.userId}', decode(repeat('cd', 32), 'hex'), 1
        );`,
+    );
+  }
+  // Test 67 no_dob: clear leftover birthday from 65/66 (profiles persist across family resets).
+  if (testNumber === 67) {
+    sql(
+      dbUrl,
+      `UPDATE public.profiles
+          SET date_of_birth = NULL
+        WHERE id = '${contactA.userId}';`,
     );
   }
 }

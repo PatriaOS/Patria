@@ -4,14 +4,16 @@
  * in memory only (never AsyncStorage, never log, never upload until reseal).
  */
 import { wipe } from '../../lib/crypto/bytes';
-import type { LetterVisibility } from './letterApi';
+import type { LetterTriggerKind, LetterVisibility } from './letterApi';
 import { openLetterAsAuthor } from './letterOpen';
 
 export type LetterEditBaseline = {
   body: string;
   fromLabel: string;
   visibility: LetterVisibility;
+  triggerKind: LetterTriggerKind;
   dateYmd: string;
+  triggerAge: number | null;
   recipientId: string;
   hadVoice: boolean;
   voiceDurationSeconds: number | null;
@@ -23,7 +25,9 @@ export type LetterEditCurrent = {
   body: string;
   fromLabel: string;
   visibility: LetterVisibility;
+  triggerKind: LetterTriggerKind;
   dateYmd: string;
+  triggerAge: number | null;
   recipientId: string | null;
   voiceDurationSeconds: number | null;
   hasVoice: boolean;
@@ -47,7 +51,13 @@ export function letterEditIsUnchanged(
   if (current.visibility !== baseline.visibility) {
     return false;
   }
-  if (current.dateYmd !== baseline.dateYmd) {
+  if (current.triggerKind !== baseline.triggerKind) {
+    return false;
+  }
+  if (current.triggerKind === 'date' && current.dateYmd !== baseline.dateYmd) {
+    return false;
+  }
+  if (current.triggerKind === 'age' && current.triggerAge !== baseline.triggerAge) {
     return false;
   }
   if (current.recipientId !== baseline.recipientId) {
@@ -98,14 +108,22 @@ export async function prefillLetterForEdit(input: {
   // If content said there was audio but open failed to attach bytes, treat as no voice
   // rather than a half-attached note the author might reseal empty.
   const hadVoice = Boolean(voicePlain && voiceDurationSeconds != null);
-  let dateYmd: string;
-  try {
-    dateYmd = input.dateYmdFromTrigger(letter.triggerAt, input.timeZone);
-  } catch {
-    if (voicePlain) {
-      wipe(voicePlain);
+  let dateYmd = '';
+  if (letter.triggerKind === 'date') {
+    if (!letter.triggerAt) {
+      if (voicePlain) {
+        wipe(voicePlain);
+      }
+      return { ok: false, reason: 'failed' };
     }
-    return { ok: false, reason: 'failed' };
+    try {
+      dateYmd = input.dateYmdFromTrigger(letter.triggerAt, input.timeZone);
+    } catch {
+      if (voicePlain) {
+        wipe(voicePlain);
+      }
+      return { ok: false, reason: 'failed' };
+    }
   }
   return {
     ok: true,
@@ -116,7 +134,9 @@ export async function prefillLetterForEdit(input: {
       body,
       fromLabel: letter.fromLabel,
       visibility: letter.visibility,
+      triggerKind: letter.triggerKind,
       dateYmd,
+      triggerAge: letter.triggerAge,
       recipientId: letter.recipientId,
       hadVoice,
       voiceDurationSeconds: hadVoice ? voiceDurationSeconds : null,

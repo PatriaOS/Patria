@@ -3,8 +3,8 @@ import { View } from 'react-native';
 import { Body, Caption, ChoiceChip, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import { space } from '../../theme/tokens';
-import { formatLetterDate } from './letterDates';
 import type { LetterRow } from './letterApi';
+import { letterOpensOnLabel } from './letterOpenLabel';
 
 type Props = {
   letters: LetterRow[];
@@ -31,9 +31,10 @@ export function LeaveLettersChoice({
       <Caption>{copy.letters.leaveBody}</Caption>
       {letters.map((letter) => {
         const withdraw = withdrawChosen.has(letter.id);
+        const name = recipientName(letter.recipientId);
         const line = copy.letters.leaveLetterRow
-          .replace('{name}', recipientName(letter.recipientId))
-          .replace('{date}', formatLetterDate(letter.triggerAt, timeZone));
+          .replace('{name}', name)
+          .replace('{date}', letterOpensOnLabel(letter, name, timeZone));
         return (
           <View key={letter.id} style={{ gap: space.xs }}>
             <Body>{line}</Body>

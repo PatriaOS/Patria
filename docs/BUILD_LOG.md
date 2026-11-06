@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-06 — LEG02 Slice B1 age triggers (member recipients)
+
+Adult `profiles.date_of_birth` with no authenticated column SELECT; self/admin read via `profile_date_of_birth`. Compose **Opens by** Date|Age; `seal_letter` computes age `trigger_at` in the family zone (Feb 29 → Mar 1), stores `trigger_age` + `trigger_dob_snapshot`. `letters_for_api` redacts `trigger_at` for age authors; snapshot SELECT revoked. Refuse no DOB / already that age without notifying. Author UI: “Opens on {name}'s Nth birthday”. `set_letter_age` recomputes from snapshot only; Change open day stays date-only. Profile screen for birthday. Phone tests 65–67. No hosted migrate until dry-run OK. Child recipients deferred to B4.
+
 ## 2026-11-05 — Edit letter prefills from author copy
 
 Hosted bug: Edit opened with an empty body. Prefill decrypts via `openLetterAsAuthor` (same path as Read my letter); voice stays attached in memory. Plaintext never logged or stored unencrypted; wiped on leave. If the personal key is locked, show a clear message and do not offer an empty editor. Seal with no content/metadata change keeps the same version and seal code (resealing same plaintext would mint a new CEK/code for no benefit). App-only; no hosted migrate or Edge deploy. Phone test 61 covers prefill + unchanged + edit.
