@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 
 export type LetterVisibility = 'surprise' | 'announced';
 export type LetterStatus = 'draft' | 'sealed' | 'pending' | 'released' | 'withdrawn';
+export type LetterTriggerKind = 'date' | 'age';
 
 export type LetterRow = {
   id: string;
@@ -11,7 +12,10 @@ export type LetterRow = {
   recipientId: string;
   fromLabel: string;
   visibility: LetterVisibility;
-  triggerAt: string;
+  triggerKind: LetterTriggerKind;
+  triggerAge: number | null;
+  /** Null for age-letter authors (server redacts via letters_for_api). */
+  triggerAt: string | null;
   status: LetterStatus;
   version: number;
   contentHash: string | null;
@@ -32,7 +36,9 @@ type LetterDb = {
   recipient_id: string;
   from_label: string;
   visibility: string;
-  trigger_at: string;
+  trigger_kind: string;
+  trigger_age: number | null;
+  trigger_at: string | null;
   status: string;
   version: number;
   content_hash: string | null;
@@ -46,11 +52,16 @@ type LetterDb = {
   updated_at: string;
 };
 
+/** SELECT via letters_for_api so age authors never receive trigger_at / DOB snapshot. */
 const LETTER_COLUMNS =
-  'id, family_space_id, author_id, recipient_id, from_label, visibility, trigger_at, status, version, content_hash, fingerprint, voice_object_path, recipient_left_at, sealed_at, pending_at, released_at, created_at, updated_at';
+  'id, family_space_id, author_id, recipient_id, from_label, visibility, trigger_kind, trigger_age, trigger_at, status, version, content_hash, fingerprint, voice_object_path, recipient_left_at, sealed_at, pending_at, released_at, created_at, updated_at';
 
 function asVisibility(value: string): LetterVisibility {
   return value === 'announced' ? 'announced' : 'surprise';
+}
+
+function asTriggerKind(value: string): LetterTriggerKind {
+  return value === 'age' ? 'age' : 'date';
 }
 
 function asStatus(value: string): LetterStatus {
@@ -74,6 +85,8 @@ function fromRow(row: LetterDb): LetterRow {
     recipientId: row.recipient_id,
     fromLabel: row.from_label,
     visibility: asVisibility(row.visibility),
+    triggerKind: asTriggerKind(row.trigger_kind),
+    triggerAge: row.trigger_age == null ? null : Number(row.trigger_age),
     triggerAt: row.trigger_at,
     status: asStatus(row.status),
     version: row.version,
@@ -91,7 +104,7 @@ function fromRow(row: LetterDb): LetterRow {
 
 export async function fetchLetters(spaceId: string): Promise<LetterRow[]> {
   const { data, error } = await supabase
-    .from('letters')
+    .from('letters_for_api')
     .select(LETTER_COLUMNS)
     .eq('family_space_id', spaceId)
     .order('created_at', { ascending: false });
@@ -103,7 +116,7 @@ export async function fetchLetters(spaceId: string): Promise<LetterRow[]> {
 
 export async function fetchLetter(letterId: string): Promise<LetterRow | null> {
   const { data, error } = await supabase
-    .from('letters')
+    .from('letters_for_api')
     .select(LETTER_COLUMNS)
     .eq('id', letterId)
     .maybeSingle();
@@ -142,7 +155,11 @@ export type SealLetterInput = {
   version: number;
   fromLabel: string;
   visibility: LetterVisibility;
-  triggerAt: string;
+  triggerKind: LetterTriggerKind;
+  /** Required for date letters; ignored for age (server computes). */
+  triggerAt: string | null;
+  /** Required for age letters (1–120). */
+  triggerAge: number | null;
   contentNonce: Uint8Array;
   ciphertext: Uint8Array;
   voiceCiphertext: Uint8Array | null;
@@ -175,6 +192,8 @@ export async function sealLetter(input: SealLetterInput): Promise<void> {
     p_patria_sealed_share: toPgBytea(input.patriaSealedShare),
     p_keepers_may_release_early: false,
     p_voice_object_path: input.voiceObjectPath,
+    p_trigger_kind: input.triggerKind,
+    p_trigger_age: input.triggerAge,
   });
   if (error) {
     throw error;
@@ -194,6 +213,41 @@ export async function setLetterOpenDate(letterId: string, triggerAt: string): Pr
     p_letter_id: letterId,
     p_trigger_at: triggerAt,
   });
+  if (error) {
+    throw error;
+  }
+}
+
+/** Author-only. While sealed, change age; server recomputes from the frozen DOB snapshot. */
+export async function setLetterAge(letterId: string, triggerAge: number): Promise<void> {
+  const { error } = await supabase.rpc('set_letter_age', {
+    p_letter_id: letterId,
+    p_trigger_age: triggerAge,
+  });
+  if (error) {
+    throw error;
+  }
+}
+
+/** Own or admin-readable birthday (YYYY-MM-DD), or null if unset / not allowed. */
+export async function fetchProfileDateOfBirth(userId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('profile_date_of_birth', {
+    p_user_id: userId,
+  });
+  if (error) {
+    throw error;
+  }
+  if (data == null || data === '') {
+    return null;
+  }
+  return String(data);
+}
+
+export async function updateOwnDateOfBirth(userId: string, dateOfBirth: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ date_of_birth: dateOfBirth, updated_at: new Date().toISOString() })
+    .eq('id', userId);
   if (error) {
     throw error;
   }

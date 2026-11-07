@@ -28,7 +28,7 @@ export type NeedsYouLetter = {
   status: string;
   visibility: string;
   recipientLeftAt: string | null;
-  triggerAt: string;
+  triggerAt: string | null;
   authorName: string | null;
   recipientName: string | null;
 };
@@ -101,7 +101,10 @@ function letterNeedsYouItem(
       title: copy.letters.needsYouAnnouncedTitle,
       body: copy.letters.needsYouAnnouncedBody
         .replace('{name}', from)
-        .replace('{date}', formatLetterDate(letter.triggerAt, timeZone)),
+        .replace(
+          '{date}',
+          letter.triggerAt ? formatLetterDate(letter.triggerAt, timeZone) : '',
+        ),
       actionLabel: action,
       href: routes.letters,
       testID: 'needs-you-letter-announced',

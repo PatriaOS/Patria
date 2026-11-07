@@ -1,0 +1,185 @@
+# PHONE_TESTS: 67
+# AREAS: letters
+# PHASE=no_dob: Test 1 tries age seal before Test 2 has a birthday.
+# PHASE=set_old_birthday: Test 2 saves a birthday that makes age 18 already past.
+# PHASE=already: Test 1 tries age 18 and sees the already-that-age refusal (no notify).
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'no_dob'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 30000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-body"
+      - inputText: "Should not seal without a birthday."
+      - tapOn: "Who is this for?"
+      - scrollUntilVisible:
+          element:
+            id: "letter-trigger-kind"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-trigger-kind"
+      - extendedWaitUntil:
+          visible:
+            id: "trigger-kind-age"
+          timeout: 10000
+      - tapOn:
+          id: "trigger-kind-age"
+      - scrollUntilVisible:
+          element:
+            id: "letter-age"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-age"
+      - eraseText
+      - inputText: "18"
+      - pressKey: Enter
+      - tapOn: "A whole number from 1 to 120."
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "letter-form-error"
+          timeout: 30000
+      - assertVisible: "Ask Test 2 to add their birthday in their profile first"
+      - assertNotVisible:
+          id: "screen-letter-sealed"
+
+- runFlow:
+    when:
+      true: ${PHASE == 'set_old_birthday'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-profile"
+          timeout: 10000
+      - tapOn:
+          id: "menu-profile"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-profile"
+          timeout: 15000
+      - runFlow:
+          file: subflows/set_profile_birthday_1990.yaml
+          env:
+            BIRTHDAY_PREVIEW: ${BIRTHDAY_PREVIEW}
+            YEAR_SWIPES: ${YEAR_SWIPES}
+      - tapOn:
+          id: "profile-save"
+      - extendedWaitUntil:
+          visible: "Saved."
+          timeout: 15000
+
+- runFlow:
+    when:
+      true: ${PHASE == 'already'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 30000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-body"
+      - inputText: "Should not seal for an age already reached."
+      - tapOn: "Who is this for?"
+      - scrollUntilVisible:
+          element:
+            id: "letter-trigger-kind"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-trigger-kind"
+      - extendedWaitUntil:
+          visible:
+            id: "trigger-kind-age"
+          timeout: 10000
+      - tapOn:
+          id: "trigger-kind-age"
+      - scrollUntilVisible:
+          element:
+            id: "letter-age"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-age"
+      - eraseText
+      - inputText: "18"
+      - pressKey: Enter
+      - tapOn: "A whole number from 1 to 120."
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "letter-form-error"
+          timeout: 30000
+      - assertVisible: "Test 2 is already that age or older. Choose a higher age."
+      - assertNotVisible:
+          id: "screen-letter-sealed"

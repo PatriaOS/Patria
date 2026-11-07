@@ -1,0 +1,140 @@
+# Simulator screenshots for LEG02 B1 (Profile birthday + age letter compose/seal/list).
+# Not a numbered phone test. Run after seedLettersReady; Test 2 birthday optional for compose shots.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'profile'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-profile"
+          timeout: 10000
+      - tapOn:
+          id: "menu-profile"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-profile"
+          timeout: 15000
+      - takeScreenshot: b1-profile-birthday
+
+- runFlow:
+    when:
+      true: ${PHASE == 'compose'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 30000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-body"
+      - inputText: "For your eighteenth birthday."
+      - tapOn: "Who is this for?"
+      - scrollUntilVisible:
+          element:
+            id: "letter-trigger-kind"
+          direction: DOWN
+          timeout: 10000
+      - takeScreenshot: b1-letter-opens-by-date
+      - tapOn:
+          id: "letter-trigger-kind"
+      - extendedWaitUntil:
+          visible:
+            id: "trigger-kind-age"
+          timeout: 10000
+      - takeScreenshot: b1-letter-opens-by-sheet
+      - tapOn:
+          id: "trigger-kind-age"
+      - scrollUntilVisible:
+          element:
+            id: "letter-age"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-age"
+      - eraseText
+      - inputText: "18"
+      - pressKey: Enter
+      - tapOn: "A whole number from 1 to 120."
+      - extendedWaitUntil:
+          visible:
+            id: "letter-age-preview"
+          timeout: 10000
+      - takeScreenshot: b1-letter-age-preview
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 45000
+      - takeScreenshot: b1-letter-sealed-age
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+      - takeScreenshot: b1-letters-list-age
+
+- runFlow:
+    when:
+      true: ${PHASE == 'recipient_birthday'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-profile"
+          timeout: 10000
+      - tapOn:
+          id: "menu-profile"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-profile"
+          timeout: 15000
+      - runFlow:
+          file: subflows/set_profile_birthday_default.yaml
+          env:
+            CLEAR: "1"
+            BIRTHDAY_PREVIEW: ${BIRTHDAY_PREVIEW}
+            BIRTHDAY_LABEL: ${BIRTHDAY_LABEL}
+      - tapOn:
+          id: "profile-save"
+      - extendedWaitUntil:
+          visible: "Saved."
+          timeout: 15000

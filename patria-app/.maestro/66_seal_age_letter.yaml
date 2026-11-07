@@ -1,0 +1,128 @@
+# PHONE_TESTS: 66
+# AREAS: letters
+# PHASE=recipient_birthday: Test 2 saves birthday (isolated; no 65 state).
+# PHASE=author_seal: Test 1 seals an age letter; author sees birthday copy, never a date.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == null || PHASE == '' || PHASE == 'recipient_birthday'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-profile"
+          timeout: 10000
+      - tapOn:
+          id: "menu-profile"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-profile"
+          timeout: 15000
+      - runFlow:
+          file: subflows/set_profile_birthday_default.yaml
+          env:
+            CLEAR: "1"
+            BIRTHDAY_PREVIEW: ${BIRTHDAY_PREVIEW}
+            BIRTHDAY_LABEL: ${BIRTHDAY_LABEL}
+      - tapOn:
+          id: "profile-save"
+      - extendedWaitUntil:
+          visible: "Saved."
+          timeout: 15000
+
+- runFlow:
+    when:
+      true: ${PHASE == 'author_seal'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "write-letter"
+          timeout: 30000
+      - tapOn:
+          id: "write-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-new"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible: "Test 2"
+          timeout: 30000
+      - tapOn:
+          id: "letter-body"
+      - inputText: "For your eighteenth birthday."
+      - tapOn: "Who is this for?"
+      - scrollUntilVisible:
+          element:
+            id: "letter-trigger-kind"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-trigger-kind"
+      - extendedWaitUntil:
+          visible:
+            id: "trigger-kind-age"
+          timeout: 10000
+      - tapOn:
+          id: "trigger-kind-age"
+      - scrollUntilVisible:
+          element:
+            id: "letter-age"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "letter-age"
+      - eraseText
+      - inputText: "18"
+      - pressKey: Enter
+      - tapOn: "A whole number from 1 to 120."
+      - extendedWaitUntil:
+          visible:
+            id: "letter-age-preview"
+          timeout: 10000
+      - assertVisible:
+          id: "letter-age-preview"
+          text: "Opens on Test 2's 18th birthday"
+      - assertNotVisible: "June"
+      - assertNotVisible: "2015"
+      - scrollUntilVisible:
+          element:
+            id: "seal-letter"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "seal-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-sealed"
+          timeout: 45000
+      - assertVisible: "Your letter is sealed"
+      - assertVisible: "Only Test 2 can open it, on Test 2's 18th birthday. Keep this code. It is shown again when they open it, so you can tell nothing changed."
+      - assertNotVisible: "June"
+      - assertNotVisible: "2015"
+      - tapOn:
+          id: "letter-sealed-done"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 15000
+      - assertVisible: "For Test 2. Opens on Test 2's 18th birthday"
+      - assertNotVisible: "June"

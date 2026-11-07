@@ -1,0 +1,34 @@
+# Open Profile birthday wheel, accept the default past day (June 15, year−11), Done.
+# Caller must already be on screen-profile. Optional CLEAR=1 clears first.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${CLEAR == '1'}
+    commands:
+      - tapOn:
+          id: "profile-birthday"
+      - extendedWaitUntil:
+          visible:
+            id: "profile-birthday-sheet"
+          timeout: 10000
+      - tapOn:
+          id: "profile-birthday-clear"
+- tapOn:
+    id: "profile-birthday"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-sheet"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-preview"
+      text: ${BIRTHDAY_PREVIEW}
+    timeout: 10000
+- tapOn:
+    id: "profile-birthday-done"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday"
+      text: ${BIRTHDAY_LABEL}
+    timeout: 10000

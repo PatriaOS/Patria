@@ -58,7 +58,12 @@ function buildRows(privacyNeedsAttention: boolean): MenuRow[] {
     { kind: 'link', label: copy.home.menuVault, href: routes.vault, testID: 'menu-vault' },
     { kind: 'link', label: copy.home.menuFamily, href: routes.family, testID: 'menu-family' },
     { kind: 'divider' },
-    { kind: 'soon', label: copy.home.menuProfile, testID: 'menu-profile' },
+    {
+      kind: 'link',
+      label: copy.home.menuProfile,
+      href: routes.profile,
+      testID: 'menu-profile',
+    },
     {
       kind: 'link',
       label: copy.home.menuSettings,

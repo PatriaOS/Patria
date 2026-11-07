@@ -9,6 +9,8 @@ function letter(id: string, patch: Partial<LetterRow>): LetterRow {
     recipientId: 'r1',
     fromLabel: 'Mum',
     visibility: 'surprise',
+    triggerKind: 'date',
+    triggerAge: null,
     triggerAt: '2035-01-01T00:00:00.000Z',
     status: 'sealed',
     version: 1,

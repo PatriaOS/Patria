@@ -13,6 +13,7 @@ import {
   ButtonStack,
   Caption,
   ErrorState,
+  Field,
   LoadingState,
   Screen,
   SheetModal,
@@ -36,12 +37,25 @@ import {
 import {
   fetchFamilyTimezone,
   fetchLetter,
+  setLetterAge,
   setLetterOpenDate,
   withdrawLetter,
 } from './letterApi';
+import { letterOpensOnLine } from './letterOpenLabel';
 import { LetterVoicePlayback } from './LetterVoicePlayback';
 import { openLetterAsAuthor, openLetterAsRecipient } from './letterOpen';
 
+function parseAgeInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 1 || n > 120) {
+    return null;
+  }
+  return n;
+}
 
 export function LetterDetailScreen() {
   const router = useRouter();
@@ -60,6 +74,9 @@ export function LetterDetailScreen() {
   const [changeDateOpen, setChangeDateOpen] = useState(false);
   const [changeDateYmd, setChangeDateYmd] = useState<string | null>(null);
   const [changeDateError, setChangeDateError] = useState<string | null>(null);
+  const [changeAgeOpen, setChangeAgeOpen] = useState(false);
+  const [changeAgeRaw, setChangeAgeRaw] = useState('18');
+  const [changeAgeError, setChangeAgeError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -110,12 +127,21 @@ export function LetterDetailScreen() {
   };
 
   const openChangeDate = () => {
-    if (!letter) {
+    if (!letter?.triggerAt) {
       return;
     }
     setChangeDateError(null);
     setChangeDateYmd(ymdInZone(letter.triggerAt, timeZone));
     setChangeDateOpen(true);
+  };
+
+  const openChangeAge = () => {
+    if (!letter || letter.triggerAge == null) {
+      return;
+    }
+    setChangeAgeError(null);
+    setChangeAgeRaw(String(letter.triggerAge));
+    setChangeAgeOpen(true);
   };
 
   const onChangeDatePicker = (event: DateTimePickerEvent, selected?: Date) => {
@@ -144,6 +170,38 @@ export function LetterDetailScreen() {
     } catch (error) {
       logFailedAction(error);
       setChangeDateError(copy.letters.changeOpenDateFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveOpenAge = async () => {
+    const age = parseAgeInput(changeAgeRaw);
+    if (age == null) {
+      setChangeAgeError(copy.letters.ageInvalid);
+      return;
+    }
+    setBusy(true);
+    setChangeAgeError(null);
+    try {
+      await setLetterAge(letterId, age);
+      await queryClient.invalidateQueries({ queryKey: ['letter', letterId] });
+      await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+      setChangeAgeOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error ?? '');
+      const already = /letter_age_already:([^\n]+)/.exec(message);
+      if (already) {
+        setChangeAgeError(
+          copy.letters.ageAlready.replace(
+            '{name}',
+            already[1]?.trim() || recipientName,
+          ),
+        );
+      } else {
+        logFailedAction(error);
+        setChangeAgeError(copy.letters.changeOpenAgeFailed);
+      }
     } finally {
       setBusy(false);
     }
@@ -234,7 +292,11 @@ export function LetterDetailScreen() {
     );
   }
 
-  const openDate = formatLetterOpenDay(ymdInZone(letter.triggerAt, timeZone), timeZone);
+  const openLine = letterOpensOnLine(letter, recipientName, timeZone);
+  const announcedDate =
+    letter.triggerAt != null
+      ? formatLetterOpenDay(ymdInZone(letter.triggerAt, timeZone), timeZone)
+      : openLine;
 
   if (isRecipient && letter.status === 'sealed' && letter.visibility === 'announced') {
     return (
@@ -242,7 +304,7 @@ export function LetterDetailScreen() {
         <Title>
           {copy.letters.announcedStubTitle.replace('{name}', letter.fromLabel)}
         </Title>
-        <Body>{copy.letters.announcedStubBody.replace('{date}', openDate)}</Body>
+        <Body>{copy.letters.announcedStubBody.replace('{date}', announcedDate)}</Body>
       </Screen>
     );
   }
@@ -303,7 +365,7 @@ export function LetterDetailScreen() {
     <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
       <Title>{copy.letters.forLine.replace('{name}', recipientName)}</Title>
       <Caption testID="letter-open-day">
-        {copy.letters.opensOn.replace('{date}', openDate)} ·{' '}
+        {openLine} ·{' '}
         {letter.visibility === 'announced'
           ? copy.letters.announcedBadge
           : copy.letters.surpriseBadge}
@@ -361,12 +423,21 @@ export function LetterDetailScreen() {
               onPress={() => router.push(routes.letterNew(letter.id))}
               testID="edit-letter"
             />
-            <Button
-              label={copy.letters.changeOpenDate}
-              variant="secondary"
-              onPress={openChangeDate}
-              testID="change-open-date"
-            />
+            {letter.triggerKind === 'date' ? (
+              <Button
+                label={copy.letters.changeOpenDate}
+                variant="secondary"
+                onPress={openChangeDate}
+                testID="change-open-date"
+              />
+            ) : (
+              <Button
+                label={copy.letters.changeOpenAge}
+                variant="secondary"
+                onPress={openChangeAge}
+                testID="change-open-age"
+              />
+            )}
           </>
         ) : null}
         {letter.status === 'draft' || letter.status === 'sealed' ? (
@@ -449,6 +520,38 @@ export function LetterDetailScreen() {
             variant="secondary"
             onPress={() => setChangeDateOpen(false)}
             testID="change-open-date-cancel"
+          />
+        </ButtonStack>
+      </SheetModal>
+
+      <SheetModal
+        visible={changeAgeOpen}
+        onClose={() => setChangeAgeOpen(false)}
+        testID="change-open-age-sheet"
+        accessibilityLabel={copy.letters.changeOpenAge}
+      >
+        <Title>{copy.letters.changeOpenAge}</Title>
+        <Field
+          label={copy.letters.ageLabel}
+          value={changeAgeRaw}
+          onChangeText={setChangeAgeRaw}
+          placeholder={copy.letters.agePlaceholder}
+          keyboardType="number-pad"
+          testID="change-open-age-input"
+        />
+        {changeAgeError ? <ErrorState message={changeAgeError} /> : null}
+        <ButtonStack>
+          <Button
+            label={copy.letters.changeOpenAgeSave}
+            onPress={() => void saveOpenAge()}
+            busy={busy}
+            testID="change-open-age-save"
+          />
+          <Button
+            label={copy.common.cancel}
+            variant="secondary"
+            onPress={() => setChangeAgeOpen(false)}
+            testID="change-open-age-cancel"
           />
         </ButtonStack>
       </SheetModal>

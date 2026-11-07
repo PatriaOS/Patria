@@ -79,6 +79,50 @@ export function addYearsToYmd(ymd: string, years: number): string {
   return `${String(y).padStart(4, '0')}-${String(parsed.m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+/**
+ * Calendar day of someone's Nth birthday from a DOB (YYYY-MM-DD).
+ * Feb 29 → Mar 1 in non-leap years (D43 / Slice B1).
+ */
+export function birthdayYmdAtAge(dobYmd: string, age: number): string {
+  const parsed = parseYmd(dobYmd);
+  if (!parsed || !Number.isInteger(age) || age < 1 || age > 120) {
+    throw new Error('invalid birthday age');
+  }
+  const y = parsed.y + age;
+  if (parsed.m === 2 && parsed.d === 29 && !isLeapYear(y)) {
+    return `${String(y).padStart(4, '0')}-03-01`;
+  }
+  return `${String(y).padStart(4, '0')}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+}
+
+/** English ordinal for age copy ("18th", "1st", "22nd"). */
+export function ageOrdinal(age: number): string {
+  const n = Math.trunc(age);
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${n}th`;
+  }
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
+/** Author-facing age open line: "Test 2's 18th birthday" (never a calendar date). */
+export function formatAgeOpenLabel(name: string, age: number): string {
+  return `${name}'s ${ageOrdinal(age)} birthday`;
+}
+
 export function ymdInZone(iso: string, timeZone: string): string {
   return calendarDayInZone(new Date(iso), timeZone);
 }
@@ -132,6 +176,30 @@ export function pickerDateToYmd(date: Date): string {
   const m = date.getMonth() + 1;
   const d = date.getDate();
   return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/** True when the day is today or earlier on the device calendar (birthday wheel). */
+export function isOnOrBeforeTodayLocal(ymd: string, now = new Date()): boolean {
+  return isValidYmd(ymd) && ymd <= pickerDateToYmd(now);
+}
+
+/** Friendly birthday label from YYYY-MM-DD (device locale; no time zone math). */
+export function formatBirthdayYmd(ymd: string): string {
+  const parsed = parseYmd(ymd);
+  if (!parsed) {
+    return '';
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(parsed.y, parsed.m - 1, parsed.d, 12, 0, 0, 0));
+}
+
+/** Default when the birthday wheel opens with no saved day: 15 June, eleven years ago. */
+export function defaultPastBirthdayYmd(now = new Date()): string {
+  const y = now.getFullYear() - 11;
+  return `${String(y).padStart(4, '0')}-06-15`;
 }
 
 const US_ZONE_STEM =

@@ -19,6 +19,7 @@ import { fetchLetterboxPublicKey } from './letterboxEnsure';
 import {
   insertLetterDraft,
   sealLetter,
+  type LetterTriggerKind,
   type LetterVisibility,
 } from './letterApi';
 
@@ -29,7 +30,11 @@ export type SealLetterParams = {
   recipientId: string;
   fromLabel: string;
   visibility: LetterVisibility;
-  triggerAt: string;
+  triggerKind: LetterTriggerKind;
+  /** Date letters only — age letters omit this; the server computes trigger_at. */
+  triggerAt?: string | null;
+  /** Age letters only (1–120). */
+  triggerAge?: number | null;
   body: string;
   /** Optional voice note plaintext from VoiceNoteFieldNative. */
   voicePlain?: Uint8Array | null;
@@ -43,10 +48,33 @@ export type SealLetterResult =
   | { ok: true; fingerprint: string; version: number }
   | {
       ok: false;
-      reason: 'recipient_not_ready' | 'too_large' | 'failed';
+      reason:
+        | 'recipient_not_ready'
+        | 'too_large'
+        | 'age_no_dob'
+        | 'age_already'
+        | 'failed';
       /** Short diagnostic for e2e only — never shown in production UI. */
       detail?: string;
+      /** Recipient display name from server refusal (age seals). */
+      recipientName?: string;
     };
+
+function sealErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  if (error && typeof error === 'object') {
+    const row = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const parts = [row.message, row.details, row.hint, row.code]
+      .filter((part) => typeof part === 'string' && part.trim())
+      .map((part) => String(part).trim());
+    if (parts.length > 0) {
+      return parts.join(' | ');
+    }
+  }
+  return String(error ?? '');
+}
 
 export async function sealLetterOnDevice(params: SealLetterParams): Promise<SealLetterResult> {
   const version = (params.previousVersion ?? 0) + 1;
@@ -55,6 +83,12 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
   let voiceCiphertext: Uint8Array | undefined;
   try {
     if (params.createDraft !== false && !params.previousVersion) {
+      // Drafts stay date-shaped until seal; age letters use a far placeholder
+      // that seal_letter overwrites server-side (author never learns the day).
+      const draftTriggerAt =
+        params.triggerKind === 'date' && params.triggerAt
+          ? params.triggerAt
+          : '9999-01-01T00:00:00.000Z';
       await insertLetterDraft({
         id: params.letterId,
         familySpaceId: params.familySpaceId,
@@ -62,7 +96,7 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
         recipientId: params.recipientId,
         fromLabel: params.fromLabel,
         visibility: params.visibility,
-        triggerAt: params.triggerAt,
+        triggerAt: draftTriggerAt,
       });
     }
 
@@ -137,7 +171,9 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
         version,
         fromLabel: params.fromLabel,
         visibility: params.visibility,
-        triggerAt: params.triggerAt,
+        triggerKind: params.triggerKind,
+        triggerAt: params.triggerKind === 'date' ? (params.triggerAt ?? null) : null,
+        triggerAge: params.triggerKind === 'age' ? (params.triggerAge ?? null) : null,
         contentNonce: sealed.contentNonce,
         ciphertext: sealed.ciphertext,
         voiceCiphertext: voiceCiphertext ?? null,
@@ -156,9 +192,25 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
       wipeLetterShares(shares);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error ?? '');
+    const message = sealErrorMessage(error);
     if (message.includes('too large')) {
       return { ok: false, reason: 'too_large' };
+    }
+    const noDob = /letter_age_no_dob:([^|\n]+)/.exec(message);
+    if (noDob) {
+      return {
+        ok: false,
+        reason: 'age_no_dob',
+        recipientName: noDob[1]?.trim() || undefined,
+      };
+    }
+    const already = /letter_age_already:([^|\n]+)/.exec(message);
+    if (already) {
+      return {
+        ok: false,
+        reason: 'age_already',
+        recipientName: already[1]?.trim() || undefined,
+      };
     }
     logKeyStep('seal_letter_failed', message.slice(0, 120) || 'unknown');
     return {

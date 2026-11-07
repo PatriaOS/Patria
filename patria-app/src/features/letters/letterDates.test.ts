@@ -1,5 +1,11 @@
 import {
   addYearsToYmd,
+  ageOrdinal,
+  birthdayYmdAtAge,
+  formatAgeOpenLabel,
+  defaultPastBirthdayYmd,
+  formatBirthdayYmd,
+  isOnOrBeforeTodayLocal,
   formatLetterOpenDay,
   friendlyTimeZoneName,
   isAfterToday,
@@ -46,10 +52,41 @@ describe('letterDates', () => {
     expect(isAfterToday('nope', 'UTC', now)).toBe(false);
   });
 
+  it('birthday wheel only allows today or earlier on the device calendar', () => {
+    const now = new Date(2030, 5, 15, 12, 0, 0, 0);
+    expect(isOnOrBeforeTodayLocal('2030-06-15', now)).toBe(true);
+    expect(isOnOrBeforeTodayLocal('2030-06-14', now)).toBe(true);
+    expect(isOnOrBeforeTodayLocal('2030-06-16', now)).toBe(false);
+    expect(formatBirthdayYmd('2015-06-15')).toMatch(/2015/);
+    expect(formatBirthdayYmd('2015-06-15')).toMatch(/June/);
+  });
+
+  it('defaults an empty birthday wheel to 15 June eleven years ago', () => {
+    expect(defaultPastBirthdayYmd(new Date(2026, 10, 6, 12, 0, 0, 0))).toBe('2015-06-15');
+  });
+
   it('adds years and keeps Feb 29 valid', () => {
     expect(addYearsToYmd('2030-06-01', 5)).toBe('2035-06-01');
     expect(addYearsToYmd('2032-02-29', 1)).toBe('2033-02-28');
     expect(addYearsToYmd('2032-02-29', 4)).toBe('2036-02-29');
+  });
+
+  it('computes Nth birthday with Feb 29 → Mar 1 in non-leap years', () => {
+    expect(birthdayYmdAtAge('2000-06-15', 18)).toBe('2018-06-15');
+    expect(birthdayYmdAtAge('2000-02-29', 1)).toBe('2001-03-01');
+    expect(birthdayYmdAtAge('2000-02-29', 4)).toBe('2004-02-29');
+    expect(zonedMidnightIso(birthdayYmdAtAge('2000-02-29', 1), 'America/Chicago')).toBe(
+      '2001-03-01T06:00:00.000Z',
+    );
+  });
+
+  it('formats age open copy without a calendar date', () => {
+    expect(ageOrdinal(1)).toBe('1st');
+    expect(ageOrdinal(2)).toBe('2nd');
+    expect(ageOrdinal(3)).toBe('3rd');
+    expect(ageOrdinal(11)).toBe('11th');
+    expect(ageOrdinal(18)).toBe('18th');
+    expect(formatAgeOpenLabel('Test 2', 18)).toBe("Test 2's 18th birthday");
   });
 
   it('knows when the trigger has passed', () => {

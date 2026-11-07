@@ -110,6 +110,8 @@ describe('MemberScreen leave family', () => {
       recipientId: 'u1',
       fromLabel: 'Test 2',
       visibility: 'surprise',
+      triggerKind: 'date',
+      triggerAge: null,
       triggerAt: '2035-01-01T00:00:00.000Z',
       status: 'sealed',
       version: 1,

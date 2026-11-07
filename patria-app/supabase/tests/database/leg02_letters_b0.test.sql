@@ -198,8 +198,8 @@ SELECT lives_ok(
 );
 SELECT ok(
   (SELECT trigger_at > now() + interval '150 days'
-   FROM public.letters WHERE id = 'e0b00000-0000-0000-0000-000000000001'),
-  'trigger_at moved forward'
+   FROM public.letters_for_api WHERE id = 'e0b00000-0000-0000-0000-000000000001'),
+  'trigger_at moved forward (date letter via letters_for_api)'
 );
 SELECT ok(
   (SELECT count(*)::int FROM public.letter_events
