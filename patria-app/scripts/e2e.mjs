@@ -247,6 +247,21 @@ function signInEnv(secrets, n) {
   };
 }
 
+/** Matches ProfileScreen defaultPastBirthdayYmd + en-US formatBirthdayYmd (US Simulator). */
+function birthdayWheelEnv(now = new Date()) {
+  const y = now.getFullYear() - 11;
+  const label = new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(y, 5, 15, 12, 0, 0, 0));
+  return {
+    BIRTHDAY_PREVIEW: label,
+    BIRTHDAY_LABEL: `Birthday: ${label}`,
+    YEAR_SWIPES: String(y - 1990),
+  };
+}
+
 function restBase() {
   return (supabaseUrlFromEnv(e2eEnv) || '').replace(/\/$/, '');
 }
@@ -2691,7 +2706,7 @@ try {
         maestro({
           flow: flow('65_add_birthday.yaml'),
           device: deviceB,
-          env: { ...signInEnv(secrets, 2), E2E_STAY: '1' },
+          env: { ...signInEnv(secrets, 2), ...birthdayWheelEnv(), E2E_STAY: '1' },
         });
       });
     }
@@ -2704,7 +2719,12 @@ try {
         maestro({
           flow: flow('66_seal_age_letter.yaml'),
           device: deviceB,
-          env: { ...signInEnv(secrets, 2), PHASE: 'recipient_birthday', E2E_STAY: '1' },
+          env: {
+            ...signInEnv(secrets, 2),
+            ...birthdayWheelEnv(),
+            PHASE: 'recipient_birthday',
+            E2E_STAY: '1',
+          },
         });
         maestro({
           flow: flow('66_seal_age_letter.yaml'),
@@ -2730,7 +2750,12 @@ try {
         maestro({
           flow: flow('67_age_seal_refusals.yaml'),
           device: deviceB,
-          env: { ...signInEnv(secrets, 2), PHASE: 'set_old_birthday', E2E_STAY: '1' },
+          env: {
+            ...signInEnv(secrets, 2),
+            ...birthdayWheelEnv(),
+            PHASE: 'set_old_birthday',
+            E2E_STAY: '1',
+          },
         });
         maestro({
           flow: flow('67_age_seal_refusals.yaml'),

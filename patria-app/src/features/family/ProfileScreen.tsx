@@ -13,7 +13,6 @@ import {
   Button,
   ButtonStack,
   Caption,
-  ChoiceChip,
   ErrorState,
   Icon,
   LoadingState,
@@ -27,6 +26,7 @@ import { logFailedAction } from '../../lib/devLog';
 import { radius, space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
 import {
+  defaultPastBirthdayYmd,
   formatBirthdayYmd,
   isOnOrBeforeTodayLocal,
   pickerDateToYmd,
@@ -40,12 +40,6 @@ import { useCurrentFamily } from './useCurrentFamily';
 
 function todayLocalYmd(): string {
   return pickerDateToYmd(new Date());
-}
-
-function defaultPastYmd(): string {
-  // Eleven years ago: age 18 is still in the future for e2e / first save.
-  const now = new Date();
-  return pickerDateToYmd(new Date(now.getFullYear() - 11, now.getMonth(), now.getDate(), 12));
 }
 
 export function ProfileScreen() {
@@ -72,9 +66,9 @@ export function ProfileScreen() {
     setFormError(null);
     setSaved(false);
     if (draftYmd !== null) {
-      setDraftYmd(draftYmd === '' ? defaultPastYmd() : draftYmd);
+      setDraftYmd(draftYmd === '' ? defaultPastBirthdayYmd() : draftYmd);
     } else {
-      setDraftYmd(savedYmd ?? defaultPastYmd());
+      setDraftYmd(savedYmd ?? defaultPastBirthdayYmd());
     }
     setPickerOpen(true);
   };
@@ -184,7 +178,7 @@ export function ProfileScreen() {
 
       {pickerOpen && Platform.OS === 'android' && displayYmd ? (
         <DateTimePicker
-          value={ymdToPickerDate(displayYmd || defaultPastYmd())}
+          value={ymdToPickerDate(displayYmd || defaultPastBirthdayYmd())}
           mode="date"
           display="default"
           maximumDate={ymdToPickerDate(maxYmd)}
@@ -214,22 +208,6 @@ export function ProfileScreen() {
               onChange={onPickerChange}
               style={styles.iosPicker}
             />
-          ) : null}
-          {process.env.EXPO_PUBLIC_E2E === '1' ? (
-            <View style={styles.chipRow}>
-              <ChoiceChip
-                label="2015-06-15"
-                selected={displayYmd === '2015-06-15'}
-                onPress={() => setDraftYmd('2015-06-15')}
-                testID="profile-birthday-e2e-young"
-              />
-              <ChoiceChip
-                label="1990-01-01"
-                selected={displayYmd === '1990-01-01'}
-                onPress={() => setDraftYmd('1990-01-01')}
-                testID="profile-birthday-e2e-older"
-              />
-            </View>
           ) : null}
           <ButtonStack>
             <Button
@@ -269,10 +247,5 @@ const styles = StyleSheet.create({
   },
   iosPicker: {
     alignSelf: 'stretch',
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
   },
 });

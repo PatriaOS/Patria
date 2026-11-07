@@ -1,0 +1,61 @@
+# Drive the birthday wheel from the default past day (15 June, year−11) to 1 January 1990.
+# Requires YEAR_SWIPES = (currentYear - 11 - 1990) and BIRTHDAY_PREVIEW.
+# Wheel column centers from iOS hierarchy (440pt wide): month ~26%, day ~48%, year ~63%.
+# Vertical notch: 68%→72% (finger down = earlier). Caller must be on screen-profile.
+appId: app.patria.dev
+---
+- tapOn:
+    id: "profile-birthday"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-sheet"
+    timeout: 10000
+- tapOn:
+    id: "profile-birthday-clear"
+- tapOn:
+    id: "profile-birthday"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-sheet"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-preview"
+      text: ${BIRTHDAY_PREVIEW}
+    timeout: 10000
+# Year (~63%): earlier by YEAR_SWIPES notches → 1990
+- repeat:
+    times: ${YEAR_SWIPES}
+    commands:
+      - swipe:
+          start: 63%, 68%
+          end: 63%, 72%
+          duration: 150
+# Month (~26%): June → January = 5 earlier
+- repeat:
+    times: 5
+    commands:
+      - swipe:
+          start: 26%, 68%
+          end: 26%, 72%
+          duration: 200
+# Day (~48%): 15 → 1 = 14 earlier
+- repeat:
+    times: 14
+    commands:
+      - swipe:
+          start: 48%, 68%
+          end: 48%, 72%
+          duration: 200
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-preview"
+      text: "January 1, 1990"
+    timeout: 15000
+- tapOn:
+    id: "profile-birthday-done"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday"
+      text: "Birthday: January 1, 1990"
+    timeout: 10000

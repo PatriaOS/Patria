@@ -480,7 +480,7 @@ Adult birthday on Profile; age letters for member recipients. Author never sees 
 
 ### 65. Add birthday
 Areas: letters, navigation
-1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if the privacy copy and **Birthday** are shown. Tap **Birthday**; pass if a date wheel opens (past days only) with a clear control. Choose `2015-06-15` (e2e chip), Done, **Save**. Pass if **Saved.** appears.
+1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if the privacy copy and **Birthday** are shown. Tap **Birthday**; pass if a date wheel opens (past days only) with a clear control. Accept the default past day (15 June, eleven years ago), Done, **Save**. Pass if **Saved.** appears.
 
 ### 66. Seal an age letter
 Areas: letters
@@ -490,7 +490,7 @@ Areas: letters
 ### 67. Age seal refusals
 Areas: letters
 1. As Test 1, try to seal an age letter to Test 2 before Test 2 has a birthday. Pass if the form shows **Ask Test 2 to add their birthday in their profile first** and the letter is not sealed. Pass if Test 2 is not notified (no letter row as recipient).
-2. On the second Simulator as Test 2, save birthday `1990-01-01`. As Test 1, try age `18` again. Pass if the form shows **Test 2 is already that age or older** and the letter is not sealed.
+2. On the second Simulator as Test 2, open the birthday wheel and set **1 January 1990** (swipe the month, day and year columns). As Test 1, try age `18` again. Pass if the form shows **Test 2 is already that age or older** and the letter is not sealed.
 
 ### 62. Date release with automatic path (fake key)
 Areas: letters, keys

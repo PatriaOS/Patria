@@ -127,16 +127,12 @@ appId: app.patria.dev
           visible:
             id: "screen-profile"
           timeout: 15000
-      - tapOn:
-          id: "profile-birthday"
-      - extendedWaitUntil:
-          visible:
-            id: "profile-birthday-sheet"
-          timeout: 10000
-      - tapOn:
-          id: "profile-birthday-e2e-young"
-      - tapOn:
-          id: "profile-birthday-done"
+      - runFlow:
+          file: subflows/set_profile_birthday_default.yaml
+          env:
+            CLEAR: "1"
+            BIRTHDAY_PREVIEW: ${BIRTHDAY_PREVIEW}
+            BIRTHDAY_LABEL: ${BIRTHDAY_LABEL}
       - tapOn:
           id: "profile-save"
       - extendedWaitUntil:

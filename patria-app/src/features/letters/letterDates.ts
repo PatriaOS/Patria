@@ -196,6 +196,12 @@ export function formatBirthdayYmd(ymd: string): string {
   }).format(new Date(parsed.y, parsed.m - 1, parsed.d, 12, 0, 0, 0));
 }
 
+/** Default when the birthday wheel opens with no saved day: 15 June, eleven years ago. */
+export function defaultPastBirthdayYmd(now = new Date()): string {
+  const y = now.getFullYear() - 11;
+  return `${String(y).padStart(4, '0')}-06-15`;
+}
+
 const US_ZONE_STEM =
   /^(Eastern|Central|Pacific|Mountain|Alaska|Hawaii|Hawaii-Aleutian|Atlantic)$/i;
 

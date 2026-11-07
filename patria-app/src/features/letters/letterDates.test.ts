@@ -3,6 +3,7 @@ import {
   ageOrdinal,
   birthdayYmdAtAge,
   formatAgeOpenLabel,
+  defaultPastBirthdayYmd,
   formatBirthdayYmd,
   isOnOrBeforeTodayLocal,
   formatLetterOpenDay,
@@ -58,6 +59,10 @@ describe('letterDates', () => {
     expect(isOnOrBeforeTodayLocal('2030-06-16', now)).toBe(false);
     expect(formatBirthdayYmd('2015-06-15')).toMatch(/2015/);
     expect(formatBirthdayYmd('2015-06-15')).toMatch(/June/);
+  });
+
+  it('defaults an empty birthday wheel to 15 June eleven years ago', () => {
+    expect(defaultPastBirthdayYmd(new Date(2026, 10, 6, 12, 0, 0, 0))).toBe('2015-06-15');
   });
 
   it('adds years and keeps Feb 29 valid', () => {

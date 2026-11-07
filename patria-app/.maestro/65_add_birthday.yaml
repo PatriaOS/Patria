@@ -1,6 +1,6 @@
 # PHONE_TESTS: 65
 # AREAS: letters, navigation
-# Test 2 saves a birthday in Profile so age letters can be sealed to them.
+# Test 2 saves a birthday via the date wheel (default past day).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -18,23 +18,12 @@ appId: app.patria.dev
       id: "screen-profile"
     timeout: 15000
 - assertVisible: "Your birthday stays private. Only you and family admins can see it. Letters that open on an age use it on the server. The writer never sees the date."
-- tapOn:
-    id: "profile-birthday"
-- extendedWaitUntil:
-    visible:
-      id: "profile-birthday-sheet"
-    timeout: 10000
-- assertVisible:
-    id: "profile-birthday-clear"
-- tapOn:
-    id: "profile-birthday-e2e-young"
-- tapOn:
-    id: "profile-birthday-done"
-- extendedWaitUntil:
-    visible:
-      id: "profile-birthday"
-      text: "Birthday: June 15, 2015"
-    timeout: 10000
+- runFlow:
+    file: subflows/set_profile_birthday_default.yaml
+    env:
+      CLEAR: "1"
+      BIRTHDAY_PREVIEW: ${BIRTHDAY_PREVIEW}
+      BIRTHDAY_LABEL: ${BIRTHDAY_LABEL}
 - tapOn:
     id: "profile-save"
 - extendedWaitUntil:

@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(31);
+SELECT plan(32);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -157,6 +157,16 @@ SELECT space_id, 'b2222222-2222-2222-2222-222222222222'::uuid,
 SELECT has_function('public'::name, 'set_letter_age'::name, ARRAY['uuid', 'integer']);
 SELECT has_function('public'::name, 'profile_date_of_birth'::name, ARRAY['uuid']);
 SELECT has_view('public'::name, 'letters_for_api'::name);
+
+-- anon cannot read letters_for_api (authenticated SELECT only).
+SET LOCAL ROLE anon;
+SELECT throws_ok(
+  $sql$SELECT 1 FROM public.letters_for_api LIMIT 1$sql$,
+  '42501',
+  NULL,
+  'anon cannot SELECT from letters_for_api'
+);
+RESET ROLE;
 
 -- Column grant: authenticated cannot SELECT date_of_birth on profiles.
 SELECT tests_jwt('b2222222-2222-2222-2222-222222222222');

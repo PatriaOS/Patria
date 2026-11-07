@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-06 — LEG02 B1 review: wheel-driven birthday + view grants
+
+Remove Profile e2e date chips; Maestro swipes the iOS date wheels (fine notch gestures). Default empty birthday is 15 June eleven years ago. `REVOKE ALL` on `letters_for_api` from PUBLIC/anon. No hosted migrate.
+
 ## 2026-11-06 — LEG02 B1 review: trigger_at grant + Profile wheel
 
 Revoke authenticated SELECT on `letters.trigger_at` (age authors could bypass `letters_for_api`). Reads go through SECURITY DEFINER `letters_for_api` with the same redaction + `can_see_letter_row`. Profile birthday uses the Change-open-day wheel (past only, Clear). D43 notes the accepted “already that age” trial leak. `artifacts/` gitignored. No hosted migrate.
