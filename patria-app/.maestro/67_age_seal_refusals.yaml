@@ -100,8 +100,14 @@ appId: app.patria.dev
           timeout: 15000
       - tapOn:
           id: "profile-birthday"
-      - eraseText
-      - inputText: "1990-01-01"
+      - extendedWaitUntil:
+          visible:
+            id: "profile-birthday-sheet"
+          timeout: 10000
+      - tapOn:
+          id: "profile-birthday-e2e-older"
+      - tapOn:
+          id: "profile-birthday-done"
       - tapOn:
           id: "profile-save"
       - extendedWaitUntil:

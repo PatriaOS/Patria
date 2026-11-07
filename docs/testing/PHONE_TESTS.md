@@ -480,7 +480,7 @@ Adult birthday on Profile; age letters for member recipients. Author never sees 
 
 ### 65. Add birthday
 Areas: letters, navigation
-1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if **Birthday** is shown. Enter `2015-06-15`, tap **Save**. Pass if **Saved.** appears.
+1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if the privacy copy and **Birthday** are shown. Tap **Birthday**; pass if a date wheel opens (past days only) with a clear control. Choose `2015-06-15` (e2e chip), Done, **Save**. Pass if **Saved.** appears.
 
 ### 66. Seal an age letter
 Areas: letters

@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(28);
+SELECT plan(31);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -281,6 +281,13 @@ SELECT throws_ok(
   'author cannot SELECT trigger_dob_snapshot'
 );
 SELECT throws_ok(
+  $sql$SELECT trigger_at FROM public.letters
+    WHERE id = 'e1b10000-0000-0000-0000-000000000001'$sql$,
+  '42501',
+  NULL,
+  'author cannot SELECT trigger_at from letters for an age letter'
+);
+SELECT throws_ok(
   $sql$SELECT public.set_letter_open_date(
     'e1b10000-0000-0000-0000-000000000001',
     now() + interval '200 days'
@@ -361,7 +368,30 @@ SELECT ok(
    WHERE id = 'e1b10000-0000-0000-0000-000000000001'),
   'recipient can see trigger_at for an announced age letter via letters_for_api'
 );
+-- Surprise still hides the row from the recipient on the base table and the view.
 RESET ROLE;
+UPDATE public.letters
+SET visibility = 'surprise'
+WHERE id = 'e1b10000-0000-0000-0000-000000000001';
+
+SELECT tests_jwt('b2222222-2222-2222-2222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT is(
+  (SELECT count(*)::integer FROM public.letters_for_api
+   WHERE id = 'e1b10000-0000-0000-0000-000000000001'),
+  0,
+  'surprise age letter is hidden from recipient on letters_for_api'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.letters
+   WHERE id = 'e1b10000-0000-0000-0000-000000000001'),
+  0,
+  'surprise age letter is hidden from recipient on letters'
+);
+RESET ROLE;
+UPDATE public.letters
+SET visibility = 'announced'
+WHERE id = 'e1b10000-0000-0000-0000-000000000001';
 
 -- Feb 29 → Mar 1 in non-leap years; family TZ midnight.
 RESET ROLE;
@@ -405,6 +435,8 @@ SELECT lives_ok(
   )$sql$,
   'seal age letter with Feb 29 DOB'
 );
+-- Base-table trigger_at is not granted to authenticated; verify as postgres.
+RESET ROLE;
 SELECT is(
   public.sync_local_date(
     (SELECT trigger_at FROM public.letters WHERE id = 'e1b10000-0000-0000-0000-000000000002'),
@@ -418,6 +450,8 @@ SELECT is(
   public.sync_at_local('America/Chicago', DATE '2038-03-01', TIME '00:00'),
   'age trigger_at is midnight in the family time zone'
 );
+SELECT tests_jwt('a1111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
 
 -- Already that age or older.
 INSERT INTO public.letters (

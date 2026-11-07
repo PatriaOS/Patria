@@ -17,10 +17,24 @@ appId: app.patria.dev
     visible:
       id: "screen-profile"
     timeout: 15000
+- assertVisible: "Your birthday stays private. Only you and family admins can see it. Letters that open on an age use it on the server. The writer never sees the date."
 - tapOn:
     id: "profile-birthday"
-- eraseText
-- inputText: "2015-06-15"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday-sheet"
+    timeout: 10000
+- assertVisible:
+    id: "profile-birthday-clear"
+- tapOn:
+    id: "profile-birthday-e2e-young"
+- tapOn:
+    id: "profile-birthday-done"
+- extendedWaitUntil:
+    visible:
+      id: "profile-birthday"
+      text: "Birthday: June 15, 2015"
+    timeout: 10000
 - tapOn:
     id: "profile-save"
 - extendedWaitUntil:

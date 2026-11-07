@@ -41,6 +41,9 @@ e2e-recordings/
 .maestro/tests/
 .maestro/shots_home_tones.yaml
 
+# Review Simulator screenshots — send as files, never commit
+artifacts/
+
 # typescript
 *.tsbuildinfo
 

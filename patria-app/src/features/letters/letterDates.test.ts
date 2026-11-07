@@ -3,6 +3,8 @@ import {
   ageOrdinal,
   birthdayYmdAtAge,
   formatAgeOpenLabel,
+  formatBirthdayYmd,
+  isOnOrBeforeTodayLocal,
   formatLetterOpenDay,
   friendlyTimeZoneName,
   isAfterToday,
@@ -47,6 +49,15 @@ describe('letterDates', () => {
     expect(isAfterToday('2030-01-14', 'America/New_York', now)).toBe(false);
     expect(isAfterToday('2030-01-15', 'UTC', now)).toBe(false);
     expect(isAfterToday('nope', 'UTC', now)).toBe(false);
+  });
+
+  it('birthday wheel only allows today or earlier on the device calendar', () => {
+    const now = new Date(2030, 5, 15, 12, 0, 0, 0);
+    expect(isOnOrBeforeTodayLocal('2030-06-15', now)).toBe(true);
+    expect(isOnOrBeforeTodayLocal('2030-06-14', now)).toBe(true);
+    expect(isOnOrBeforeTodayLocal('2030-06-16', now)).toBe(false);
+    expect(formatBirthdayYmd('2015-06-15')).toMatch(/2015/);
+    expect(formatBirthdayYmd('2015-06-15')).toMatch(/June/);
   });
 
   it('adds years and keeps Feb 29 valid', () => {

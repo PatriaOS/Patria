@@ -178,6 +178,24 @@ export function pickerDateToYmd(date: Date): string {
   return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+/** True when the day is today or earlier on the device calendar (birthday wheel). */
+export function isOnOrBeforeTodayLocal(ymd: string, now = new Date()): boolean {
+  return isValidYmd(ymd) && ymd <= pickerDateToYmd(now);
+}
+
+/** Friendly birthday label from YYYY-MM-DD (device locale; no time zone math). */
+export function formatBirthdayYmd(ymd: string): string {
+  const parsed = parseYmd(ymd);
+  if (!parsed) {
+    return '';
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(parsed.y, parsed.m - 1, parsed.d, 12, 0, 0, 0));
+}
+
 const US_ZONE_STEM =
   /^(Eastern|Central|Pacific|Mountain|Alaska|Hawaii|Hawaii-Aleutian|Atlantic)$/i;
 
