@@ -1,0 +1,28 @@
+# PHONE_TESTS: 72
+# AREAS: letters
+# After one keeper helps, open with keepers stays disabled / fails.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- tapOn:
+    id: ".*letter-recv-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "ask-keepers"
+    timeout: 30000
+- assertVisible:
+    id: "keepers-progress"
+    text: "1 of 2 keepers have helped"
+- assertVisible:
+    id: "open-with-keepers"

@@ -61,8 +61,8 @@ describe('letterDates', () => {
     expect(formatBirthdayYmd('2015-06-15')).toMatch(/June/);
   });
 
-  it('defaults an empty birthday wheel to 15 June eleven years ago', () => {
-    expect(defaultPastBirthdayYmd(new Date(2026, 10, 6, 12, 0, 0, 0))).toBe('2015-06-15');
+  it('defaults an empty birthday wheel to 15 June about thirty years ago', () => {
+    expect(defaultPastBirthdayYmd(new Date(2026, 10, 6, 12, 0, 0, 0))).toBe('1996-06-15');
   });
 
   it('adds years and keeps Feb 29 valid', () => {

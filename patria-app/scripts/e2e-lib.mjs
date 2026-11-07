@@ -149,6 +149,17 @@ export function scenarioForTest(testNumber) {
   ) {
     return 'admin-elders';
   }
+  // B2 keepers: Test 1 author, Test 2 recipient, Tests 3–5 keepers (elders).
+  if (
+    testNumber === 68 ||
+    testNumber === 69 ||
+    testNumber === 70 ||
+    testNumber === 71 ||
+    testNumber === 72 ||
+    testNumber === 73
+  ) {
+    return 'admin-elders-keepers';
+  }
   return 'admin';
 }
 
@@ -364,6 +375,8 @@ export const TEST_EMAILS = {
   1: 'femipaul7535+test1@gmail.com',
   2: 'femipaul7535+test2@gmail.com',
   3: 'femipaul7535+test3@gmail.com',
+  4: 'femipaul7535+test4@gmail.com',
+  5: 'femipaul7535+test5@gmail.com',
 };
 
 export function passwordFor(secrets, n) {
@@ -665,7 +678,7 @@ export function mapFileToAreas(file) {
     areas.add('keys');
   }
   if (
-    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint|65_add_birthday|66_seal_age|67_age_seal/.test(
+    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letterKeeper|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint|65_add_birthday|66_seal_age|67_age_seal|68_seal_keepers|69_keeper|70_before_due|71_two_keepers|72_one_keeper|73_keeper_leaves/.test(
       n,
     )
   ) {

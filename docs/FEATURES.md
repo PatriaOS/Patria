@@ -879,6 +879,8 @@ stateDiagram-v2
 
 **Slice B1 (D43).** Adult `profiles.date_of_birth` (self + admin via RPC; no column SELECT). New letter **Opens by** Date or Age; `seal_letter` computes age `trigger_at` server-side (family TZ; Feb 29 → Mar 1); stores `trigger_kind`/`trigger_age`/`trigger_dob_snapshot`; author never receives DOB or computed date (`letters_for_api`). Refuse no birthday / already that age without notifying the recipient. Author copy “Opens on {name}'s Nth birthday”. `set_letter_age` while sealed (snapshot freeze). Child recipients wait for B4.
 
+**Slice B2 (D43).** Optional 3 keepers on adult letters (admins/co-admins/elders with letterbox + recovery). Pairwise `shareP` boxes + holder secrets; after due, any 2 keepers re-seal holders to the recipient (pinned letterbox key). Recipient opens with keepers when automatic release fails. Keepers never see content or the open date; surprise: they know a letter exists. Keeper leave → Needs you to replace. Profile birthday wheel defaults ~30 years ago. Early release waits for B3; child letters for B4.
+
 **Backlog (own design, not Slice B keepers):** Letters to your future self — author is also recipient; no author CEK copy so the letter stays sealed until the open day; requires relaxing `letters_author_ne_recipient` after a dedicated design pass.
 
 **Acceptance criteria (definition of done)**

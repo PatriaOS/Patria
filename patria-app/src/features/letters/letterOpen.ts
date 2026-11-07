@@ -11,14 +11,22 @@ import {
   unwrapLetterShareFromLetterbox,
   type LetterContent,
 } from '../../lib/crypto/letterEnvelope';
+import {
+  openLetterKeeperPair,
+  pairIdForSlots,
+  unwrapKeeperHolderFromRecipientLetterbox,
+  type LetterKeeperSlot,
+} from '../../lib/crypto/letterKeeperBoxes';
 import { combineLetterCek } from '../../lib/crypto/letterSplit';
 import { loadPersonalKeyIfPresent } from '../../lib/crypto/personalKey';
 import { logFailedAction } from '../../lib/devLog';
-import { loadOwnLetterboxPrivateKey } from './letterboxEnsure';
+import { fetchLetterboxPublicKey, loadOwnLetterboxPrivateKey } from './letterboxEnsure';
 import {
   claimPatriaShareP,
   fetchAuthorShare,
   fetchLetter,
+  fetchLetterKeeperHelp,
+  fetchLetterKeeperPairBox,
   fetchLetterPayload,
   fetchRecipientShare,
   type LetterRow,
@@ -33,7 +41,10 @@ export type OpenLetterResult =
       letter: LetterRow;
       voicePlain?: Uint8Array;
     }
-  | { ok: false; reason: 'missing' | 'not_ready' | 'failed' | 'no_author_share' };
+  | {
+      ok: false;
+      reason: 'missing' | 'not_ready' | 'failed' | 'no_author_share' | 'need_keepers';
+    };
 
 async function attachVoicePlain(
   content: LetterContent,
@@ -155,8 +166,14 @@ export async function openLetterAsRecipient(input: {
       letterId: letter.id,
       version: letter.version,
     });
-    const sharePHex = await claimPatriaShareP(letter.id);
-    shareP = hexToBytes(sharePHex);
+    try {
+      const sharePHex = await claimPatriaShareP(letter.id);
+      shareP = hexToBytes(sharePHex);
+    } catch (autoError) {
+      // Automatic path failed — caller may offer the keeper path (no app flag).
+      logFailedAction(autoError);
+      return { ok: false, reason: 'need_keepers' };
+    }
     cek = combineLetterCek(shareR, shareP);
     const content = openLetterContent(cek, payload.contentNonce, payload.ciphertext, {
       familySpaceId: letter.familySpaceId,
@@ -183,6 +200,136 @@ export async function openLetterAsRecipient(input: {
     return { ok: false, reason: 'failed' };
   } finally {
     wipe(letterboxPrivate);
+    if (shareR) {
+      wipe(shareR);
+    }
+    if (shareP) {
+      wipe(shareP);
+    }
+    if (cek) {
+      wipe(cek);
+    }
+  }
+}
+
+/** Open after two keepers have re-sealed their holder secrets to the recipient. */
+export async function openLetterAsRecipientWithKeepers(input: {
+  letterId: string;
+  spaceId: string;
+  userId: string;
+}): Promise<OpenLetterResult> {
+  const letter = await fetchLetter(input.letterId);
+  if (!letter || letter.recipientId !== input.userId) {
+    return { ok: false, reason: 'missing' };
+  }
+  if (letter.status !== 'pending' && letter.status !== 'released') {
+    return { ok: false, reason: 'not_ready' };
+  }
+  const wrapped = await fetchRecipientShare(input.letterId);
+  if (!wrapped) {
+    return { ok: false, reason: 'failed' };
+  }
+  const letterboxPrivate = await loadOwnLetterboxPrivateKey({
+    spaceId: input.spaceId,
+    userId: input.userId,
+  });
+  if (!letterboxPrivate) {
+    return { ok: false, reason: 'failed' };
+  }
+  const recipientPublic = await fetchLetterboxPublicKey(input.spaceId, input.userId);
+  if (!recipientPublic) {
+    wipe(letterboxPrivate);
+    return { ok: false, reason: 'failed' };
+  }
+  const payload = await fetchLetterPayload(input.letterId);
+  if (!payload) {
+    wipe(letterboxPrivate);
+    wipe(recipientPublic);
+    return { ok: false, reason: 'missing' };
+  }
+
+  const help = await fetchLetterKeeperHelp(input.letterId);
+  const helped = help.filter((row) => row.hasHelped && row.wrappedHolderSecret);
+  if (helped.length < 2) {
+    wipe(letterboxPrivate);
+    wipe(recipientPublic);
+    return { ok: false, reason: 'need_keepers' };
+  }
+
+  let shareR: Uint8Array | undefined;
+  let shareP: Uint8Array | undefined;
+  let cek: Uint8Array | undefined;
+  const openedHolders: Uint8Array[] = [];
+  try {
+    shareR = unwrapLetterShareFromLetterbox(wrapped, letterboxPrivate, {
+      letterId: letter.id,
+      version: letter.version,
+    });
+
+    const first = helped[0]!;
+    const second = helped[1]!;
+    for (const row of [first, second]) {
+      const holder = unwrapKeeperHolderFromRecipientLetterbox(
+        row.wrappedHolderSecret!,
+        letterboxPrivate,
+        {
+          letterId: letter.id,
+          version: letter.version,
+          keeperId: row.keeperId,
+          pinnedRecipientLetterboxPublic: recipientPublic,
+        },
+      );
+      openedHolders.push(holder);
+    }
+
+    const pairId = pairIdForSlots(first.slot as LetterKeeperSlot, second.slot as LetterKeeperSlot);
+    const pairBox = await fetchLetterKeeperPairBox(letter.id, pairId);
+    if (!pairBox) {
+      return { ok: false, reason: 'failed' };
+    }
+    shareP = openLetterKeeperPair(
+      pairBox.sealedShareP,
+      first.slot as LetterKeeperSlot,
+      openedHolders[0]!,
+      second.slot as LetterKeeperSlot,
+      openedHolders[1]!,
+      { letterId: letter.id, version: letter.version },
+      pairId,
+    );
+    cek = combineLetterCek(shareR, shareP);
+    const content = openLetterContent(cek, payload.contentNonce, payload.ciphertext, {
+      familySpaceId: letter.familySpaceId,
+      letterId: letter.id,
+      version: payload.version,
+      authorId: letter.authorId,
+    });
+    const withVoice = await attachVoicePlain(content, letter, payload.voiceCiphertext);
+    const hash = hashLetterSealedPayload(payload.ciphertext, payload.voiceCiphertext ?? undefined);
+    const fingerprint = letterFingerprint(hash);
+    const expected = letter.fingerprint ?? '';
+    const matches = expected === fingerprint || expected === bytesToHex(hash).slice(0, 12);
+    return {
+      ok: true,
+      content: withVoice.content,
+      fingerprint,
+      matches,
+      letter,
+      voicePlain: withVoice.voicePlain,
+    };
+  } catch (error) {
+    logFailedAction(error);
+    return { ok: false, reason: 'failed' };
+  } finally {
+    wipe(letterboxPrivate);
+    wipe(recipientPublic);
+    for (const h of openedHolders) {
+      wipe(h);
+    }
+    for (const row of helped) {
+      if (row.wrappedHolderSecret) {
+        wipe(row.wrappedHolderSecret);
+      }
+    }
     if (shareR) {
       wipe(shareR);
     }

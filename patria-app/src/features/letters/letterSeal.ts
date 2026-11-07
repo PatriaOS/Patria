@@ -9,10 +9,16 @@ import {
   wrapLetterShareToLetterbox,
   type LetterContent,
 } from '../../lib/crypto/letterEnvelope';
+import {
+  createLetterKeeperPairBoxes,
+  wrapKeeperHolderToLetterbox,
+  wipeLetterKeeperPairBoxes,
+  type LetterKeeperSlot,
+} from '../../lib/crypto/letterKeeperBoxes';
 import { sealSharePToReleasePublicKey } from '../../lib/crypto/letterReleaseKey';
 import { splitLetterCek, wipeLetterShares } from '../../lib/crypto/letterSplit';
 import { obtainPersonalKey } from '../../lib/crypto/personalKey';
-import { randomUuid } from '../../lib/crypto/random';
+import { randomKey32, randomUuid } from '../../lib/crypto/random';
 import { logKeyStep } from '../../lib/devLog';
 import { getLetterReleasePublicKey } from './letterReleaseConfig';
 import { fetchLetterboxPublicKey } from './letterboxEnsure';
@@ -22,6 +28,11 @@ import {
   type LetterTriggerKind,
   type LetterVisibility,
 } from './letterApi';
+
+export type SealLetterKeeper = {
+  keeperId: string;
+  slot: LetterKeeperSlot;
+};
 
 export type SealLetterParams = {
   letterId: string;
@@ -42,6 +53,8 @@ export type SealLetterParams = {
   /** Existing letter being re-sealed (version bumps). */
   previousVersion?: number;
   createDraft?: boolean;
+  /** Exactly 3 keepers, or omit for none. */
+  keepers?: [SealLetterKeeper, SealLetterKeeper, SealLetterKeeper] | null;
 };
 
 export type SealLetterResult =
@@ -155,6 +168,7 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
     });
 
     const shares = splitLetterCek(cek);
+    const holderSecrets: Uint8Array[] = [];
     try {
       const recipientWrap = wrapLetterShareToLetterbox(shares.shareR, letterboxPublic, {
         letterId: params.letterId,
@@ -165,6 +179,73 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
         letterId: params.letterId,
         version,
       });
+
+      let keepersPayload: NonNullable<Parameters<typeof sealLetter>[0]['keepers']> | null = null;
+      if (params.keepers && params.keepers.length === 3) {
+        if (
+          new Set(params.keepers.map((k) => k.slot)).size !== 3 ||
+          new Set(params.keepers.map((k) => k.keeperId)).size !== 3
+        ) {
+          return { ok: false, reason: 'failed', detail: 'invalid_keepers' };
+        }
+        const pubs: Uint8Array[] = [];
+        for (const k of params.keepers) {
+          const pub = await fetchLetterboxPublicKey(params.familySpaceId, k.keeperId);
+          if (!pub) {
+            return { ok: false, reason: 'failed', detail: 'keeper_not_ready' };
+          }
+          pubs.push(pub);
+        }
+        const secretA = randomKey32();
+        const secretB = randomKey32();
+        const secretC = randomKey32();
+        holderSecrets.push(secretA, secretB, secretC);
+        const bySlot: Record<LetterKeeperSlot, Uint8Array> = {
+          a: secretA,
+          b: secretB,
+          c: secretC,
+        };
+        const orderedKeepers: [SealLetterKeeper, SealLetterKeeper, SealLetterKeeper] = [
+          params.keepers.find((k) => k.slot === 'a')!,
+          params.keepers.find((k) => k.slot === 'b')!,
+          params.keepers.find((k) => k.slot === 'c')!,
+        ];
+        if (orderedKeepers.some((k) => !k)) {
+          return { ok: false, reason: 'failed', detail: 'invalid_keeper_slots' };
+        }
+        const orderedPubs = orderedKeepers.map((k) => {
+          const idx = params.keepers!.findIndex((x) => x.keeperId === k.keeperId);
+          return pubs[idx]!;
+        });
+        const boxes = createLetterKeeperPairBoxes(shares.shareP, bySlot.a, bySlot.b, bySlot.c, {
+          letterId: params.letterId,
+          version,
+        });
+        try {
+          const wraps = orderedKeepers.map((k, i) =>
+            wrapKeeperHolderToLetterbox(bySlot[k.slot], orderedPubs[i]!, {
+              letterId: params.letterId,
+              version,
+              keeperId: k.keeperId,
+              pinnedRecipientLetterboxPublic: letterboxPublic,
+            }),
+          );
+          keepersPayload = {
+            keeperIds: [
+              orderedKeepers[0].keeperId,
+              orderedKeepers[1].keeperId,
+              orderedKeepers[2].keeperId,
+            ],
+            slots: ['a', 'b', 'c'],
+            wrappedHolderSecrets: [wraps[0]!, wraps[1]!, wraps[2]!],
+            pinnedRecipientLetterboxPublic: letterboxPublic,
+            pairIds: ['ab', 'ac', 'bc'],
+            pairSealedShares: [boxes.boxAb, boxes.boxAc, boxes.boxBc],
+          };
+        } finally {
+          wipeLetterKeeperPairBoxes(boxes);
+        }
+      }
 
       await sealLetter({
         letterId: params.letterId,
@@ -185,11 +266,15 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
         patriaEphemeralPublic: patria.ephemeralPublicKey,
         patriaSealedShare: patria.sealedShare,
         voiceObjectPath: null,
+        keepers: keepersPayload,
       });
 
       return { ok: true, fingerprint: sealed.fingerprint, version };
     } finally {
       wipeLetterShares(shares);
+      for (const secret of holderSecrets) {
+        wipe(secret);
+      }
     }
   } catch (error) {
     const message = sealErrorMessage(error);

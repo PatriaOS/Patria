@@ -12,7 +12,9 @@ Each step says what counts as a pass. Steps marked **(manual)** need a person's 
 | --- | --- | --- |
 | Test 1 | femipaul7535+test1@gmail.com | Creates the family; Family admin |
 | Test 2 | femipaul7535+test2@gmail.com | Invited; Elder (Co admin in test 10) |
-| Test 3 | femipaul7535+test3@gmail.com | Cancelled invite in slice 1; Elder or Teen in key tests |
+| Test 3 | femipaul7535+test3@gmail.com | Cancelled invite in slice 1; Elder or Teen in key tests; keeper in B2 |
+| Test 4 | femipaul7535+test4@gmail.com | Elder keeper in B2 |
+| Test 5 | femipaul7535+test5@gmail.com | Elder keeper in B2 |
 
 Passwords are never written in this file. Invites must go to these exact addresses, because Patria checks that an invite is accepted by the email it was sent to.
 
@@ -480,7 +482,7 @@ Adult birthday on Profile; age letters for member recipients. Author never sees 
 
 ### 65. Add birthday
 Areas: letters, navigation
-1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if the privacy copy and **Birthday** are shown. Tap **Birthday**; pass if a date wheel opens (past days only) with a clear control. Accept the default past day (15 June, eleven years ago), Done, **Save**. Pass if **Saved.** appears.
+1. Sign in as Test 2. Open the Home menu, tap **Profile**. Pass if the privacy copy and **Birthday** are shown. Tap **Birthday**; pass if a date wheel opens (past days only) with a clear control. Accept the default past day (15 June, about thirty years ago), Done, **Save**. Pass if **Saved.** appears.
 
 ### 66. Seal an age letter
 Areas: letters
@@ -500,3 +502,32 @@ Areas: letters, keys
 ### 63. Fingerprint matches on release
 Areas: letters
 1. During test 62 (or a seal that included a voice note from test 59), note the seal code at seal and on open. Pass if they are the same 12 characters (voice is part of the code).
+
+## Letters to the Future Slice B2 (D43 keepers)
+
+Optional three keepers; after due, two can help the recipient when automatic release fails. Keepers never see the letter or the open date. Early release and child letters wait for B3/B4.
+
+### 68. Seal with three keepers
+Areas: letters
+1. Family with at least five adults who have letterbox + recovery (author, recipient, three keepers). As Test 1, write a **Surprise** letter to Test 2, choose three keepers. Pass if the form shows that keepers will know a letter exists. Seal. Pass if the letter seals and author detail lists the three keepers.
+
+### 69. Keeper view
+Areas: letters
+1. On a second Simulator as a keeper, open Letters. Pass if **Letters you keep** shows a row “You are a keeper for a letter from … to …” with **no** open date and **no** letter body.
+
+### 70. Nothing before due
+Areas: letters
+1. Before advancing time: as a keeper, open the keeper letter. Pass if **Help them open it** is not offered (or help fails). As the recipient, the letter is not openable. Pass if the letter stays closed.
+
+### 71. Two keepers after due
+Areas: letters, keys
+1. Seal with three keepers (test 68). Advance `trigger_at` in SQL and call `mark_due_letters`. With the **local** letter-release function stopped (or its local private key unset — environment only, no app flag), as the recipient tap **Open this letter**. Pass if the app offers **Ask your keepers**.
+2. On two other Simulators, as two keepers tap **Help them open it**. As the recipient, pass if progress reaches 2 of 2, **Open with keepers** opens the body, and the seal code matches seal.
+
+### 72. One keeper insufficient
+Areas: letters
+1. After due with automatic path failing: only one keeper helps. Pass if the recipient still cannot open with keepers until a second keeper helps.
+
+### 73. Keeper leaves
+Areas: letters, membership
+1. With a sealed letter that has keepers, remove one keeper from the family. As the author, Pass if Needs you shows **Replace a keeper**. Edit/reseal with a new third keeper. Pass if the replace notice clears.

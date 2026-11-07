@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-07 — LEG02 Slice B2 keepers
+
+Optional 3 keepers (adult + letterbox + recovery). Holder secrets sealed to keeper letterboxes with recipient letterbox public pinned in AEAD; pairwise `shareP` boxes (HKDF by slot order). After due, keepers re-seal holders to the pinned recipient key; recipient opens with 2 holders + pair-box RPC when automatic release fails (test 71 stops local letter-release — no app flag). Withdraw deletes keeper tables. Profile birthday default ~30 years ago. D43: due-day keeper help can reveal an age-letter birthday — accepted. No hosted migrate.
+
 ## 2026-11-06 — LEG02 B1 review: wheel-driven birthday + view grants
 
 Remove Profile e2e date chips; Maestro swipes the iOS date wheels (fine notch gestures). Default empty birthday is 15 June eleven years ago. `REVOKE ALL` on `letters_for_api` from PUBLIC/anon. No hosted migrate.

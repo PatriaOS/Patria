@@ -249,7 +249,7 @@ function signInEnv(secrets, n) {
 
 /** Matches ProfileScreen defaultPastBirthdayYmd + en-US formatBirthdayYmd (US Simulator). */
 function birthdayWheelEnv(now = new Date()) {
-  const y = now.getFullYear() - 11;
+  const y = now.getFullYear() - 30;
   const label = new Intl.DateTimeFormat('en-US', {
     day: 'numeric',
     month: 'long',
@@ -687,17 +687,43 @@ function seedLettersReady() {
   signInOnDevice(2, other);
 }
 
+/** B2: let in Tests 2–5 so keepers have letterboxes (reuse sims by signing in turn). */
+function seedLettersKeepersReady() {
+  seedAdminKeys();
+  const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+  const third = args.devices >= 3 && deviceC ? deviceC : other;
+  seedLetIn(2, other);
+  seedLetIn(3, third);
+  seedLetIn(4, other);
+  seedLetIn(5, third);
+  maestro({
+    flow: flow('09_let_in.yaml'),
+    device: deviceA,
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'verify_member',
+      MEMBER_ID: 'member-test-2',
+    },
+  });
+  signInOnDevice(1, deviceA);
+  signInOnDevice(2, other);
+}
+
 function seedBeforeYouStart(testNumber) {
   if (
     ![
       9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-      67,
+      67, 68, 69, 70, 71, 72, 73,
     ].includes(testNumber)
   ) {
     return;
   }
   if ([59, 60, 61, 62, 63, 64, 65, 66, 67].includes(testNumber)) {
     seedLettersReady();
+    return;
+  }
+  if ([68, 69, 70, 71, 72, 73].includes(testNumber)) {
+    seedLettersKeepersReady();
     return;
   }
   seedAdminKeys();
@@ -831,6 +857,7 @@ if (record && deviceA) {
 const FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX =
   '78c5bcc55c54ed015e7452df3b55a395401c17c2088049bcd1a9c678dca33a85';
 let letterReleaseReady = false;
+let letterReleasePid = null;
 
 async function letterReleaseResponds() {
   try {
@@ -875,6 +902,7 @@ async function ensureLetterReleaseServe() {
     },
   );
   child.unref();
+  letterReleasePid = child.pid;
   appendFileSync(log, `spawned letter-release pid=${child.pid}\n`);
   const started = Date.now();
   while (Date.now() - started < 90000) {
@@ -886,6 +914,33 @@ async function ensureLetterReleaseServe() {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error('letter-release Edge Function did not become ready on :54321.');
+}
+
+/** Stop local letter-release so automatic open fails (test 71). No app flag. */
+function stopLetterReleaseServe() {
+  const functionsEnvPath = join(APP_ROOT, 'supabase', 'functions', '.env');
+  writeFileSync(
+    functionsEnvPath,
+    '# Cleared for keeper-path e2e — automatic release must fail locally.\n',
+    { encoding: 'utf8' },
+  );
+  if (letterReleasePid) {
+    try {
+      process.kill(letterReleasePid, 'SIGTERM');
+    } catch {
+      // already gone
+    }
+    letterReleasePid = null;
+  }
+  try {
+    execFileSync('pkill', ['-f', 'supabase functions serve letter-release'], {
+      stdio: 'ignore',
+    });
+  } catch {
+    // none running
+  }
+  letterReleaseReady = false;
+  progress('Stopped local letter-release for keeper-path test.');
 }
 
 function markDueLettersPastTrigger() {
@@ -1002,7 +1057,7 @@ try {
     if (
       [
         9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-        67,
+        67, 68, 69, 70, 71, 72, 73,
       ].includes(test.number)
     ) {
       try {
@@ -2761,6 +2816,148 @@ try {
           flow: flow('67_age_seal_refusals.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'already', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 68) {
+      step(68, 1, 'Seal surprise letter with three keepers', () => {
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 69) {
+      step(69, 1, 'Keeper sees assignment without date or body', async () => {
+        // Ensure a sealed letter with keepers exists.
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceB;
+        if (!keeperDevice) {
+          throw new Error('Test 69 needs a second Simulator for the keeper.');
+        }
+        maestro({
+          flow: flow('69_keeper_view.yaml'),
+          device: keeperDevice,
+          env: { ...signInEnv(secrets, 3), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 70) {
+      step(70, 1, 'Nothing before due', () => {
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceB;
+        if (!keeperDevice) {
+          throw new Error('Test 70 needs a second Simulator for the keeper.');
+        }
+        maestro({
+          flow: flow('70_before_due.yaml'),
+          device: keeperDevice,
+          env: { ...signInEnv(secrets, 3), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 71) {
+      if (args.devices < 3 || !deviceB || !deviceC) {
+        throw new Error('Test 71 needs 3 simulators (recipient + two keepers).');
+      }
+      step(71, 1, 'Ask keepers when automatic path fails', async () => {
+        await ensureLetterReleaseServe();
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        markDueLettersPastTrigger();
+        stopLetterReleaseServe();
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient', E2E_STAY: '1' },
+        });
+      });
+      step(71, 2, 'Two keepers help; recipient opens with same seal code', () => {
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 3), PHASE: 'keeper_help', E2E_STAY: '1' },
+        });
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceC,
+          env: { ...signInEnv(secrets, 4), PHASE: 'keeper_help', E2E_STAY: '1' },
+        });
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'open_with_keepers', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 72) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 72 needs 2 simulators.');
+      }
+      step(72, 1, 'One keeper help is not enough', async () => {
+        await ensureLetterReleaseServe();
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        markDueLettersPastTrigger();
+        stopLetterReleaseServe();
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient', E2E_STAY: '1' },
+        });
+        const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceA;
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: keeperDevice,
+          env: { ...signInEnv(secrets, 3), PHASE: 'keeper_help', E2E_STAY: '1' },
+        });
+        maestro({
+          flow: flow('72_one_keeper_insufficient.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 73) {
+      step(73, 1, 'Keeper leaves → Needs you to replace', () => {
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `DELETE FROM public.space_members
+             WHERE family_space_id = '${spaceId}'
+               AND user_id = (
+                 SELECT id FROM auth.users WHERE email = '${TEST_EMAILS[5]}' LIMIT 1
+               );`,
+        );
+        maestro({
+          flow: flow('73_keeper_leaves.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
         });
       });
     }

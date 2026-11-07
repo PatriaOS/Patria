@@ -1,0 +1,33 @@
+# PHONE_TESTS: 70
+# AREAS: letters
+# Before due: keeper help is not offered.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- extendedWaitUntil:
+    visible:
+      id: "letters-keeping-title"
+    timeout: 30000
+- tapOn:
+    id: ".*letter-keep-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-keeper"
+    timeout: 15000
+- assertNotVisible:
+    id: "keeper-help"

@@ -171,9 +171,19 @@ export type SealLetterInput = {
   patriaEphemeralPublic: Uint8Array;
   patriaSealedShare: Uint8Array;
   voiceObjectPath: string | null;
+  /** Optional keepers: exactly 3, or omit / empty for none. */
+  keepers?: {
+    keeperIds: [string, string, string];
+    slots: ['a', 'b', 'c'];
+    wrappedHolderSecrets: [Uint8Array, Uint8Array, Uint8Array];
+    pinnedRecipientLetterboxPublic: Uint8Array;
+    pairIds: ['ab', 'ac', 'bc'];
+    pairSealedShares: [Uint8Array, Uint8Array, Uint8Array];
+  } | null;
 };
 
 export async function sealLetter(input: SealLetterInput): Promise<void> {
+  const keepers = input.keepers;
   const { error } = await supabase.rpc('seal_letter', {
     p_letter_id: input.letterId,
     p_version: input.version,
@@ -194,6 +204,18 @@ export async function sealLetter(input: SealLetterInput): Promise<void> {
     p_voice_object_path: input.voiceObjectPath,
     p_trigger_kind: input.triggerKind,
     p_trigger_age: input.triggerAge,
+    p_keeper_ids: keepers ? keepers.keeperIds : null,
+    p_keeper_slots: keepers ? keepers.slots : null,
+    p_keeper_wrapped_secrets: keepers
+      ? keepers.wrappedHolderSecrets.map((b) => toPgBytea(b))
+      : null,
+    p_pinned_recipient_letterbox_public: keepers
+      ? toPgBytea(keepers.pinnedRecipientLetterboxPublic)
+      : null,
+    p_pair_ids: keepers ? keepers.pairIds : null,
+    p_pair_sealed_shares: keepers
+      ? keepers.pairSealedShares.map((b) => toPgBytea(b))
+      : null,
   });
   if (error) {
     throw error;
@@ -404,4 +426,204 @@ export async function claimPatriaShareP(letterId: string): Promise<string> {
     throw new Error(payload?.error?.trim() || 'open_failed');
   }
   return payload.share_p_hex;
+}
+
+export type LetterKeeperSlot = 'a' | 'b' | 'c';
+export type LetterKeeperPairId = 'ab' | 'ac' | 'bc';
+
+export type KeeperLetterRow = {
+  letterId: string;
+  familySpaceId: string;
+  version: number;
+  status: LetterStatus;
+  authorId: string;
+  authorName: string;
+  recipientId: string;
+  recipientName: string;
+  slot: LetterKeeperSlot;
+  due: boolean;
+};
+
+export async function fetchLettersForKeepers(): Promise<KeeperLetterRow[]> {
+  const { data, error } = await supabase.rpc('letters_for_keepers');
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map(
+    (row: {
+      letter_id: string;
+      family_space_id: string;
+      version: number;
+      status: string;
+      author_id: string;
+      author_name: string;
+      recipient_id: string;
+      recipient_name: string;
+      slot: string;
+      due: boolean;
+    }) => ({
+      letterId: row.letter_id,
+      familySpaceId: row.family_space_id,
+      version: Number(row.version),
+      status: asStatus(row.status),
+      authorId: row.author_id,
+      authorName: row.author_name,
+      recipientId: row.recipient_id,
+      recipientName: row.recipient_name,
+      slot: (row.slot === 'b' || row.slot === 'c' ? row.slot : 'a') as LetterKeeperSlot,
+      due: Boolean(row.due),
+    }),
+  );
+}
+
+export type LetterKeeperOwnRow = {
+  letterId: string;
+  version: number;
+  slot: LetterKeeperSlot;
+  wrappedHolderSecret: Uint8Array;
+  pinnedRecipientLetterboxPublic: Uint8Array;
+};
+
+export async function fetchOwnKeeperRow(
+  letterId: string,
+  version: number,
+): Promise<LetterKeeperOwnRow | null> {
+  const { data, error } = await supabase
+    .from('letter_keepers')
+    .select('letter_id, version, slot, wrapped_holder_secret, pinned_recipient_letterbox_public')
+    .eq('letter_id', letterId)
+    .eq('version', version)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  if (!data) {
+    return null;
+  }
+  const slot = data.slot === 'b' || data.slot === 'c' ? data.slot : 'a';
+  return {
+    letterId: data.letter_id as string,
+    version: Number(data.version),
+    slot: slot as LetterKeeperSlot,
+    wrappedHolderSecret: fromPgBytea(data.wrapped_holder_secret),
+    pinnedRecipientLetterboxPublic: fromPgBytea(data.pinned_recipient_letterbox_public),
+  };
+}
+
+export async function releaseKeeperHolderToRecipient(
+  letterId: string,
+  wrappedHolderSecret: Uint8Array,
+): Promise<void> {
+  const { error } = await supabase.rpc('release_keeper_holder_to_recipient', {
+    p_letter_id: letterId,
+    p_wrapped_holder_secret: toPgBytea(wrappedHolderSecret),
+  });
+  if (error) {
+    throw error;
+  }
+}
+
+export type LetterKeeperHelpRow = {
+  slot: LetterKeeperSlot;
+  keeperId: string;
+  keeperName: string;
+  hasHelped: boolean;
+  wrappedHolderSecret: Uint8Array | null;
+};
+
+export async function fetchLetterKeeperHelp(letterId: string): Promise<LetterKeeperHelpRow[]> {
+  const { data, error } = await supabase.rpc('letter_keeper_help_for_recipient', {
+    p_letter_id: letterId,
+  });
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map(
+    (row: {
+      slot: string;
+      keeper_id: string;
+      keeper_name: string;
+      has_helped: boolean;
+      wrapped_holder_secret: unknown;
+    }) => ({
+      slot: (row.slot === 'b' || row.slot === 'c' ? row.slot : 'a') as LetterKeeperSlot,
+      keeperId: row.keeper_id,
+      keeperName: row.keeper_name,
+      hasHelped: Boolean(row.has_helped),
+      wrappedHolderSecret: row.wrapped_holder_secret
+        ? fromPgBytea(row.wrapped_holder_secret)
+        : null,
+    }),
+  );
+}
+
+export async function fetchLetterKeeperPairBox(
+  letterId: string,
+  pairId: LetterKeeperPairId,
+): Promise<{ version: number; pairId: LetterKeeperPairId; sealedShareP: Uint8Array } | null> {
+  const { data, error } = await supabase.rpc('fetch_letter_keeper_pair_box', {
+    p_letter_id: letterId,
+    p_pair_id: pairId,
+  });
+  if (error) {
+    throw error;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.sealed_share_p) {
+    return null;
+  }
+  return {
+    version: Number(row.version),
+    pairId: row.pair_id as LetterKeeperPairId,
+    sealedShareP: fromPgBytea(row.sealed_share_p),
+  };
+}
+
+export async function letterKeeperEligible(
+  spaceId: string,
+  userId: string,
+  authorId: string,
+  recipientId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('letter_keeper_eligible', {
+    _space_id: spaceId,
+    _user_id: userId,
+    _author_id: authorId,
+    _recipient_id: recipientId,
+  });
+  if (error) {
+    throw error;
+  }
+  return Boolean(data);
+}
+
+export type LetterKeeperAuthorRow = {
+  slot: LetterKeeperSlot;
+  keeperId: string;
+  keeperName: string;
+  stillMember: boolean;
+};
+
+export async function fetchLetterKeepersForAuthor(
+  letterId: string,
+): Promise<LetterKeeperAuthorRow[]> {
+  const { data, error } = await supabase.rpc('letter_keepers_for_author', {
+    p_letter_id: letterId,
+  });
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map(
+    (row: {
+      slot: string;
+      keeper_id: string;
+      keeper_name: string;
+      still_member: boolean;
+    }) => ({
+      slot: (row.slot === 'b' || row.slot === 'c' ? row.slot : 'a') as LetterKeeperSlot,
+      keeperId: row.keeper_id,
+      keeperName: row.keeper_name,
+      stillMember: Boolean(row.still_member),
+    }),
+  );
 }
