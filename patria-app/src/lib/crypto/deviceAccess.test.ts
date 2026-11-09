@@ -15,7 +15,7 @@ import {
   type FirstDeviceNotice,
   type OwnPhone,
 } from './deviceAccess';
-import { ensureDeviceIdentity } from './deviceIdentity';
+import { ensureDeviceIdentity, resetDeviceIdentityMemory } from './deviceIdentity';
 import { createFoundingMaterial } from './familyCeremony';
 import {
   cacheFamilySecrets,
@@ -180,6 +180,11 @@ async function foundOnInstall(
 }
 
 describe('first-device approval', () => {
+  beforeEach(() => {
+    resetDeviceIdentityMemory();
+    resetFamilyKeyMemory();
+  });
+
   it('approves by wrapping the family key to the member device with KEYS AAD', async () => {
     const adminPhone = new Map<string, string>();
     const memberPhone = new Map<string, string>();
@@ -435,6 +440,10 @@ describe('first-device approval', () => {
 });
 
 describe('extra-device self approval', () => {
+  beforeEach(() => {
+    resetDeviceIdentityMemory();
+    resetFamilyKeyMemory();
+  });
   it('throws if the caller is not the device owner', () => {
     expect(() => assertOwnExtraDevice(ELENA, MARCO)).toThrow('extra device wrap is self-only');
   });
@@ -468,6 +477,7 @@ describe('extra-device self approval', () => {
       });
 
       installMemoryStore(newPhone);
+      resetDeviceIdentityMemory();
       const extra = await ensureDeviceIdentity(ELENA);
       await requestFirstDeviceAccess(
         { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
@@ -545,6 +555,7 @@ describe('extra-device self approval', () => {
       approvedBy: ELENA,
     });
     installMemoryStore(newPhone);
+    resetDeviceIdentityMemory();
     const extra = await ensureDeviceIdentity(ELENA);
     await requestFirstDeviceAccess(
       { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
@@ -591,6 +602,7 @@ describe('extra-device self approval', () => {
       approvedBy: ELENA,
     });
     installMemoryStore(newPhone);
+    resetDeviceIdentityMemory();
     const extra = await ensureDeviceIdentity(ELENA);
     await requestFirstDeviceAccess(
       { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
@@ -646,6 +658,7 @@ describe('extra-device self approval', () => {
       approvedBy: ELENA,
     });
     installMemoryStore(memberNew);
+    resetDeviceIdentityMemory();
     const extra = await ensureDeviceIdentity(MARCO);
     await requestFirstDeviceAccess(
       { spaceId: SPACE, userId: MARCO, role: 'co_admin', device: extra },

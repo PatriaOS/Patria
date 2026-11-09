@@ -347,6 +347,7 @@ export async function approveFirstDevice(
     deviceId: input.adminDeviceId,
     privateKey: input.adminPrivateKey,
     fetchOwnWrap: gateway.fetchOwnWrap,
+    allowCachedWithoutWrap: true,
   });
   if (!familyKey) {
     throw new Error('missing family key');
@@ -401,6 +402,7 @@ export async function approveOwnExtraDevice(
     deviceId: input.approverDeviceId,
     privateKey: input.approverPrivateKey,
     fetchOwnWrap: gateway.fetchOwnWrap,
+    allowCachedWithoutWrap: true,
   });
   if (!familyKey) {
     throw new Error('missing family key');

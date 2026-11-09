@@ -145,12 +145,57 @@ async function personalKeyExists(spaceId: string, userId: string): Promise<boole
   return Boolean(data);
 }
 
+async function enrollPersonalWrapFromKey(input: {
+  spaceId: string;
+  userId: string;
+  deviceId: string;
+  publicKey: Uint8Array;
+  personalKey: Uint8Array;
+}): Promise<void> {
+  const wrapped = wrapPersonalKeyToDevice(input.personalKey, input.publicKey, {
+    familySpaceId: input.spaceId,
+    userId: input.userId,
+    deviceId: input.deviceId,
+  });
+  const { error } = await supabase.from('personal_key_wraps').insert({
+    family_space_id: input.spaceId,
+    user_id: input.userId,
+    device_id: input.deviceId,
+    wrapped_key: toPgBytea(wrapped),
+  });
+  if (error && error.code !== '23505') {
+    logKeyStep('insert_personal_key_wrap', error.code ?? 'unknown');
+    throw error;
+  }
+}
+
 export async function loadPersonalKeyIfPresent(input: {
   spaceId: string;
   userId: string;
 }): Promise<Uint8Array | null> {
   const cached = await loadCachedPersonalKey(input.userId, input.spaceId);
   if (cached) {
+    // Admin let-in wraps the family key only. If this phone already holds the
+    // personal key, enroll a wrap for the current device id so letterbox Help
+    // does not hit approve-other-phone after a remint + let-in.
+    try {
+      const device = await ensureDeviceIdentity(input.userId);
+      const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
+      if (!wrap) {
+        await enrollPersonalWrapFromKey({
+          spaceId: input.spaceId,
+          userId: input.userId,
+          deviceId: device.deviceId,
+          publicKey: device.publicKey,
+          personalKey: cached,
+        });
+      }
+    } catch (error) {
+      logKeyStep(
+        'enroll_personal_wrap_from_cache',
+        error instanceof Error ? error.message.slice(0, 48) : 'unknown',
+      );
+    }
     return cached;
   }
   if (!(await personalKeyExists(input.spaceId, input.userId))) {
@@ -159,7 +204,17 @@ export async function loadPersonalKeyIfPresent(input: {
   const device = await ensureDeviceIdentity(input.userId);
   const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
   if (!wrap) {
-    throw new Error(personalKeyNeedsOtherPhone);
+    const { count, error: countError } = await supabase
+      .from('personal_key_wraps')
+      .select('device_id', { count: 'exact', head: true })
+      .eq('family_space_id', input.spaceId)
+      .eq('user_id', input.userId)
+      .eq('device_id', device.deviceId);
+    throw new Error(
+      `${personalKeyNeedsOtherPhone}:d=${device.deviceId.slice(0, 8)}:s=${input.spaceId.slice(0, 8)}:n=${
+        countError ? 'err' : String(count ?? 0)
+      }`,
+    );
   }
   const opened = unwrapPersonalKeyFromDevice(wrap, device.privateKey, {
     familySpaceId: input.spaceId,
@@ -258,23 +313,19 @@ export async function wrapPersonalKeyForApprovedDevice(input: {
   deviceId: string;
   publicKey: Uint8Array;
 }): Promise<void> {
-  const personalKey = await obtainPersonalKey({ spaceId: input.spaceId, userId: input.userId });
+  // Prefer cache so we do not recurse through obtainPersonalKey → loadPersonalKeyIfPresent.
+  let personalKey = await loadCachedPersonalKey(input.userId, input.spaceId);
+  if (!personalKey) {
+    personalKey = await obtainPersonalKey({ spaceId: input.spaceId, userId: input.userId });
+  }
   try {
-    const wrapped = wrapPersonalKeyToDevice(personalKey, input.publicKey, {
-      familySpaceId: input.spaceId,
+    await enrollPersonalWrapFromKey({
+      spaceId: input.spaceId,
       userId: input.userId,
       deviceId: input.deviceId,
+      publicKey: input.publicKey,
+      personalKey,
     });
-    const { error } = await supabase.from('personal_key_wraps').insert({
-      family_space_id: input.spaceId,
-      user_id: input.userId,
-      device_id: input.deviceId,
-      wrapped_key: toPgBytea(wrapped),
-    });
-    if (error && error.code !== '23505') {
-      logKeyStep('insert_personal_key_wrap', error.code ?? 'unknown');
-      throw error;
-    }
   } finally {
     wipe(personalKey);
   }
