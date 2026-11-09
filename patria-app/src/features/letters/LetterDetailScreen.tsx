@@ -132,7 +132,7 @@ export function LetterDetailScreen() {
   const keepingQuery = useQuery({
     queryKey: ['lettersForKeepers', spaceId, userId],
     enabled: Boolean(spaceId && userId),
-    queryFn: () => fetchLettersForKeepers(),
+    queryFn: () => fetchLettersForKeepers(spaceId!),
   });
 
   const letter = letterQuery.data;
@@ -333,13 +333,13 @@ export function LetterDetailScreen() {
     try {
       const result = await openLetterAsRecipientWithKeepers({ letterId, spaceId, userId });
       if (!result.ok) {
-        setOpenError(
+        const base =
           result.reason === 'need_keepers'
             ? copy.letters.keepersWaiting
             : result.reason === 'not_ready'
               ? copy.letters.notYet
-              : copy.letters.openFailed,
-        );
+              : copy.letters.openFailed;
+        setOpenError(result.detail ? `${base} (${result.detail})` : base);
         return;
       }
       await applyOpened(result);
@@ -363,12 +363,16 @@ export function LetterDetailScreen() {
       const result = await helpRecipientOpenLetter({
         letterId,
         version: keeping.version,
-        spaceId,
+        // Use the letter's space from the keeper row (not a stale current-family id).
+        spaceId: keeping.familySpaceId || spaceId,
         keeperUserId: userId,
         recipientId: keeping.recipientId,
       });
       if (!result.ok) {
-        setKeeperHelpError(copy.letters.keepersHelpFailed);
+        const suffix = result.detail
+          ? `${result.reason}:${result.detail}`
+          : result.reason;
+        setKeeperHelpError(`${copy.letters.keepersHelpFailed} (${suffix})`);
         return;
       }
       setKeeperHelpDone(true);
@@ -376,7 +380,11 @@ export function LetterDetailScreen() {
       await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
     } catch (error) {
       logFailedAction(error);
-      setKeeperHelpError(copy.letters.keepersHelpFailed);
+      const detail =
+        error instanceof Error && error.message
+          ? error.message.slice(0, 48)
+          : 'exception';
+      setKeeperHelpError(`${copy.letters.keepersHelpFailed} (${detail})`);
     } finally {
       setKeeperHelpBusy(false);
     }
@@ -402,7 +410,9 @@ export function LetterDetailScreen() {
         </Body>
         {keeperHelpDone ? (
           <Caption testID="keeper-helped">{copy.letters.keepersHelped}</Caption>
-        ) : keepingRowEarly.due ? (
+        ) : keepingRowEarly.status === 'sealed' ||
+          keepingRowEarly.status === 'pending' ? (
+          // RPC refuses before due (test 70). After due, Help must be tappable (71).
           <Button
             label={copy.letters.keepersHelp}
             onPress={() => void onKeeperHelp()}
@@ -475,6 +485,9 @@ export function LetterDetailScreen() {
               busy={busy}
               testID="open-letter"
             />
+            {/* Keeper progress must survive leaving the screen — askKeepers is only
+                local UI after a failed automatic open. Spec 71: returning recipient
+                sees 2 of 2 and Open with keepers without tapping Open again. */}
             {askKeepers ? (
               <>
                 <Banner message={copy.letters.keepersAskHint} tone="info" />
@@ -484,29 +497,29 @@ export function LetterDetailScreen() {
                   onPress={() => setAskKeepers(true)}
                   testID="ask-keepers"
                 />
-                {hasKeepers ? (
-                  <>
-                    <Caption testID="keepers-progress">
-                      {copy.letters.keepersProgress.replace(
-                        '{n}',
-                        String(Math.min(helpedCount, 2)),
-                      )}
-                    </Caption>
-                    {(keeperHelpQuery.data ?? []).map((row) => (
-                      <Caption key={row.keeperId} testID={`keeper-help-${row.slot}`}>
-                        {row.keeperName}
-                        {row.hasHelped ? ' · helped' : ''}
-                      </Caption>
-                    ))}
-                    <Button
-                      label={copy.letters.keepersOpenWith}
-                      onPress={() => void onOpenWithKeepers()}
-                      busy={busy}
-                      disabled={helpedCount < 2}
-                      testID="open-with-keepers"
-                    />
-                  </>
-                ) : null}
+              </>
+            ) : null}
+            {hasKeepers ? (
+              <>
+                <Caption testID="keepers-progress">
+                  {copy.letters.keepersProgress.replace(
+                    '{n}',
+                    String(Math.min(helpedCount, 2)),
+                  )}
+                </Caption>
+                {(keeperHelpQuery.data ?? []).map((row) => (
+                  <Caption key={row.keeperId} testID={`keeper-help-${row.slot}`}>
+                    {row.keeperName}
+                    {row.hasHelped ? ' · helped' : ''}
+                  </Caption>
+                ))}
+                <Button
+                  label={copy.letters.keepersOpenWith}
+                  onPress={() => void onOpenWithKeepers()}
+                  busy={busy}
+                  disabled={helpedCount < 2}
+                  testID="open-with-keepers"
+                />
               </>
             ) : null}
           </ButtonStack>
@@ -534,7 +547,7 @@ export function LetterDetailScreen() {
         </Body>
         {keeperHelpDone ? (
           <Caption testID="keeper-helped">{copy.letters.keepersHelped}</Caption>
-        ) : keepingRow.due ? (
+        ) : keepingRow.status === 'sealed' || keepingRow.status === 'pending' ? (
           <Button
             label={copy.letters.keepersHelp}
             onPress={() => void onKeeperHelp()}

@@ -75,7 +75,7 @@ export function LettersScreen() {
   const keepingQuery = useQuery({
     queryKey: ['lettersForKeepers', spaceId, userId],
     enabled: Boolean(spaceId && userId),
-    queryFn: () => fetchLettersForKeepers(),
+    queryFn: () => fetchLettersForKeepers(spaceId!),
   });
 
   const membersQuery = useQuery({

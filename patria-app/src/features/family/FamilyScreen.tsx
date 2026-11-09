@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
@@ -27,6 +27,7 @@ import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
+import { ensureLetterboxKey } from '../letters/letterboxEnsure';
 import { FamilyDeviceNotices } from './FamilyDeviceNotices';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
@@ -72,6 +73,17 @@ export function FamilyScreen() {
     refetchOnMount: 'always',
     queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
   });
+
+  // keys_ready Maestro ends on Family — enroll personal wrap for this device here
+  // (same as Home) so keeper Help is not stuck on approve-other-phone.
+  useEffect(() => {
+    if (keyStatusQuery.data !== 'ready' || !spaceId || !userId) {
+      return;
+    }
+    void ensureLetterboxKey({ spaceId, userId }).catch(() => {
+      // No personal key yet — Vault / Letters banners cover that.
+    });
+  }, [keyStatusQuery.data, spaceId, userId]);
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {

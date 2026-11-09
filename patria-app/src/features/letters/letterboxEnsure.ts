@@ -24,15 +24,18 @@ export async function ensureLetterboxKey(input: {
     logKeyStep('letterbox_exists', error.code ?? 'unknown');
     throw error;
   }
-  if (existing) {
-    return;
-  }
 
+  // Always obtain the personal key first. If this phone already holds it (cache)
+  // but only an older device id has a server wrap, loadPersonalKeyIfPresent
+  // enrolls a wrap for the current device — required for keeper Help.
   const personalKey = await obtainPersonalKey({
     spaceId: input.spaceId,
     userId: input.userId,
   });
   try {
+    if (existing) {
+      return;
+    }
     const minted = mintLetterboxForPersonalKey(personalKey, {
       familySpaceId: input.spaceId,
       userId: input.userId,

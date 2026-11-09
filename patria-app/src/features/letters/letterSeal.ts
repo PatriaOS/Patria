@@ -230,6 +230,9 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
               pinnedRecipientLetterboxPublic: letterboxPublic,
             }),
           );
+          // Copy sealed pair boxes before wipe — keepersPayload must outlive this
+          // try/finally; wiping the originals used to upload all-zero shareP boxes
+          // (holders still worked → open_pair_ab failed after Help).
           keepersPayload = {
             keeperIds: [
               orderedKeepers[0].keeperId,
@@ -240,34 +243,50 @@ export async function sealLetterOnDevice(params: SealLetterParams): Promise<Seal
             wrappedHolderSecrets: [wraps[0]!, wraps[1]!, wraps[2]!],
             pinnedRecipientLetterboxPublic: letterboxPublic,
             pairIds: ['ab', 'ac', 'bc'],
-            pairSealedShares: [boxes.boxAb, boxes.boxAc, boxes.boxBc],
+            pairSealedShares: [
+              new Uint8Array(boxes.boxAb),
+              new Uint8Array(boxes.boxAc),
+              new Uint8Array(boxes.boxBc),
+            ],
           };
         } finally {
           wipeLetterKeeperPairBoxes(boxes);
         }
       }
 
-      await sealLetter({
-        letterId: params.letterId,
-        version,
-        fromLabel: params.fromLabel,
-        visibility: params.visibility,
-        triggerKind: params.triggerKind,
-        triggerAt: params.triggerKind === 'date' ? (params.triggerAt ?? null) : null,
-        triggerAge: params.triggerKind === 'age' ? (params.triggerAge ?? null) : null,
-        contentNonce: sealed.contentNonce,
-        ciphertext: sealed.ciphertext,
-        voiceCiphertext: voiceCiphertext ?? null,
-        contentHash: bytesToHex(sealed.contentHash),
-        fingerprint: sealed.fingerprint,
-        authorCekNonce: authorWrap.nonce,
-        authorWrappedCek: authorWrap.wrappedCek,
-        recipientWrappedShare: recipientWrap,
-        patriaEphemeralPublic: patria.ephemeralPublicKey,
-        patriaSealedShare: patria.sealedShare,
-        voiceObjectPath: null,
-        keepers: keepersPayload,
-      });
+      try {
+        await sealLetter({
+          letterId: params.letterId,
+          version,
+          fromLabel: params.fromLabel,
+          visibility: params.visibility,
+          triggerKind: params.triggerKind,
+          triggerAt: params.triggerKind === 'date' ? (params.triggerAt ?? null) : null,
+          triggerAge: params.triggerKind === 'age' ? (params.triggerAge ?? null) : null,
+          contentNonce: sealed.contentNonce,
+          ciphertext: sealed.ciphertext,
+          voiceCiphertext: voiceCiphertext ?? null,
+          contentHash: bytesToHex(sealed.contentHash),
+          fingerprint: sealed.fingerprint,
+          authorCekNonce: authorWrap.nonce,
+          authorWrappedCek: authorWrap.wrappedCek,
+          recipientWrappedShare: recipientWrap,
+          patriaEphemeralPublic: patria.ephemeralPublicKey,
+          patriaSealedShare: patria.sealedShare,
+          voiceObjectPath: null,
+          keepers: keepersPayload,
+        });
+      } finally {
+        if (keepersPayload) {
+          for (const box of keepersPayload.pairSealedShares) {
+            wipe(box);
+          }
+          for (const wrapped of keepersPayload.wrappedHolderSecrets) {
+            wipe(wrapped);
+          }
+          wipe(keepersPayload.pinnedRecipientLetterboxPublic);
+        }
+      }
 
       return { ok: true, fingerprint: sealed.fingerprint, version };
     } finally {

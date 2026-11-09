@@ -44,6 +44,8 @@ export type OpenLetterResult =
   | {
       ok: false;
       reason: 'missing' | 'not_ready' | 'failed' | 'no_author_share' | 'need_keepers';
+      /** Short step tag for e2e / dev — never a secret. */
+      detail?: string;
     };
 
 async function attachVoicePlain(
@@ -225,27 +227,35 @@ export async function openLetterAsRecipientWithKeepers(input: {
   if (letter.status !== 'pending' && letter.status !== 'released') {
     return { ok: false, reason: 'not_ready' };
   }
+  // Prefer the letter's own space — shared-sim e2e can leave a stale current spaceId.
+  const spaceId = letter.familySpaceId || input.spaceId;
   const wrapped = await fetchRecipientShare(input.letterId);
   if (!wrapped) {
-    return { ok: false, reason: 'failed' };
+    return { ok: false, reason: 'failed', detail: 'no_share_r' };
   }
-  const letterboxPrivate = await loadOwnLetterboxPrivateKey({
-    spaceId: input.spaceId,
-    userId: input.userId,
-  });
+  let letterboxPrivate: Uint8Array | null;
+  try {
+    letterboxPrivate = await loadOwnLetterboxPrivateKey({
+      spaceId,
+      userId: input.userId,
+    });
+  } catch (error) {
+    logFailedAction(error);
+    return { ok: false, reason: 'failed', detail: 'letterbox_load' };
+  }
   if (!letterboxPrivate) {
-    return { ok: false, reason: 'failed' };
+    return { ok: false, reason: 'failed', detail: 'no_letterbox' };
   }
-  const recipientPublic = await fetchLetterboxPublicKey(input.spaceId, input.userId);
+  const recipientPublic = await fetchLetterboxPublicKey(spaceId, input.userId);
   if (!recipientPublic) {
     wipe(letterboxPrivate);
-    return { ok: false, reason: 'failed' };
+    return { ok: false, reason: 'failed', detail: 'no_letterbox_pub' };
   }
   const payload = await fetchLetterPayload(input.letterId);
   if (!payload) {
     wipe(letterboxPrivate);
     wipe(recipientPublic);
-    return { ok: false, reason: 'missing' };
+    return { ok: false, reason: 'missing', detail: 'no_payload' };
   }
 
   const help = await fetchLetterKeeperHelp(input.letterId);
@@ -253,7 +263,11 @@ export async function openLetterAsRecipientWithKeepers(input: {
   if (helped.length < 2) {
     wipe(letterboxPrivate);
     wipe(recipientPublic);
-    return { ok: false, reason: 'need_keepers' };
+    return {
+      ok: false,
+      reason: 'need_keepers',
+      detail: `helped=${helped.length}`,
+    };
   }
 
   let shareR: Uint8Array | undefined;
@@ -261,41 +275,60 @@ export async function openLetterAsRecipientWithKeepers(input: {
   let cek: Uint8Array | undefined;
   const openedHolders: Uint8Array[] = [];
   try {
-    shareR = unwrapLetterShareFromLetterbox(wrapped, letterboxPrivate, {
-      letterId: letter.id,
-      version: letter.version,
-    });
+    try {
+      shareR = unwrapLetterShareFromLetterbox(wrapped, letterboxPrivate, {
+        letterId: letter.id,
+        version: letter.version,
+      });
+    } catch (error) {
+      logFailedAction(error);
+      return { ok: false, reason: 'failed', detail: 'unwrap_share_r' };
+    }
 
     const first = helped[0]!;
     const second = helped[1]!;
     for (const row of [first, second]) {
-      const holder = unwrapKeeperHolderFromRecipientLetterbox(
-        row.wrappedHolderSecret!,
-        letterboxPrivate,
-        {
-          letterId: letter.id,
-          version: letter.version,
-          keeperId: row.keeperId,
-          pinnedRecipientLetterboxPublic: recipientPublic,
-        },
-      );
-      openedHolders.push(holder);
+      try {
+        const holder = unwrapKeeperHolderFromRecipientLetterbox(
+          row.wrappedHolderSecret!,
+          letterboxPrivate,
+          {
+            letterId: letter.id,
+            version: letter.version,
+            keeperId: row.keeperId,
+            pinnedRecipientLetterboxPublic: recipientPublic,
+          },
+        );
+        openedHolders.push(holder);
+      } catch (error) {
+        logFailedAction(error);
+        return {
+          ok: false,
+          reason: 'failed',
+          detail: `unwrap_holder_${row.slot}`,
+        };
+      }
     }
 
     const pairId = pairIdForSlots(first.slot as LetterKeeperSlot, second.slot as LetterKeeperSlot);
     const pairBox = await fetchLetterKeeperPairBox(letter.id, pairId);
     if (!pairBox) {
-      return { ok: false, reason: 'failed' };
+      return { ok: false, reason: 'failed', detail: `no_pair_${pairId}` };
     }
-    shareP = openLetterKeeperPair(
-      pairBox.sealedShareP,
-      first.slot as LetterKeeperSlot,
-      openedHolders[0]!,
-      second.slot as LetterKeeperSlot,
-      openedHolders[1]!,
-      { letterId: letter.id, version: letter.version },
-      pairId,
-    );
+    try {
+      shareP = openLetterKeeperPair(
+        pairBox.sealedShareP,
+        first.slot as LetterKeeperSlot,
+        openedHolders[0]!,
+        second.slot as LetterKeeperSlot,
+        openedHolders[1]!,
+        { letterId: letter.id, version: letter.version },
+        pairId,
+      );
+    } catch (error) {
+      logFailedAction(error);
+      return { ok: false, reason: 'failed', detail: `open_pair_${pairId}` };
+    }
     cek = combineLetterCek(shareR, shareP);
     const content = openLetterContent(cek, payload.contentNonce, payload.ciphertext, {
       familySpaceId: letter.familySpaceId,
@@ -318,7 +351,7 @@ export async function openLetterAsRecipientWithKeepers(input: {
     };
   } catch (error) {
     logFailedAction(error);
-    return { ok: false, reason: 'failed' };
+    return { ok: false, reason: 'failed', detail: 'open_keepers' };
   } finally {
     wipe(letterboxPrivate);
     wipe(recipientPublic);

@@ -444,36 +444,46 @@ export type KeeperLetterRow = {
   due: boolean;
 };
 
-export async function fetchLettersForKeepers(): Promise<KeeperLetterRow[]> {
+export async function fetchLettersForKeepers(spaceId: string): Promise<KeeperLetterRow[]> {
   const { data, error } = await supabase.rpc('letters_for_keepers');
   if (error) {
     throw error;
   }
-  return (data ?? []).map(
-    (row: {
-      letter_id: string;
-      family_space_id: string;
-      version: number;
-      status: string;
-      author_id: string;
-      author_name: string;
-      recipient_id: string;
-      recipient_name: string;
-      slot: string;
-      due: boolean;
-    }) => ({
-      letterId: row.letter_id,
-      familySpaceId: row.family_space_id,
-      version: Number(row.version),
-      status: asStatus(row.status),
-      authorId: row.author_id,
-      authorName: row.author_name,
-      recipientId: row.recipient_id,
-      recipientName: row.recipient_name,
-      slot: (row.slot === 'b' || row.slot === 'c' ? row.slot : 'a') as LetterKeeperSlot,
-      due: Boolean(row.due),
-    }),
-  );
+  return (data ?? [])
+    .map(
+      (row: {
+        letter_id: string;
+        family_space_id: string;
+        version: number;
+        status: string;
+        author_id: string;
+        author_name: string;
+        recipient_id: string;
+        recipient_name: string;
+        slot: string;
+        due: boolean | string;
+      }) => ({
+        letterId: row.letter_id,
+        familySpaceId: row.family_space_id,
+        version: Number(row.version),
+        status: asStatus(row.status),
+        authorId: row.author_id,
+        authorName: row.author_name,
+        recipientId: row.recipient_id,
+        recipientName: row.recipient_name,
+        slot: (row.slot === 'b' || row.slot === 'c' ? row.slot : 'a') as LetterKeeperSlot,
+        // Pending means mark_due already ran. Accept real booleans and pg/PostgREST
+        // string forms; never Boolean("false") which is true for any non-empty string.
+        due:
+          row.due === true ||
+          row.due === 't' ||
+          row.due === 'true' ||
+          asStatus(row.status) === 'pending',
+      }),
+    )
+    // Letters tab is family-scoped — never show keeper duties from another space
+    // (stale leftover families caused Help → approve-other-phone on the wrong letter).
+    .filter((row) => row.familySpaceId === spaceId);
 }
 
 export type LetterKeeperOwnRow = {
