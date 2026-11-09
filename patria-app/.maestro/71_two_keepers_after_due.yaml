@@ -52,6 +52,10 @@ appId: app.patria.dev
     commands:
       - tapOn:
           id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "letters-entry"
@@ -61,6 +65,14 @@ appId: app.patria.dev
           id: "letters-entry"
       - extendedWaitUntil:
           visible:
+            id: "screen-letters"
+          timeout: 30000
+      - extendedWaitUntil:
+          visible:
+            id: "letters-keeping-title"
+          timeout: 30000
+      - extendedWaitUntil:
+          visible:
             id: ".*letter-keep-.*"
           timeout: 30000
       - tapOn:
@@ -68,8 +80,12 @@ appId: app.patria.dev
           index: 0
       - extendedWaitUntil:
           visible:
-            id: "keeper-help"
+            id: "screen-letter-keeper"
           timeout: 15000
+      - extendedWaitUntil:
+          visible:
+            id: "keeper-help"
+          timeout: 20000
       - tapOn:
           id: "keeper-help"
       - extendedWaitUntil:
@@ -109,4 +125,12 @@ appId: app.patria.dev
             id: "letter-opened-body"
           timeout: 30000
       - assertVisible: "Kept for when Patria cannot open it."
-      - assertVisible: "Seal code"
+      # Seal code caption sits below the body — scroll before asserting.
+      - scrollUntilVisible:
+          element:
+            id: "fingerprint-.*"
+          direction: DOWN
+          timeout: 10000
+      - assertVisible:
+          id: "fingerprint-.*"
+      - assertVisible: "Seal code.*"

@@ -1,0 +1,76 @@
+# PHONE_TESTS: 71 (keeper Help after keys_ready, one app session — no relaunch)
+# AREAS: letters, keys
+# When E2E_STAY=1, seedLetIn already left this keeper on Home with family keys.
+# launchApp remints device identity on Simulator SecureStore and orphans
+# personal_key_wraps → approve-other-phone.
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${E2E_STAY != '1'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+- runFlow:
+    when:
+      true: ${E2E_STAY == '1'}
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "^home$|recovery-reminder-sheet"
+          timeout: 45000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$"
+          timeout: 30000
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element: "Family keys: set up on this phone"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Family keys: set up on this phone"
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letters"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "letters-keeping-title"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: ".*letter-keep-.*"
+    timeout: 30000
+- tapOn:
+    id: ".*letter-keep-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-keeper"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "keeper-help"
+    timeout: 20000
+- tapOn:
+    id: "keeper-help"
+- extendedWaitUntil:
+    visible:
+      id: "keeper-helped"
+    timeout: 30000

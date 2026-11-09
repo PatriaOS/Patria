@@ -19,8 +19,24 @@ appId: app.patria.dev
     index: 0
 - extendedWaitUntil:
     visible:
-      id: "ask-keepers"
+      id: "open-letter|keepers-progress"
     timeout: 30000
+# Optional: retry automatic open so Ask keepers banner appears; progress is enough.
+- runFlow:
+    when:
+      visible:
+        id: "open-letter"
+    commands:
+      - tapOn:
+          id: "open-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "keepers-progress|ask-keepers"
+          timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "keepers-progress"
+    timeout: 20000
 - assertVisible:
     id: "keepers-progress"
     text: "1 of 2 keepers have helped"

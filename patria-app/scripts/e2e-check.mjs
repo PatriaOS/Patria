@@ -7,9 +7,11 @@ import {
   PHONE_AREA_LIST,
   PHONE_TESTS,
   parseAreaList,
+  parseE2eTestFlag,
   parsePhoneTests,
   phoneCoverageErrors,
   runnerNumbersFromSource,
+  selectPhoneTestsForRun,
 } from './e2e-lib.mjs';
 
 function flowNumber(filename) {
@@ -103,6 +105,79 @@ for (const name of ['pickPhotos.ts', 'pickMedia.ts']) {
     errors.push(
       `${name} must not reference bundled e2e sample media; those live in e2ePhotoSamples.bundle.ts and load only when EXPO_PUBLIC_E2E=1.`,
     );
+  }
+}
+
+// --test comma lists must never fall through to the full suite (NaN → falsy bug).
+{
+  const parsed = parseE2eTestFlag('65,68,71');
+  if (parsed.join(',') !== '65,68,71') {
+    errors.push(`parseE2eTestFlag('65,68,71') → [${parsed.join(',')}], expected 65,68,71`);
+  }
+  if (parseE2eTestFlag('').length !== 0) {
+    errors.push('parseE2eTestFlag("") should be empty');
+  }
+  if (parseE2eTestFlag('abc,0,-1').length !== 0) {
+    errors.push('parseE2eTestFlag should drop non-positive / non-numeric parts');
+  }
+  const sample = [
+    { number: 65, title: 'a' },
+    { number: 68, title: 'b' },
+    { number: 70, title: 'c' },
+  ];
+  try {
+    const picked = selectPhoneTestsForRun({
+      allTests: sample,
+      testNumbers: [65, 68],
+      mode: 'full',
+      smokeNumbers: [],
+      affectedNumbers: [],
+    });
+    if (picked.map((t) => t.number).join(',') !== '65,68') {
+      errors.push(`selectPhoneTestsForRun batch → ${picked.map((t) => t.number)}, expected 65,68`);
+    }
+  } catch (error) {
+    errors.push(`selectPhoneTestsForRun batch threw: ${error instanceof Error ? error.message : error}`);
+  }
+  let threwEmpty = false;
+  try {
+    selectPhoneTestsForRun({
+      allTests: sample,
+      testNumbers: [],
+      mode: 'full',
+      smokeNumbers: [],
+      affectedNumbers: [],
+    });
+  } catch {
+    threwEmpty = true;
+  }
+  if (!threwEmpty) {
+    errors.push('selectPhoneTestsForRun([]) must throw (never fall through to full suite)');
+  }
+  let threwUnknown = false;
+  try {
+    selectPhoneTestsForRun({
+      allTests: sample,
+      testNumbers: [999],
+      mode: 'full',
+      smokeNumbers: [],
+      affectedNumbers: [],
+    });
+  } catch {
+    threwUnknown = true;
+  }
+  if (!threwUnknown) {
+    errors.push('selectPhoneTestsForRun([999]) must throw when nothing matches');
+  }
+  const full = selectPhoneTestsForRun({
+    allTests: sample,
+    testNumbers: null,
+    mode: 'full',
+    smokeNumbers: [],
+    affectedNumbers: [],
+  });
+  if (full.length !== sample.length) {
+    errors.push('selectPhoneTestsForRun(null, full) should return all tests');
   }
 }
 

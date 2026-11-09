@@ -28,6 +28,12 @@ appId: app.patria.dev
     visible:
       id: "screen-letter-new"
     timeout: 15000
+# Spec: letter to Test 2. Do not rely on readyMembers[0] — with five adults the
+# default recipient can be Test 5, which then disappears from the keeper list.
+- extendedWaitUntil:
+    visible: "Test 2"
+    timeout: 30000
+- tapOn: "Test 2"
 - tapOn:
     id: "letter-body"
 - inputText: "Kept for when Patria cannot open it."
@@ -50,6 +56,7 @@ appId: app.patria.dev
     visible:
       id: "letter-keeper-b-sheet"
     timeout: 10000
+- assertVisible: "Test 4"
 - tapOn: "Test 4"
 - tapOn:
     id: "letter-keeper-c"
@@ -57,6 +64,7 @@ appId: app.patria.dev
     visible:
       id: "letter-keeper-c-sheet"
     timeout: 10000
+- assertVisible: "Test 5"
 - tapOn: "Test 5"
 - assertVisible: "Because this is a Surprise letter, your keepers will know that a letter exists."
 - scrollUntilVisible:
@@ -92,6 +100,5 @@ appId: app.patria.dev
       id: "letter-keepers-author"
     timeout: 15000
 - assertVisible: "Keepers"
-- assertVisible: "Test 3"
-- assertVisible: "Test 4"
-- assertVisible: "Test 5"
+# Author detail shows one keepers line (joined names), not three separate nodes.
+- assertVisible: "Test 3, Test 4, Test 5"

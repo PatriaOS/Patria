@@ -23,7 +23,13 @@ appId: app.patria.dev
       id: "letters-keeping-title"
     timeout: 30000
 - assertVisible: "Letters you keep"
-- assertVisible: "You are a keeper"
+# Row merges title + body into one accessibility string — match the prefix.
+- scrollUntilVisible:
+    element:
+      id: ".*letter-keep-.*"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "You are a keeper.*"
 - tapOn:
     id: ".*letter-keep-.*"
     index: 0

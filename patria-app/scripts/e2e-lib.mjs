@@ -11,6 +11,8 @@ export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
 export const TEST_11_TIMEOUT_MS = 15 * 60 * 1000;
 export const TEST_12_TIMEOUT_MS = 20 * 60 * 1000;
+/** B2: four let-ins (Tests 2–5) plus seal/keeper steps on shared Sims. */
+export const TEST_B2_TIMEOUT_MS = 50 * 60 * 1000;
 
 export function timeoutMsForTest(testNumber) {
   if (testNumber === 11) {
@@ -20,6 +22,9 @@ export function timeoutMsForTest(testNumber) {
   }
   if (testNumber === 12) {
     return TEST_12_TIMEOUT_MS;
+  }
+  if ([68, 69, 70, 71, 72, 73].includes(testNumber)) {
+    return TEST_B2_TIMEOUT_MS;
   }
   return TEST_TIMEOUT_MS;
 }
@@ -31,6 +36,46 @@ export function runnerNumbersFromSource(source) {
     numbers.add(Number(match[1]));
   }
   return numbers;
+}
+
+/** Parse `--test 65,68,71` into numbers. Empty / non-numeric parts are dropped. */
+export function parseE2eTestFlag(raw) {
+  return String(raw ?? '')
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/**
+ * Choose which phone tests to run.
+ * `testNumbers === null` means no `--test` flag (smoke / affected / full).
+ * A non-null array means `--test` was passed — never fall through to the full suite
+ * even when the list is empty or matches nothing.
+ */
+export function selectPhoneTestsForRun({
+  allTests,
+  testNumbers,
+  mode,
+  smokeNumbers,
+  affectedNumbers,
+}) {
+  if (testNumbers !== null) {
+    if (testNumbers.length === 0) {
+      throw new Error('e2e: --test needs one or more positive numbers (e.g. --test 65,68,71).');
+    }
+    const selected = allTests.filter((test) => testNumbers.includes(test.number));
+    if (selected.length === 0) {
+      throw new Error(`e2e: no matching test for --test ${testNumbers.join(',')}.`);
+    }
+    return selected;
+  }
+  if (mode === 'smoke') {
+    return allTests.filter((test) => smokeNumbers.includes(test.number));
+  }
+  if (mode === 'affected') {
+    return allTests.filter((test) => affectedNumbers.includes(test.number));
+  }
+  return allTests;
 }
 
 /**
@@ -430,17 +475,13 @@ export function redact(value) {
   return `${value.slice(0, 4)}…`;
 }
 
-export function supabaseStatusEnv() {
-  const raw = execFileSync('npx', ['supabase', 'status', '-o', 'env'], {
-    cwd: APP_ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim();
-  if (raw.startsWith('{')) {
-    return JSON.parse(raw);
+function parseSupabaseStatusEnv(raw) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    return JSON.parse(trimmed);
   }
   const env = {};
-  for (const line of raw.split('\n')) {
+  for (const line of trimmed.split('\n')) {
     const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
     if (!match) {
       continue;
@@ -448,6 +489,79 @@ export function supabaseStatusEnv() {
     env[match[1]] = match[2].replace(/^"|"$/g, '');
   }
   return env;
+}
+
+/** Prefer a real supabase binary — bare `npx supabase` can hang on npm fetch. */
+export function resolveSupabaseCli() {
+  const fromEnv = process.env.SUPABASE_CLI?.trim();
+  if (fromEnv && existsSync(fromEnv)) {
+    return fromEnv;
+  }
+  for (const candidate of ['supabase', join(APP_ROOT, 'node_modules', '.bin', 'supabase')]) {
+    try {
+      execFileSync(candidate, ['--version'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 5000,
+      });
+      return candidate;
+    } catch {
+      // try next
+    }
+  }
+  try {
+    const npxRoot = join(process.env.HOME ?? '', '.npm', '_npx');
+    if (existsSync(npxRoot)) {
+      for (const entry of readdirSync(npxRoot)) {
+        const bin = join(
+          npxRoot,
+          entry,
+          'node_modules',
+          '@supabase',
+          'cli-darwin-arm64',
+          'bin',
+          'supabase',
+        );
+        if (existsSync(bin)) {
+          return bin;
+        }
+      }
+    }
+  } catch {
+    // Fall through to npx.
+  }
+  return null;
+}
+
+export function supabaseStatusEnv() {
+  const cli = resolveSupabaseCli();
+  const attempts = cli
+    ? [{ command: cli, args: ['status', '-o', 'env'] }]
+    : [{ command: 'npx', args: ['--yes', 'supabase', 'status', '-o', 'env'] }];
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const raw = execFileSync(attempt.command, attempt.args, {
+        cwd: APP_ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 25_000,
+      });
+      return parseSupabaseStatusEnv(raw);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  // CLI hung or missing, but the local Docker DB is enough for SQL asserts.
+  if (findSupabaseDbContainer()) {
+    return {
+      API_URL: 'http://127.0.0.1:54321',
+      DB_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
+    };
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('npx supabase status failed and no supabase_db container is running');
 }
 
 export function findSupabaseDbContainer() {

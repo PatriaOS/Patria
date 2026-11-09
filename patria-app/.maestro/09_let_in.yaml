@@ -93,9 +93,12 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
-      - extendedWaitUntil:
-          visible: "Family keys: set up on this phone"
-          timeout: 20000
+      # Five members push the keys line below the fold — scroll before asserting.
+      - scrollUntilVisible:
+          element: "Family keys: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
 - runFlow:
     when:
       true: ${PHASE == 'no_notice'}

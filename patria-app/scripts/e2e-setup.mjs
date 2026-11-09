@@ -187,8 +187,55 @@ const emailsSql = Object.values(TEST_EMAILS)
   .join(', ');
 sql(
   dbUrl,
-  `SET session_replication_role = replica;
-DELETE FROM public.family_spaces WHERE created_by IN (SELECT id FROM auth.users WHERE email IN (${emailsSql}));
+  `-- Drop every space these accounts created or still belong to so leftover
+-- letter_keepers from prior runs cannot appear on Letters → Keeping.
+-- Replica role is required: space_members DELETE triggers (on_key_holder_departure)
+-- insert device_removed_notices and break a normal CASCADE delete mid-flight.
+-- Replica skips those triggers AND FK CASCADE, so we must sweep orphans after.
+SET session_replication_role = replica;
+DELETE FROM public.family_spaces
+ WHERE created_by IN (SELECT id FROM auth.users WHERE email IN (${emailsSql}))
+    OR id IN (
+         SELECT family_space_id FROM public.space_members
+          WHERE user_id IN (SELECT id FROM auth.users WHERE email IN (${emailsSql}))
+       );
+-- Child tables that reference family_spaces (replica skipped CASCADE).
+DELETE FROM public.letters WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.letter_keepers WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_payloads WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_author_shares WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_recipient_shares WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_patria_shares WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_keeper_pair_boxes WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_keeper_recipient_secrets WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letterbox_keys WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.letter_events WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.space_members WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.child_profiles WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.circles WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.circle_item_type_defaults WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.invites WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.family_key_meta WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.family_key_wraps WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.device_approval_notices WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_requests WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.device_removed_notices WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.family_key_under_recovery WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_public_keys WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_pair_wraps WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_contact_secrets WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_contacts WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.memory_items WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.memory_item_tombstones WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.memory_library_connections WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.vault_entries WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.personal_key_wraps WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.personal_key_under_recovery WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_schedules WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_meetings WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_agenda_items WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_notes WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_tasks WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
 SET session_replication_role = origin;`,
 );
 

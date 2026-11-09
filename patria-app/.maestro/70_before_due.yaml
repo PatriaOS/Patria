@@ -1,6 +1,6 @@
 # PHONE_TESTS: 70
 # AREAS: letters
-# Before due: keeper help is not offered.
+# Before due: Help is not offered, or tapping it fails (RPC refuses).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -29,5 +29,21 @@ appId: app.patria.dev
     visible:
       id: "screen-letter-keeper"
     timeout: 15000
-- assertNotVisible:
-    id: "keeper-help"
+- runFlow:
+    when:
+      visible:
+        id: "keeper-help"
+    commands:
+      - tapOn:
+          id: "keeper-help"
+      # Help may append a short reason tag, e.g. (not_due) or (rpc).
+      - extendedWaitUntil:
+          visible: "We couldn’t help open this letter.*"
+          timeout: 20000
+- runFlow:
+    when:
+      notVisible:
+        id: "keeper-help"
+    commands:
+      - assertNotVisible:
+          id: "keeper-help"

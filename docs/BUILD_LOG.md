@@ -7,6 +7,14 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-09 — B2 debug: device identity, seal pair boxes, e2e --test parse
+
+Phone 68–73 debugging: SecureStore flaking reminted device ids and orphaned personal wraps (keeper Help → approve-other-phone). `ensureDeviceIdentity` retries, restores from session memory, dual-writes; `obtainFamilyKey` no longer reports ready from a stale cache when the live wrap is missing. Seal was wiping pair-box buffers before upload — copy them first. Recipient detail keeps keeper progress without ephemeral askKeepers. Runner: await every `step()`, seed keepers fully eligible, resolve supabase CLI for letter-release, `--test 65,68…` parses a list (`null` = no flag) so a bad parse cannot fall through to the full suite (unit assert in `e2e:check`). pgTAP seal refuses non-member / teen / no-letterbox / no-recovery keepers while the author is an eligible admin. No phone suite run after the stop order; no hosted migrate.
+
+## 2026-11-07 — B2 phone seed + letter_keeper_eligible role check
+
+Tests 68–73 failed at “Before you start” because four sequential let-ins exceeded the 10m budget (59–67 had a +15m seed buffer; B2 did not). Give B2 a 25m test timeout and the same seed buffer; skip the waiting probe when a wrap already exists; after Home for Tests 1–5 assert letterbox rows and `letter_keeper_eligible` for keepers 3–5. Eligibility also wrongly called `space_role(space, user)` which ignores `_user_id` (viewer-only); check the candidate’s `space_members` role instead. pgTAP teen fixture now has recovery so role alone blocks. Maestro 68 asserts the joined keepers line; keys_ready scrolls to the keys line. Tests 71–72 run keepers on Sims that hold their wraps, omit `E2E_STAY` when switching accounts, stop letter-release before mark-due, and assert keepers + due in SQL. Keeper Help is offered while sealed/pending (RPC still refuses before due — test 70). Seed retries once on Maestro driver unreachable. No assertion loosen; no hosted migrate.
+
 ## 2026-11-07 — LEG02 Slice B2 keepers
 
 Optional 3 keepers (adult + letterbox + recovery). Holder secrets sealed to keeper letterboxes with recipient letterbox public pinned in AEAD; pairwise `shareP` boxes (HKDF by slot order). After due, keepers re-seal holders to the pinned recipient key; recipient opens with 2 holders + pair-box RPC when automatic release fails (test 71 stops local letter-release — no app flag). Withdraw deletes keeper tables. Profile birthday default ~30 years ago. D43: due-day keeper help can reveal an age-letter birthday — accepted. No hosted migrate.
