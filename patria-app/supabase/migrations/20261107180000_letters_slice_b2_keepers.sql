@@ -110,10 +110,22 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
+  -- Do not call space_role(_space_id, _user_id): that helper ignores _user_id and
+  -- returns only auth.uid()'s role. Check the candidate keeper's membership row.
   SELECT
     _user_id IS DISTINCT FROM _author_id
     AND _user_id IS DISTINCT FROM _recipient_id
-    AND public.space_role(_space_id, _user_id) IN ('family_admin', 'co_admin', 'elder')
+    AND EXISTS (
+      SELECT 1
+      FROM public.space_members AS m
+      WHERE m.family_space_id = _space_id
+        AND m.user_id = _user_id
+        AND m.role IN ('family_admin', 'co_admin', 'elder')
+        AND (
+          m.role <> 'caregiver'
+          OR m.caregiver_access_ends_at > now()
+        )
+    )
     AND public.has_recovery_setup(_space_id, _user_id)
     AND EXISTS (
       SELECT 1
@@ -158,7 +170,10 @@ AS $$
     l.recipient_id,
     coalesce(nullif(btrim(pr.display_name), ''), 'Someone'),
     k.slot,
-    (l.trigger_at <= now() AND l.status IN ('sealed', 'pending'))
+    (
+      l.trigger_at <= now()
+      AND l.status IN ('sealed', 'pending')
+    ) AS due
   FROM public.letter_keepers AS k
   JOIN public.letters AS l
     ON l.id = k.letter_id

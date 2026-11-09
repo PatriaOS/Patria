@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(24);
+SELECT plan(28);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -84,6 +84,9 @@ SELECT tests_create_auth_user('c3333333-3333-3333-3333-333333333333', 'keepera-b
 SELECT tests_create_auth_user('d4444444-4444-4444-4444-444444444444', 'keeperb-b2@example.com', 'KeeperB');
 SELECT tests_create_auth_user('e5555555-5555-5555-5555-555555555555', 'keeperc-b2@example.com', 'KeeperC');
 SELECT tests_create_auth_user('f6666666-6666-6666-6666-666666666666', 'teen-b2@example.com', 'Teen');
+SELECT tests_create_auth_user('07777777-7777-7777-7777-777777777777', 'outsider-b2@example.com', 'Outsider');
+SELECT tests_create_auth_user('08888888-8888-8888-8888-888888888888', 'noletterbox-b2@example.com', 'NoLetterbox');
+SELECT tests_create_auth_user('09999999-9999-9999-9999-999999999999', 'norecovery-b2@example.com', 'NoRecovery');
 
 SELECT tests_jwt('a1111111-1111-1111-1111-111111111111');
 SET LOCAL ROLE authenticated;
@@ -102,8 +105,13 @@ LATERAL (VALUES
   ('c3333333-3333-3333-3333-333333333333'::uuid, 'elder'),
   ('d4444444-4444-4444-4444-444444444444'::uuid, 'elder'),
   ('e5555555-5555-5555-5555-555555555555'::uuid, 'elder'),
-  ('f6666666-6666-6666-6666-666666666666'::uuid, 'teen')
+  ('f6666666-6666-6666-6666-666666666666'::uuid, 'teen'),
+  -- Member with recovery but no letterbox (eligibility must fail on letterbox).
+  ('08888888-8888-8888-8888-888888888888'::uuid, 'elder'),
+  -- Member with letterbox but no recovery (eligibility must fail on recovery).
+  ('09999999-9999-9999-9999-999999999999'::uuid, 'elder')
 ) AS v(user_id, role);
+-- g777… outsider is intentionally not inserted into space_members.
 
 -- Devices + family key wraps + recovery for author, recipient, three keepers (not teen).
 INSERT INTO public.device_keys (user_id, device_id, public_key) VALUES
@@ -111,7 +119,9 @@ INSERT INTO public.device_keys (user_id, device_id, public_key) VALUES
   ('b2222222-2222-2222-2222-222222222222', 'db222222-2222-2222-2222-222222222222', tests_dummy_pub('b')),
   ('c3333333-3333-3333-3333-333333333333', 'dc333333-3333-3333-3333-333333333333', tests_dummy_pub('c')),
   ('d4444444-4444-4444-4444-444444444444', 'dd444444-4444-4444-4444-444444444444', tests_dummy_pub('d')),
-  ('e5555555-5555-5555-5555-555555555555', 'de555555-5555-5555-5555-555555555555', tests_dummy_pub('e'));
+  ('e5555555-5555-5555-5555-555555555555', 'de555555-5555-5555-5555-555555555555', tests_dummy_pub('e')),
+  ('08888888-8888-8888-8888-888888888888', 'd0888888-8888-8888-8888-888888888888', tests_dummy_pub('h')),
+  ('09999999-9999-9999-9999-999999999999', 'd0999999-9999-9999-9999-999999999999', tests_dummy_pub('i'));
 
 INSERT INTO public.family_key_meta (family_space_id, key_epoch, recovery_key_epoch)
 SELECT space_id, 1, 1 FROM fx;
@@ -126,7 +136,9 @@ LATERAL (VALUES
   ('b2222222-2222-2222-2222-222222222222'::uuid, 'db222222-2222-2222-2222-222222222222'::uuid),
   ('c3333333-3333-3333-3333-333333333333'::uuid, 'dc333333-3333-3333-3333-333333333333'::uuid),
   ('d4444444-4444-4444-4444-444444444444'::uuid, 'dd444444-4444-4444-4444-444444444444'::uuid),
-  ('e5555555-5555-5555-5555-555555555555'::uuid, 'de555555-5555-5555-5555-555555555555'::uuid)
+  ('e5555555-5555-5555-5555-555555555555'::uuid, 'de555555-5555-5555-5555-555555555555'::uuid),
+  ('08888888-8888-8888-8888-888888888888'::uuid, 'd0888888-8888-8888-8888-888888888888'::uuid),
+  ('09999999-9999-9999-9999-999999999999'::uuid, 'd0999999-9999-9999-9999-999999999999'::uuid)
 ) AS v(u, d);
 
 INSERT INTO public.letterbox_keys (
@@ -140,7 +152,9 @@ LATERAL (VALUES
   ('c3333333-3333-3333-3333-333333333333'::uuid),
   ('d4444444-4444-4444-4444-444444444444'::uuid),
   ('e5555555-5555-5555-5555-555555555555'::uuid),
-  ('f6666666-6666-6666-6666-666666666666'::uuid)
+  ('f6666666-6666-6666-6666-666666666666'::uuid),
+  -- i999 has letterbox; h888 deliberately has none.
+  ('09999999-9999-9999-9999-999999999999'::uuid)
 ) AS v(u);
 
 -- Recovery public + 2 accepted contacts for keepers and recipient/author.
@@ -152,7 +166,11 @@ LATERAL (VALUES
   ('b2222222-2222-2222-2222-222222222222'::uuid),
   ('c3333333-3333-3333-3333-333333333333'::uuid),
   ('d4444444-4444-4444-4444-444444444444'::uuid),
-  ('e5555555-5555-5555-5555-555555555555'::uuid)
+  ('e5555555-5555-5555-5555-555555555555'::uuid),
+  -- Teen has letterbox+recovery so ineligibility is role-only (space_role ignores _user_id).
+  ('f6666666-6666-6666-6666-666666666666'::uuid),
+  -- h888 has recovery+no letterbox; i999 has letterbox+no recovery public key.
+  ('08888888-8888-8888-8888-888888888888'::uuid)
 ) AS v(u);
 
 INSERT INTO public.recovery_contacts (
@@ -170,7 +188,11 @@ LATERAL (VALUES
   ('d4444444-4444-4444-4444-444444444444'::uuid, 'a1111111-1111-1111-1111-111111111111'::uuid, 'a'),
   ('d4444444-4444-4444-4444-444444444444'::uuid, 'c3333333-3333-3333-3333-333333333333'::uuid, 'b'),
   ('e5555555-5555-5555-5555-555555555555'::uuid, 'a1111111-1111-1111-1111-111111111111'::uuid, 'a'),
-  ('e5555555-5555-5555-5555-555555555555'::uuid, 'c3333333-3333-3333-3333-333333333333'::uuid, 'b')
+  ('e5555555-5555-5555-5555-555555555555'::uuid, 'c3333333-3333-3333-3333-333333333333'::uuid, 'b'),
+  ('f6666666-6666-6666-6666-666666666666'::uuid, 'a1111111-1111-1111-1111-111111111111'::uuid, 'a'),
+  ('f6666666-6666-6666-6666-666666666666'::uuid, 'c3333333-3333-3333-3333-333333333333'::uuid, 'b'),
+  ('08888888-8888-8888-8888-888888888888'::uuid, 'a1111111-1111-1111-1111-111111111111'::uuid, 'a'),
+  ('08888888-8888-8888-8888-888888888888'::uuid, 'c3333333-3333-3333-3333-333333333333'::uuid, 'b')
 ) AS v(member_id, contact_id, slot);
 
 SELECT has_table('public'::name, 'letter_keepers'::name);
@@ -207,7 +229,8 @@ SELECT ok(
   'teen is not eligible'
 );
 
--- Seal with keepers
+-- Seal must refuse ineligible keepers even when the author is a fully eligible admin
+-- (catches the old space_role(_space, _user) bug that checked the caller instead).
 CREATE TEMP TABLE letter_fx (letter_id uuid);
 INSERT INTO letter_fx (letter_id) VALUES ('11111111-1111-4111-8111-111111111111');
 GRANT SELECT ON TABLE letter_fx TO authenticated, anon;
@@ -224,6 +247,110 @@ SELECT
   'b2222222-2222-2222-2222-222222222222',
   'Author', 'surprise', 'date', now() + interval '30 days', 'draft', 1
 FROM fx, letter_fx;
+
+SELECT throws_ok(
+  $sql$
+  SELECT public.seal_letter(
+    (SELECT letter_id FROM letter_fx),
+    1, 'Author', 'surprise', now() + interval '30 days',
+    tests_dummy_nonce(), tests_dummy_ct(), NULL, 'hash', 'fingerprint12',
+    tests_dummy_nonce(), tests_dummy_cek(), tests_dummy_box(),
+    tests_dummy_p256(), tests_dummy_box(), false, NULL, 'date', NULL,
+    ARRAY[
+      '07777777-7777-7777-7777-777777777777'::uuid,
+      'd4444444-4444-4444-4444-444444444444'::uuid,
+      'e5555555-5555-5555-5555-555555555555'::uuid
+    ],
+    ARRAY['a','b','c'],
+    ARRAY[tests_dummy_holder(), tests_dummy_holder(), tests_dummy_holder()],
+    (SELECT public_key FROM public.letterbox_keys
+      WHERE user_id = 'b2222222-2222-2222-2222-222222222222' LIMIT 1),
+    ARRAY['ab','ac','bc'],
+    ARRAY[tests_dummy_pair(), tests_dummy_pair(), tests_dummy_pair()]
+  )
+  $sql$,
+  '42501',
+  NULL,
+  'seal refuses keeper who is not a family member (author is eligible admin)'
+);
+
+SELECT throws_ok(
+  $sql$
+  SELECT public.seal_letter(
+    (SELECT letter_id FROM letter_fx),
+    1, 'Author', 'surprise', now() + interval '30 days',
+    tests_dummy_nonce(), tests_dummy_ct(), NULL, 'hash', 'fingerprint12',
+    tests_dummy_nonce(), tests_dummy_cek(), tests_dummy_box(),
+    tests_dummy_p256(), tests_dummy_box(), false, NULL, 'date', NULL,
+    ARRAY[
+      'f6666666-6666-6666-6666-666666666666'::uuid,
+      'd4444444-4444-4444-4444-444444444444'::uuid,
+      'e5555555-5555-5555-5555-555555555555'::uuid
+    ],
+    ARRAY['a','b','c'],
+    ARRAY[tests_dummy_holder(), tests_dummy_holder(), tests_dummy_holder()],
+    (SELECT public_key FROM public.letterbox_keys
+      WHERE user_id = 'b2222222-2222-2222-2222-222222222222' LIMIT 1),
+    ARRAY['ab','ac','bc'],
+    ARRAY[tests_dummy_pair(), tests_dummy_pair(), tests_dummy_pair()]
+  )
+  $sql$,
+  '42501',
+  NULL,
+  'seal refuses teen keeper (author is eligible admin)'
+);
+
+SELECT throws_ok(
+  $sql$
+  SELECT public.seal_letter(
+    (SELECT letter_id FROM letter_fx),
+    1, 'Author', 'surprise', now() + interval '30 days',
+    tests_dummy_nonce(), tests_dummy_ct(), NULL, 'hash', 'fingerprint12',
+    tests_dummy_nonce(), tests_dummy_cek(), tests_dummy_box(),
+    tests_dummy_p256(), tests_dummy_box(), false, NULL, 'date', NULL,
+    ARRAY[
+      '08888888-8888-8888-8888-888888888888'::uuid,
+      'd4444444-4444-4444-4444-444444444444'::uuid,
+      'e5555555-5555-5555-5555-555555555555'::uuid
+    ],
+    ARRAY['a','b','c'],
+    ARRAY[tests_dummy_holder(), tests_dummy_holder(), tests_dummy_holder()],
+    (SELECT public_key FROM public.letterbox_keys
+      WHERE user_id = 'b2222222-2222-2222-2222-222222222222' LIMIT 1),
+    ARRAY['ab','ac','bc'],
+    ARRAY[tests_dummy_pair(), tests_dummy_pair(), tests_dummy_pair()]
+  )
+  $sql$,
+  '42501',
+  NULL,
+  'seal refuses keeper without a letterbox (author is eligible admin)'
+);
+
+SELECT throws_ok(
+  $sql$
+  SELECT public.seal_letter(
+    (SELECT letter_id FROM letter_fx),
+    1, 'Author', 'surprise', now() + interval '30 days',
+    tests_dummy_nonce(), tests_dummy_ct(), NULL, 'hash', 'fingerprint12',
+    tests_dummy_nonce(), tests_dummy_cek(), tests_dummy_box(),
+    tests_dummy_p256(), tests_dummy_box(), false, NULL, 'date', NULL,
+    ARRAY[
+      '09999999-9999-9999-9999-999999999999'::uuid,
+      'd4444444-4444-4444-4444-444444444444'::uuid,
+      'e5555555-5555-5555-5555-555555555555'::uuid
+    ],
+    ARRAY['a','b','c'],
+    ARRAY[tests_dummy_holder(), tests_dummy_holder(), tests_dummy_holder()],
+    (SELECT public_key FROM public.letterbox_keys
+      WHERE user_id = 'b2222222-2222-2222-2222-222222222222' LIMIT 1),
+    ARRAY['ab','ac','bc'],
+    ARRAY[tests_dummy_pair(), tests_dummy_pair(), tests_dummy_pair()]
+  )
+  $sql$,
+  '42501',
+  NULL,
+  'seal refuses keeper without recovery (author is eligible admin)'
+);
 
 SELECT lives_ok(
   $sql$
