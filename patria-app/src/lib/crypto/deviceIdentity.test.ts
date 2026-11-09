@@ -60,13 +60,13 @@ describe('per-account device identity', () => {
     const phone = new Map<string, string>();
     installMemoryStore(phone);
     const first = await ensureDeviceIdentity(ELENA);
-    // Dual-accessibility reads call getItemAsync twice per key; miss a few full
-    // passes on the device pair so ensureDeviceIdentity must retry (not mint).
+    // Miss a few reads on the device pair so ensureDeviceIdentity must retry
+    // (or restore from session memory) instead of minting.
     let nullReads = 0;
     (SecureStore.getItemAsync as jest.Mock).mockImplementation(async (key: string) => {
       const isDevicePair =
         key === deviceIdStoreKey(ELENA) || key === devicePrivateStoreKey(ELENA);
-      if (isDevicePair && nullReads < 8) {
+      if (isDevicePair && nullReads < 4) {
         nullReads += 1;
         return null;
       }

@@ -35,6 +35,8 @@ describe('copy', () => {
     expect(copy.home.yesMyPhone).toBe('Yes, this is my phone');
     expect(copy.home.notMyPhone).toBe('This wasn’t me');
     expect(copy.home.yourPhones).toBe('Your phones');
+    expect(copy.phones.olderSignIn).toBe('Older sign in on this phone');
+    expect(copy.phones.olderSignInWhen).toMatch(/Last used/);
     expect(copy.home.recoveryNotSetup).toBe('Recovery: not set up');
     expect(copy.home.recoveryCardTitle).toBe('Set up recovery');
     expect(copy.recovery.printedBody).toMatch(/cannot show them again/i);

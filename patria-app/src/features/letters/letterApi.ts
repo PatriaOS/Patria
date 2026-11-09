@@ -483,7 +483,7 @@ export async function fetchLettersForKeepers(spaceId: string): Promise<KeeperLet
     )
     // Letters tab is family-scoped — never show keeper duties from another space
     // (stale leftover families caused Help → approve-other-phone on the wrong letter).
-    .filter((row) => row.familySpaceId === spaceId);
+    .filter((row: KeeperLetterRow) => row.familySpaceId === spaceId);
 }
 
 export type LetterKeeperOwnRow = {

@@ -531,3 +531,8 @@ Areas: letters
 ### 73. Keeper leaves
 Areas: letters, membership
 1. With a sealed letter that has keepers, remove one keeper from the family. As the author, Pass if Needs you shows **Replace a keeper**. Edit/reseal with a new third keeper. Pass if the replace notice clears.
+
+### 74. Older sign in on Your phones (manual)
+Areas: keys, navigation
+1. With two device ids for the same account on the server (current phone plus a prior id from this install’s device history), open **Family** → **Your phones**. Pass if the prior id is labeled **Older sign in on this phone** with **Last used** and a date, not only **Set up**.
+2. Tap **Remove** on that row and confirm. Pass if the row disappears and its family/personal wraps are gone (`remove_own_device`).

@@ -36,12 +36,21 @@ describe('YourPhonesScreen', () => {
         createdAt: '2026-10-12T12:00:00.000Z',
         rejectedAt: null,
         hasWrap: true,
+        olderSignInOnThisPhone: true,
       },
       {
         deviceId: 'd-other',
         createdAt: '2026-10-11T12:00:00.000Z',
         rejectedAt: null,
         hasWrap: true,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'd-stale',
+        createdAt: '2026-10-10T12:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: true,
+        olderSignInOnThisPhone: true,
       },
     ]);
     (removeOwnPhone as jest.Mock).mockClear();
@@ -57,10 +66,13 @@ describe('YourPhonesScreen', () => {
       const remove = buttons?.find((item) => item.text === copy.phones.remove);
       remove?.onPress?.();
     });
-    const { findByText, findByTestId } = await renderScreen(<YourPhonesScreen />);
+    const { findByText, findAllByTestId, findByTestId } = await renderScreen(<YourPhonesScreen />);
     expect(await findByTestId('screen-your-phones')).toBeTruthy();
     expect(await findByText(copy.phones.thisPhone)).toBeTruthy();
-    await fireEvent.press(await findByTestId('remove-phone'));
+    expect(await findByText(copy.phones.olderSignIn)).toBeTruthy();
+    expect(await findByTestId('older-sign-in-phone')).toBeTruthy();
+    const removeButtons = await findAllByTestId('remove-phone');
+    await fireEvent.press(removeButtons[0]!);
     await waitFor(() => {
       expect(removeOwnPhone).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-09 — Keychain WHEN_UNLOCKED, stale phones, is_memory_role
+
+Revert SecureStore to `WHEN_UNLOCKED_THIS_DEVICE_ONLY` only (no AFTER_FIRST_UNLOCK / dual-write); remint guards stay. Personal wrap from cache only when the device already has a family wrap — never auto-approve. Your phones labels prior ids from this install as “Older sign in on this phone”; remove still uses `remove_own_device`. `is_memory_role` checks `_user_id` via `space_members`. Pair-box unit test opens copies after wipe. No hosted migrate.
+
 ## 2026-11-09 — B2 debug: device identity, seal pair boxes, e2e --test parse
 
 Phone 68–73 debugging: SecureStore flaking reminted device ids and orphaned personal wraps (keeper Help → approve-other-phone). `ensureDeviceIdentity` retries, restores from session memory, dual-writes; `obtainFamilyKey` no longer reports ready from a stale cache when the live wrap is missing. Seal was wiping pair-box buffers before upload — copy them first. Recipient detail keeps keeper progress without ephemeral askKeepers. Runner: await every `step()`, seed keepers fully eligible, resolve supabase CLI for letter-release, `--test 65,68…` parses a list (`null` = no flag) so a bad parse cannot fall through to the full suite (unit assert in `e2e:check`). pgTAP seal refuses non-member / teen / no-letterbox / no-recovery keepers while the author is an eligible admin. No phone suite run after the stop order; no hosted migrate.

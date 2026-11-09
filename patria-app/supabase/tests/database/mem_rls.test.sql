@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth, storage;
 
-SELECT plan(55);
+SELECT plan(57);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -128,6 +128,23 @@ CROSS JOIN (VALUES
 ) AS x(u)
 WHERE NOT EXISTS (
   SELECT 1 FROM public.circle_members cm WHERE cm.circle_id = extended AND cm.user_id = u
+);
+
+-- is_memory_role must check the other user (not the caller via space_role).
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SELECT ok(
+  public.is_memory_role(
+    (SELECT rivera FROM fx),
+    '22222222-2222-2222-2222-222222222222'
+  ),
+  'admin caller: is_memory_role true for co_admin member'
+);
+SELECT ok(
+  NOT public.is_memory_role(
+    (SELECT rivera FROM fx),
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  'admin caller: is_memory_role false for user in another family'
 );
 
 SELECT tests_jwt('11111111-1111-1111-1111-111111111111');

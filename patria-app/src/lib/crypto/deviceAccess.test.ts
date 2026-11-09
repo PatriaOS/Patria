@@ -151,6 +151,7 @@ function serverGateway(state: ServerState): DeviceAccessGateway {
           createdAt: '2026-10-12T12:00:00.000Z',
           rejectedAt: row.rejectedAt,
           hasWrap: state.wraps.some((wrap) => wrap.deviceId === row.deviceId),
+          olderSignInOnThisPhone: false,
         });
       }
       return phones;

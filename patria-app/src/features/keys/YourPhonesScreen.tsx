@@ -107,16 +107,28 @@ export function YourPhonesScreen() {
       {phones.length === 0 ? <EmptyState title={copy.phones.empty} /> : null}
       {phones.map((phone) => {
         const isThis = phone.deviceId === thisDeviceId;
-        const when = copy.phones.setUp.replace('{when}', formatDeviceWhen(phone.createdAt));
+        const whenLabel = formatDeviceWhen(phone.createdAt);
+        const setUp = copy.phones.setUp.replace('{when}', whenLabel);
+        const isOlderSignIn = !isThis && phone.olderSignInOnThisPhone;
+        const title = isThis
+          ? copy.phones.thisPhone
+          : isOlderSignIn
+            ? copy.phones.olderSignIn
+            : setUp;
+        const detail = isThis
+          ? setUp
+          : isOlderSignIn
+            ? copy.phones.olderSignInWhen.replace('{when}', whenLabel)
+            : null;
         const status = phone.rejectedAt
           ? copy.phones.rejected
           : phone.hasWrap
             ? null
             : copy.phones.waiting;
         return (
-          <Card key={phone.deviceId}>
-            <Body>{isThis ? copy.phones.thisPhone : when}</Body>
-            {isThis ? <Muted>{when}</Muted> : null}
+          <Card key={phone.deviceId} testID={isOlderSignIn ? 'older-sign-in-phone' : undefined}>
+            <Body>{title}</Body>
+            {detail ? <Muted>{detail}</Muted> : null}
             {status ? <Muted>{status}</Muted> : null}
             {!isThis ? (
               <Button
@@ -126,7 +138,7 @@ export function YourPhonesScreen() {
                 busy={busyId === phone.deviceId}
                 disabled={busyId !== null && busyId !== phone.deviceId}
                 onPress={() => onRemove(phone)}
-                accessibilityHint={`${copy.phones.remove} ${when}`}
+                accessibilityHint={`${copy.phones.remove} ${title}`}
               />
             ) : null}
           </Card>

@@ -4,6 +4,7 @@ import {
   assertPinnedRecipientLetterboxMatches,
   createLetterKeeperPairBoxes,
   openLetterKeeperWithHolders,
+  wipeLetterKeeperPairBoxes,
   unwrapKeeperHolderFromLetterbox,
   unwrapKeeperHolderFromRecipientLetterbox,
   wrapKeeperHolderToLetterbox,
@@ -293,5 +294,51 @@ describe('letter keeper security proofs', () => {
     wipe(keeper.privateKey);
     wipe(recipientAtSeal.privateKey);
     wipe(substituted.privateKey);
+  });
+
+  it('opens uploaded pair boxes after seal copies them and wipes the originals', () => {
+    // Mirrors letterSeal.ts: copy into the upload payload, then wipe working boxes.
+    // Uploading the wiped (zero) buffers made open_pair_* fail after keeper Help.
+    const shareP = randomKey32();
+    const secretA = randomKey32();
+    const secretB = randomKey32();
+    const secretC = randomKey32();
+    const ctx = { letterId, version: 1 };
+    const boxes = createLetterKeeperPairBoxes(shareP, secretA, secretB, secretC, ctx);
+    const uploaded = {
+      boxAb: new Uint8Array(boxes.boxAb),
+      boxAc: new Uint8Array(boxes.boxAc),
+      boxBc: new Uint8Array(boxes.boxBc),
+    };
+    wipeLetterKeeperPairBoxes(boxes);
+    expect(boxes.boxAb.every((b) => b === 0)).toBe(true);
+
+    const opened = openLetterKeeperWithHolders(
+      uploaded,
+      { slot: 'a', secret: secretA },
+      { slot: 'b', secret: secretB },
+      ctx,
+    );
+    expect(secretsEqual(opened, shareP)).toBe(true);
+
+    const zeroUpload = {
+      boxAb: new Uint8Array(uploaded.boxAb.length),
+      boxAc: new Uint8Array(uploaded.boxAc.length),
+      boxBc: new Uint8Array(uploaded.boxBc.length),
+    };
+    expect(() =>
+      openLetterKeeperWithHolders(
+        zeroUpload,
+        { slot: 'a', secret: secretA },
+        { slot: 'b', secret: secretB },
+        ctx,
+      ),
+    ).toThrow();
+
+    wipe(opened);
+    wipe(shareP);
+    wipe(secretA);
+    wipe(secretB);
+    wipe(secretC);
   });
 });

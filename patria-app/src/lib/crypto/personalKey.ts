@@ -169,27 +169,67 @@ async function enrollPersonalWrapFromKey(input: {
   }
 }
 
+/** True when this device already has a family wrap (let in / approved). */
+export async function deviceHasFamilyWrap(
+  spaceId: string,
+  userId: string,
+  deviceId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('family_key_wraps')
+    .select('device_id')
+    .eq('family_space_id', spaceId)
+    .eq('user_id', userId)
+    .eq('device_id', deviceId)
+    .maybeSingle();
+  if (error) {
+    logKeyStep('device_has_family_wrap', error.code ?? 'unknown');
+    throw error;
+  }
+  return Boolean(data);
+}
+
+/**
+ * After let-in, the family wrap exists but personal wrap may be missing (admin
+ * let-in only wraps the family key). If this phone already holds the personal
+ * key in cache, enroll a wrap for the approved device id only — never approve
+ * a new device here.
+ */
+export async function enrollPersonalWrapFromCacheIfApproved(input: {
+  spaceId: string;
+  userId: string;
+  personalKey: Uint8Array;
+}): Promise<'enrolled' | 'already' | 'not_approved'> {
+  const device = await ensureDeviceIdentity(input.userId);
+  if (!(await deviceHasFamilyWrap(input.spaceId, input.userId, device.deviceId))) {
+    return 'not_approved';
+  }
+  const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
+  if (wrap) {
+    return 'already';
+  }
+  await enrollPersonalWrapFromKey({
+    spaceId: input.spaceId,
+    userId: input.userId,
+    deviceId: device.deviceId,
+    publicKey: device.publicKey,
+    personalKey: input.personalKey,
+  });
+  return 'enrolled';
+}
+
 export async function loadPersonalKeyIfPresent(input: {
   spaceId: string;
   userId: string;
 }): Promise<Uint8Array | null> {
   const cached = await loadCachedPersonalKey(input.userId, input.spaceId);
   if (cached) {
-    // Admin let-in wraps the family key only. If this phone already holds the
-    // personal key, enroll a wrap for the current device id so letterbox Help
-    // does not hit approve-other-phone after a remint + let-in.
     try {
-      const device = await ensureDeviceIdentity(input.userId);
-      const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
-      if (!wrap) {
-        await enrollPersonalWrapFromKey({
-          spaceId: input.spaceId,
-          userId: input.userId,
-          deviceId: device.deviceId,
-          publicKey: device.publicKey,
-          personalKey: cached,
-        });
-      }
+      await enrollPersonalWrapFromCacheIfApproved({
+        spaceId: input.spaceId,
+        userId: input.userId,
+        personalKey: cached,
+      });
     } catch (error) {
       logKeyStep(
         'enroll_personal_wrap_from_cache',

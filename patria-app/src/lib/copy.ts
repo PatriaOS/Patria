@@ -293,6 +293,8 @@ export const copy = {
     title: 'Your phones',
     thisPhone: 'This phone',
     setUp: 'Set up {when}',
+    olderSignIn: 'Older sign in on this phone',
+    olderSignInWhen: 'Last used {when}',
     waiting: 'Waiting to be let in',
     rejected: 'Turned down',
     remove: 'Remove',

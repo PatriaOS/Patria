@@ -22,6 +22,35 @@ export function devicePrivateStoreKey(userId: string): string {
   return `patria.u.${userId}.device.private`;
 }
 
+/** Non-secret list of device ids this installation has used (for stale-phone labels). */
+export function deviceIdHistoryStoreKey(userId: string): string {
+  return `patria.u.${userId}.device.id.history`;
+}
+
+export async function loadLocalDeviceIdHistory(userId: string): Promise<string[]> {
+  const raw = await getSecretText(deviceIdHistoryStoreKey(userId));
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((item): item is string => typeof item === 'string' && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+async function recordDeviceIdInHistory(userId: string, deviceId: string): Promise<void> {
+  const existing = await loadLocalDeviceIdHistory(userId);
+  if (existing.includes(deviceId)) {
+    return;
+  }
+  await setSecretText(deviceIdHistoryStoreKey(userId), JSON.stringify([...existing, deviceId]));
+}
+
 function randomDeviceId(): string {
   const bytes = randomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
@@ -105,11 +134,16 @@ export function resetDeviceIdentityMemory(): void {
   memoryIdentities.clear();
 }
 
+async function finishIdentity(userId: string, identity: DeviceIdentity): Promise<DeviceIdentity> {
+  await recordDeviceIdInHistory(userId, identity.deviceId);
+  return rememberIdentity(userId, identity);
+}
+
 export async function ensureDeviceIdentity(userId: string): Promise<DeviceIdentity> {
   await migrateLegacyDeviceIdentity(userId);
   let { id: existingId, privateKey: existingPrivate } = await readDeviceIdentity(userId);
   if (existingId && existingPrivate) {
-    return rememberIdentity(userId, {
+    return finishIdentity(userId, {
       deviceId: existingId,
       privateKey: existingPrivate,
       publicKey: x25519PublicKey(existingPrivate),
@@ -127,7 +161,7 @@ export async function ensureDeviceIdentity(userId: string): Promise<DeviceIdenti
       existingId = pair.id;
       existingPrivate = pair.privateKey;
       if (existingId && existingPrivate) {
-        return rememberIdentity(userId, {
+        return finishIdentity(userId, {
           deviceId: existingId,
           privateKey: existingPrivate,
           publicKey: x25519PublicKey(existingPrivate),
@@ -142,6 +176,7 @@ export async function ensureDeviceIdentity(userId: string): Promise<DeviceIdenti
   if (remembered) {
     await setSecretText(deviceIdStoreKey(userId), remembered.deviceId);
     await setSecretBytes(devicePrivateStoreKey(userId), remembered.privateKey);
+    await recordDeviceIdInHistory(userId, remembered.deviceId);
     return cloneIdentity(remembered);
   }
 
@@ -160,7 +195,7 @@ export async function ensureDeviceIdentity(userId: string): Promise<DeviceIdenti
   const deviceId = randomDeviceId();
   await setSecretText(deviceIdStoreKey(userId), deviceId);
   await setSecretBytes(devicePrivateStoreKey(userId), pair.privateKey);
-  return rememberIdentity(userId, {
+  return finishIdentity(userId, {
     deviceId,
     privateKey: pair.privateKey,
     publicKey: pair.publicKey,
