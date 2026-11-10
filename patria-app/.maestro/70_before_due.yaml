@@ -29,6 +29,7 @@ appId: app.patria.dev
     visible:
       id: "screen-letter-keeper"
     timeout: 15000
+- takeScreenshot: ../e2e-artifacts/review-captures/70-step1-keeper-before-due
 - runFlow:
     when:
       visible:

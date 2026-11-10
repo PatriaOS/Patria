@@ -1,7 +1,7 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
@@ -38,6 +38,10 @@ import {
 const SCRIPT = 'e2e';
 const ARTIFACTS = join(APP_ROOT, 'e2e-artifacts');
 const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
+const REVIEW_CAPTURES = join(ARTIFACTS, 'review-captures');
+/** Fixed path every run overwrites; also mirrored under e2e-artifacts/. */
+const BATCH_LOG = join(homedir(), 'patria-tests.log');
+const BATCH_LOG_ARTIFACT = join(ARTIFACTS, 'patria-tests.log');
 
 // simctl addmedia uses the file's creation date (birthtime), not mtime, when there is no EXIF.
 // copyFileSync / overwrite of a reused dest keeps the old birthtime (Oct 19 on this machine),
@@ -483,12 +487,70 @@ if (devices.length > 0) {
   }
 }
 mkdirSync(ARTIFACTS, { recursive: true });
+mkdirSync(REVIEW_CAPTURES, { recursive: true });
 const progressPath = join(ARTIFACTS, 'progress.txt');
 writeFileSync(progressPath, '', { encoding: 'utf8' });
+writeFileSync(BATCH_LOG, '', { encoding: 'utf8' });
+writeFileSync(BATCH_LOG_ARTIFACT, '', { encoding: 'utf8' });
+
+function appendBatchLog(chunk) {
+  const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+  appendFileSync(BATCH_LOG, text);
+  appendFileSync(BATCH_LOG_ARTIFACT, text);
+}
+
+{
+  const origOut = process.stdout.write.bind(process.stdout);
+  const origErr = process.stderr.write.bind(process.stderr);
+  process.stdout.write = (chunk, encoding, cb) => {
+    appendBatchLog(chunk);
+    return origOut(chunk, encoding, cb);
+  };
+  process.stderr.write = (chunk, encoding, cb) => {
+    appendBatchLog(chunk);
+    return origErr(chunk, encoding, cb);
+  };
+}
 
 function progress(line) {
   console.log(line);
   appendFileSync(progressPath, `${line}\n`);
+}
+
+function writeReviewCapturesIndex() {
+  const names = existsSync(REVIEW_CAPTURES)
+    ? readdirSync(REVIEW_CAPTURES)
+        .filter((name) => /\.(png|jpg|jpeg)$/i.test(name))
+        .sort()
+    : [];
+  const lines = [
+    'Real Simulator captures from this e2e run (Maestro takeScreenshot).',
+    `Batch log: ${BATCH_LOG}`,
+    `Also: ${BATCH_LOG_ARTIFACT}`,
+    '',
+    'Expected names (test-step-label):',
+    '  68-step1-keeper-picker',
+    '  68-step1-surprise-note',
+    '  68-step1-seal-confirm-with-keepers',
+    '  69-step1-keeper-assignment-view',
+    '  70-step1-keeper-before-due',
+    '  71-step1-ask-your-keepers',
+    '  71-step2-help-them-open-it',
+    '  71-step2-open-with-keepers',
+    '  72-step1-ask-keepers-progress-one-of-two',
+    '  73-step1-needs-you-replace-a-keeper',
+    '  75-step1-family-personal-key-ready',
+    '  75-step1-your-phones-device-list',
+    '  75-step1-older-sign-in-in-device-list (when an older id is listed)',
+    '  75-step2-home-approve-from-other-phone',
+    '  75-step2-family-approve-from-other-phone',
+    '  75-step2-home-enroll-error-try-again',
+    '',
+    `Present (${names.length}):`,
+    ...(names.length ? names.map((n) => `  ${n}`) : ['  (none yet)']),
+    '',
+  ];
+  writeFileSync(join(REVIEW_CAPTURES, 'INDEX.txt'), lines.join('\n'), { encoding: 'utf8' });
 }
 
 function captureScreen(udid, name) {
@@ -3330,12 +3392,109 @@ try {
         maestro({
           flow: flow('75_personal_key_status.yaml'),
           device: deviceA,
-          env: signInEnv(secrets, 1),
+          env: { ...signInEnv(secrets, 1), PHASE: 'ready' },
+        });
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'older_sign_in', E2E_STAY: '1' },
         });
       });
-      await step(75, 2, 'Other-phone / enroll-error copy (manual)', () =>
-        result('skip', 'manual: needs a second phone holding the only personal wrap'),
-      );
+      await step(75, 2, 'Other-phone and enroll-error status copy', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result(
+            'skip',
+            'needs 2 simulators (E2E_DEVICES=2) for other-phone / enroll-error captures',
+          );
+        }
+        const email = TEST_EMAILS[1];
+        const userSql = `(SELECT id FROM auth.users WHERE email = '${email}' LIMIT 1)`;
+        const spaceSql = `(SELECT id FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' LIMIT 1)`;
+
+        // Put Test 1 on device B so we can remint without losing the only family wrap.
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
+        });
+
+        // Drop the recovery seal so approve-own wraps family only. Personal wraps
+        // stay on A → reminted B must show needs-other-phone, not enrollError.
+        sqlOnE2eFamily(
+          `DELETE FROM public.personal_key_under_recovery
+             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};`,
+        );
+        maestro({
+          flow: flow('subflows/clear_state.yaml'),
+          device: deviceB,
+          env: {},
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
+        });
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 1), PHASE: 'needs_other_phone' },
+        });
+
+        // No personal key anywhere + no recovery public → create fails → enroll error.
+        sqlOnE2eFamily(
+          `DELETE FROM public.personal_key_wraps
+             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};
+           DELETE FROM public.personal_key_under_recovery
+             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};
+           DELETE FROM public.recovery_public_keys
+             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};`,
+        );
+        maestro({
+          flow: flow('subflows/clear_state.yaml'),
+          device: deviceA,
+          env: {},
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
+        });
+        maestro({
+          flow: flow('10_approve_own_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
+        });
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'enroll_error' },
+        });
+      });
     }
     } catch (error) {
       const failed = reports
@@ -3420,6 +3579,10 @@ summaryLines.push('', headline);
 for (const line of summaryLines) {
   progress(line);
 }
+writeReviewCapturesIndex();
+progress(`Batch log: ${BATCH_LOG}`);
+progress(`Batch log (copy): ${BATCH_LOG_ARTIFACT}`);
+progress(`Review captures: ${REVIEW_CAPTURES}`);
 notifyMac(headline);
 
 if (failed > 0) {

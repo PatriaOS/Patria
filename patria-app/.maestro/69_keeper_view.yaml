@@ -39,5 +39,6 @@ appId: app.patria.dev
     timeout: 15000
 - assertVisible:
     id: "keeper-assignment-body"
+- takeScreenshot: ../e2e-artifacts/review-captures/69-step1-keeper-assignment-view
 - assertNotVisible: "Opens on"
 - assertNotVisible: "Kept for when Patria cannot open it."

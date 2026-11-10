@@ -247,6 +247,11 @@ export async function ensurePersonalKeyAfterFamilyReady(input: {
     wipe(personalKey);
     const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
     if (!wrap) {
+      // Create returned without a wrap for this device — key may already live elsewhere.
+      if (await personalKeyExistsAnywhere(input.spaceId, input.userId)) {
+        logKeyStep('ensure_personal_after_family', 'needs_other_phone');
+        return { status: 'needsOtherPhone' };
+      }
       logKeyStep('ensure_personal_after_family', 'create_no_wrap');
       return { status: 'enrollError', reasonCode: 'create_no_wrap' };
     }
@@ -255,6 +260,12 @@ export async function ensurePersonalKeyAfterFamilyReady(input: {
     const reasonCode = enrollReasonCode(error);
     if (reasonCode === 'needs_other_phone') {
       logKeyStep('ensure_personal_after_family', reasonCode);
+      return { status: 'needsOtherPhone' };
+    }
+    // create_personal_key refuses a second key (42501) — never show a generic enroll
+    // error when wraps / recovery seal already exist on another device.
+    if (await personalKeyExistsAnywhere(input.spaceId, input.userId)) {
+      logKeyStep('ensure_personal_create', 'needs_other_phone');
       return { status: 'needsOtherPhone' };
     }
     logKeyStep('ensure_personal_create', reasonCode);
@@ -426,7 +437,7 @@ export async function obtainPersonalKey(input: {
     if (error) {
       const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
       if (!wrap) {
-        if (await personalKeyExists(input.spaceId, input.userId)) {
+        if (await personalKeyExistsAnywhere(input.spaceId, input.userId)) {
           throw new Error(personalKeyNeedsOtherPhone);
         }
         logKeyStep('create_personal_key', error.code ?? 'unknown');

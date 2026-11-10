@@ -244,4 +244,22 @@ describe('ensurePersonalKeyAfterFamilyReady', () => {
     });
     expect(result).toEqual({ status: 'enrollError', reasonCode: '42501' });
   });
+
+  it('never shows enrollError when a personal key already exists on another device', async () => {
+    (loadCachedPersonalKey as jest.Mock).mockResolvedValue(null);
+    mockEnsureTables({
+      familyWrap: true,
+      personalWrap: false,
+      wrapsAnywhere: 2,
+      underRecovery: true,
+    });
+    const result = await ensurePersonalKeyAfterFamilyReady({
+      spaceId: SPACE,
+      userId: USER,
+    });
+    expect(result.status).toBe('needsOtherPhone');
+    expect(result.status).not.toBe('enrollError');
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
 });
