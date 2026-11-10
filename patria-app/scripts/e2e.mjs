@@ -1372,10 +1372,11 @@ try {
       continue;
     }
 
+    // Must match every number seedBeforeYouStart knows about (including 75).
     if (
       [
         9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-        67, 68, 69, 70, 71, 72, 73,
+        67, 68, 69, 70, 71, 72, 73, 75,
       ].includes(test.number)
     ) {
       try {

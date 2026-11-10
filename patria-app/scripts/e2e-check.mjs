@@ -11,6 +11,8 @@ import {
   parsePhoneTests,
   phoneCoverageErrors,
   runnerNumbersFromSource,
+  seedBeforeYouStartAllowListFromSource,
+  seedInvocationListFromSource,
   selectPhoneTestsForRun,
 } from './e2e-lib.mjs';
 
@@ -52,9 +54,33 @@ const known = new Set(PHONE_AREA_LIST);
 const flowNumbers = new Set(
   flowFiles.map((name) => flowNumber(name)).filter((number) => number != null),
 );
-const runnerNumbers = runnerNumbersFromSource(
-  readFileSync(join(APP_ROOT, 'scripts', 'e2e.mjs'), 'utf8'),
-);
+const e2eSource = readFileSync(join(APP_ROOT, 'scripts', 'e2e.mjs'), 'utf8');
+const runnerNumbers = runnerNumbersFromSource(e2eSource);
+
+// Every test seedBeforeYouStart knows about must also be invoked from the main loop.
+{
+  const allow = seedBeforeYouStartAllowListFromSource(e2eSource);
+  const invoked = seedInvocationListFromSource(e2eSource);
+  if (allow.size === 0 || invoked.size === 0) {
+    errors.push(
+      'Could not parse seedBeforeYouStart allow-list or seed invocation list from e2e.mjs',
+    );
+  }
+  for (const n of allow) {
+    if (!invoked.has(n)) {
+      errors.push(
+        `seedBeforeYouStart lists test ${n} but the main loop never calls it (seed skipped)`,
+      );
+    }
+  }
+  for (const n of invoked) {
+    if (!allow.has(n)) {
+      errors.push(
+        `main loop seeds test ${n} but seedBeforeYouStart allow-list omits it`,
+      );
+    }
+  }
+}
 
 for (const test of tests) {
   if (test.areas.length === 0) {

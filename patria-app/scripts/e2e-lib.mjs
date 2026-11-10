@@ -38,6 +38,36 @@ export function runnerNumbersFromSource(source) {
   return numbers;
 }
 
+/** Parse `1, 2, 3` style lists from e2e.mjs source. */
+export function parseCommaNumberList(raw) {
+  return String(raw ?? '')
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/**
+ * Numbers listed inside seedBeforeYouStart's opening allow-list
+ * (`if (![...].includes(testNumber)) return`).
+ */
+export function seedBeforeYouStartAllowListFromSource(source) {
+  const match = source.match(
+    /function\s+seedBeforeYouStart\s*\(\s*testNumber\s*\)\s*\{[\s\S]*?if\s*\(\s*!\s*\[([^\]]+)\]\s*\.includes\(\s*testNumber\s*\)\s*\)/,
+  );
+  return new Set(match ? parseCommaNumberList(match[1]) : []);
+}
+
+/**
+ * Numbers that actually call seedBeforeYouStart in the main loop
+ * (`if ([...].includes(test.number)) { seedBeforeYouStart(...) }`).
+ */
+export function seedInvocationListFromSource(source) {
+  const match = source.match(
+    /if\s*\(\s*\[([^\]]+)\]\s*\.includes\(\s*test\.number\s*\)\s*\)\s*\{\s*try\s*\{\s*seedBeforeYouStart\s*\(\s*test\.number\s*\)/,
+  );
+  return new Set(match ? parseCommaNumberList(match[1]) : []);
+}
+
 /** Parse `--test 65,68,71` into numbers. Empty / non-numeric parts are dropped. */
 export function parseE2eTestFlag(raw) {
   return String(raw ?? '')

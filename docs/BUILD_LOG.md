@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Test 75 seed invocation gap
+
+Phone 75 failed because the main loop’s seed allow-list omitted 75 while `seedBeforeYouStart` already knew about it — clear_state then ran the flow with no `seedAdminKeys`. Add 75 to the invocation list; `e2e:check` now requires the two lists to match. The “merged E2E_HELLO path” in the fail line was a space between `Family` and the flow path (`args.join(' ')`), not a bad argv. No app change in this slice.
+
 ## 2026-11-10 — Personal wrap after let-in + Test 72 session
 
 After family keys are ready, `ensurePersonalKeyAfterFamilyReady` enrolls from cache or creates only when no personal key exists anywhere; otherwise needs-other-phone. Enroll errors surface with retry and a safe reason code. Home/Family show personal key status. Unit tests refuse a second personal key; pgTAP already refuses `create_personal_key` twice. keys_ready / phone test 75 assert personal status. Runner: with 2 sims, Tests 71/72 sign Test 3 in instead of E2E_STAY after recipient on the same phone. No SecureStore or approval weakening; personal-wrap assert kept. No hosted migrate.
