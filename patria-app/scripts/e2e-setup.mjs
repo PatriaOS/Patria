@@ -374,7 +374,8 @@ if (
   testNumber === 70 ||
   testNumber === 71 ||
   testNumber === 72 ||
-  testNumber === 73
+  testNumber === 73 ||
+  testNumber === 75
 ) {
   const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
   const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));

@@ -24,6 +24,9 @@ export function personalKeyStatusLabel(status: PersonalKeyDeviceStatus): string 
   if (status === 'needsOtherPhone') {
     return copy.home.personalKeysNeedOtherPhone;
   }
+  if (status === 'needsRecovery') {
+    return copy.home.personalKeysNeedRecoveryPill;
+  }
   return copy.home.personalKeysEnrollFailedPill;
 }
 
@@ -31,7 +34,7 @@ export function personalKeyStatusTone(status: PersonalKeyDeviceStatus): PillTone
   if (status === 'ready') {
     return 'success';
   }
-  if (status === 'needsOtherPhone') {
+  if (status === 'needsOtherPhone' || status === 'needsRecovery') {
     return 'wait';
   }
   return 'danger';

@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Personal key needs-recovery + Test 75 seed
+
+Missing recovery public is a calm next step (**Set up recovery to finish your personal key** → recovery setup), not the red enroll error with **Try again**. Red enroll stays for real failures when a recovery public already exists. Test 75 seeds Test 1 recovery contacts + public key (admin-elders), asserts personal ready in seed (`home_keys_and_personal`), and captures needs-other-phone, needs-recovery, and enroll-error on two sims. No SecureStore change; no hosted migrate.
+
 ## 2026-11-10 — B2 review captures + needs-other-phone vs enroll error
 
 Maestro `takeScreenshot` on 68–73 and 75 writes named PNGs under `e2e-artifacts/review-captures/` with an INDEX at end of run. Runner tees every batch to `~/patria-tests.log` (and a copy under `e2e-artifacts/`) and prints those paths. Cleared app data with a personal key still on another device must show **approve this phone from your other phone**, not the generic enroll error: `ensurePersonalKeyAfterFamilyReady` treats any existing wrap/recovery seal as needs-other-phone (including after a refused second `create_personal_key`). Test 75 step 2 drives both states on two sims. No SecureStore change; no hosted migrate.

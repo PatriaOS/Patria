@@ -21,9 +21,13 @@ describe('personalKeyStatusLabel', () => {
     expect(personalKeyStatusLabel('needsOtherPhone')).toBe(
       copy.home.personalKeysNeedOtherPhone,
     );
+    expect(personalKeyStatusLabel('needsRecovery')).toBe(
+      copy.home.personalKeysNeedRecoveryPill,
+    );
     expect(personalKeyStatusLabel('enrollError')).toBe(copy.home.personalKeysEnrollFailedPill);
     expect(personalKeyStatusTone('ready')).toBe('success');
     expect(personalKeyStatusTone('needsOtherPhone')).toBe('wait');
+    expect(personalKeyStatusTone('needsRecovery')).toBe('wait');
     expect(personalKeyStatusTone('enrollError')).toBe('danger');
   });
 });

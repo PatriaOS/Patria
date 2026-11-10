@@ -209,6 +209,9 @@ export const copy = {
     personalKeysReady: 'Personal key: set up on this phone',
     personalKeysNeedOtherPhone:
       'Your personal key: approve this phone from your other phone',
+    personalKeysNeedRecoveryPill: 'Personal key: waiting on recovery',
+    personalKeysNeedRecovery: 'Set up recovery to finish your personal key',
+    personalKeysNeedRecoveryAction: 'Set up recovery',
     personalKeysEnrollFailedPill: 'Personal key: not finished on this phone',
     personalKeysEnrollFailed:
       'We couldn’t finish setting up your personal key on this phone.',

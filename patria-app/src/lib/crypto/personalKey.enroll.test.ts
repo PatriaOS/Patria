@@ -154,6 +154,7 @@ describe('ensurePersonalKeyAfterFamilyReady', () => {
     personalWrap: boolean;
     wrapsAnywhere?: number;
     underRecovery?: boolean;
+    recoveryPublic?: boolean;
     insertError?: { code: string } | null;
   }) {
     const insert = jest.fn().mockResolvedValue({
@@ -197,6 +198,16 @@ describe('ensurePersonalKeyAfterFamilyReady', () => {
           eq: jest.fn().mockReturnThis(),
           maybeSingle: jest.fn().mockResolvedValue({
             data: options.underRecovery ? { user_id: USER } : null,
+            error: null,
+          }),
+        };
+      }
+      if (table === 'recovery_public_keys') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          maybeSingle: jest.fn().mockResolvedValue({
+            data: options.recoveryPublic === false ? null : { user_id: USER },
             error: null,
           }),
         };
@@ -262,4 +273,23 @@ describe('ensurePersonalKeyAfterFamilyReady', () => {
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
+  it('returns needsRecovery when no personal key exists and recovery is not set up', async () => {
+    (loadCachedPersonalKey as jest.Mock).mockResolvedValue(null);
+    mockEnsureTables({
+      familyWrap: true,
+      personalWrap: false,
+      wrapsAnywhere: 0,
+      underRecovery: false,
+      recoveryPublic: false,
+    });
+    const result = await ensurePersonalKeyAfterFamilyReady({
+      spaceId: SPACE,
+      userId: USER,
+    });
+    expect(result).toEqual({
+      status: 'needsRecovery',
+      reasonCode: 'missing_recovery_public',
+    });
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
 });

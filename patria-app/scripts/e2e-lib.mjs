@@ -235,6 +235,9 @@ export function scenarioForTest(testNumber) {
   ) {
     return 'admin-elders-keepers';
   }
+  if (testNumber === 75) {
+    return 'admin-elders';
+  }
   return 'admin';
 }
 

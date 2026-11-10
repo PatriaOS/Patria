@@ -1,6 +1,6 @@
 # PHONE_TESTS: 75
 # AREAS: keys
-# PHASE=ready (default) | needs_other_phone | enroll_error | older_sign_in
+# PHASE=ready | needs_other_phone | needs_recovery | enroll_error | older_sign_in
 appId: app.patria.dev
 ---
 - runFlow:
@@ -50,6 +50,29 @@ appId: app.patria.dev
           timeout: 30000
       - assertVisible: "Your personal key: approve this phone from your other phone"
       - takeScreenshot: ../e2e-artifacts/review-captures/75-step2-family-approve-from-other-phone
+- runFlow:
+    when:
+      true: ${PHASE == 'needs_recovery'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$|personal-keys-needs-recovery|recovery-reminder-sheet"
+          timeout: 45000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - scrollUntilVisible:
+          element:
+            id: "personal-keys-needs-recovery"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "personal-keys-needs-recovery"
+      - assertVisible: "Set up recovery to finish your personal key"
+      - assertVisible:
+          id: "personal-keys-set-up-recovery"
+      - takeScreenshot: ../e2e-artifacts/review-captures/75-step2-home-needs-recovery-set-up
 - runFlow:
     when:
       true: ${PHASE == 'enroll_error'}

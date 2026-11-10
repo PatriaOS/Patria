@@ -544,6 +544,7 @@ function writeReviewCapturesIndex() {
     '  75-step1-older-sign-in-in-device-list (when an older id is listed)',
     '  75-step2-home-approve-from-other-phone',
     '  75-step2-family-approve-from-other-phone',
+    '  75-step2-home-needs-recovery-set-up',
     '  75-step2-home-enroll-error-try-again',
     '',
     `Present (${names.length}):`,
@@ -739,6 +740,14 @@ function seedAdminKeys() {
     flow: flow('08_family_key_created.yaml'),
     device: deviceA,
     env: { ...signInEnv(secrets, 1), PHASE: 'home_keys' },
+  });
+}
+
+function seedAdminKeysAndPersonal() {
+  maestro({
+    flow: flow('08_family_key_created.yaml'),
+    device: deviceA,
+    env: { ...signInEnv(secrets, 1), PHASE: 'home_keys_and_personal' },
   });
 }
 
@@ -1073,6 +1082,10 @@ function seedBeforeYouStart(testNumber) {
   }
   if ([68, 69, 70, 71, 72, 73].includes(testNumber)) {
     seedLettersKeepersReady();
+    return;
+  }
+  if (testNumber === 75) {
+    seedAdminKeysAndPersonal();
     return;
   }
   seedAdminKeys();
@@ -3400,11 +3413,11 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'older_sign_in', E2E_STAY: '1' },
         });
       });
-      await step(75, 2, 'Other-phone and enroll-error status copy', () => {
+      await step(75, 2, 'Needs recovery, other-phone, and enroll-error status copy', () => {
         if (args.devices < 2 || !deviceB) {
           return result(
             'skip',
-            'needs 2 simulators (E2E_DEVICES=2) for other-phone / enroll-error captures',
+            'needs 2 simulators (E2E_DEVICES=2) for personal-key status captures',
           );
         }
         const email = TEST_EMAILS[1];
@@ -3429,7 +3442,7 @@ try {
         });
 
         // Drop the recovery seal so approve-own wraps family only. Personal wraps
-        // stay on A → reminted B must show needs-other-phone, not enrollError.
+        // stay on A → reminted B must show needs-other-phone.
         sqlOnE2eFamily(
           `DELETE FROM public.personal_key_under_recovery
              WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};`,
@@ -3460,7 +3473,7 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'needs_other_phone' },
         });
 
-        // No personal key anywhere + no recovery public → create fails → enroll error.
+        // No personal key + no recovery public → calm needs-recovery (not red enroll error).
         sqlOnE2eFamily(
           `DELETE FROM public.personal_key_wraps
              WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};
@@ -3489,6 +3502,25 @@ try {
           device: deviceB,
           env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
         });
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'needs_recovery' },
+        });
+
+        // Recovery public present but contacts gone → create refuses → real enroll error.
+        sqlOnE2eFamily(
+          `DELETE FROM public.recovery_contacts
+             WHERE family_space_id = ${spaceSql} AND member_id = ${userSql};
+           INSERT INTO public.recovery_public_keys (
+             family_space_id, user_id, public_key, recovery_key_epoch
+           ) VALUES (
+             ${spaceSql}, ${userSql}, decode(repeat('ab', 32), 'hex'), 1
+           )
+           ON CONFLICT (family_space_id, user_id) DO UPDATE
+             SET public_key = excluded.public_key,
+                 recovery_key_epoch = excluded.recovery_key_epoch;`,
+        );
         maestro({
           flow: flow('75_personal_key_status.yaml'),
           device: deviceA,

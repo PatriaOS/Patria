@@ -62,4 +62,29 @@ describe('SecurityStatusCard personal key', () => {
     expect(await findByTestId('home-personal-keys-status')).toBeTruthy();
     expect(await findByText(copy.home.personalKeysNeedOtherPhone)).toBeTruthy();
   });
+
+  it('shows calm needs-recovery next step with set-up action', async () => {
+    const onSetUp = jest.fn();
+    const { findByText, findByTestId, queryByTestId } = await renderScreen(
+      <SecurityStatusCard
+        attentionOnly
+        keyStatus="ready"
+        personalStatus="needsRecovery"
+        recoveryStatus={undefined}
+        keyHolder
+        admin
+        familyName="The Riveras"
+        keysTestID="home-keys-status"
+        personalKeysTestID="home-personal-keys-status"
+        recoveryTestID="home-recovery-status"
+        onSetUpRecoveryForPersonal={onSetUp}
+      />,
+    );
+    expect(await findByTestId('personal-keys-needs-recovery')).toBeTruthy();
+    expect(await findByText(copy.home.personalKeysNeedRecoveryPill)).toBeTruthy();
+    expect(await findByText(copy.home.personalKeysNeedRecovery)).toBeTruthy();
+    expect(queryByTestId('personal-keys-enroll-error')).toBeNull();
+    await fireEvent.press(await findByTestId('personal-keys-set-up-recovery'));
+    expect(onSetUp).toHaveBeenCalled();
+  });
 });

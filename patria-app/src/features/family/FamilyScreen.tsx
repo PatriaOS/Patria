@@ -377,6 +377,9 @@ export function FamilyScreen() {
         onRetryPersonalEnroll={() => {
           void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
         }}
+        onSetUpRecoveryForPersonal={() => {
+          router.push(routes.recoverySetup);
+        }}
       />
       <Button
         label={copy.appearance.title}

@@ -34,6 +34,9 @@ describe('copy', () => {
     expect(copy.home.personalKeysNeedOtherPhone).toBe(
       'Your personal key: approve this phone from your other phone',
     );
+    expect(copy.home.personalKeysNeedRecoveryPill).toMatch(/waiting on recovery/i);
+    expect(copy.home.personalKeysNeedRecovery).toMatch(/Set up recovery/i);
+    expect(copy.home.personalKeysNeedRecoveryAction).toBe('Set up recovery');
     expect(copy.home.personalKeysEnrollFailedPill).toMatch(/not finished/i);
     expect(copy.home.personalKeysEnrollFailed).toMatch(/personal key/i);
     expect(copy.home.personalKeysEnrollRetry).toBe('Try again');

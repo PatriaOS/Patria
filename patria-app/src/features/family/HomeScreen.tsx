@@ -534,6 +534,9 @@ export function HomeScreen() {
         onRetryPersonalEnroll={() => {
           void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
         }}
+        onSetUpRecoveryForPersonal={() => {
+          router.push(routes.recoverySetup);
+        }}
       />
       <HomeToday />
       <HomeMenuDrawer

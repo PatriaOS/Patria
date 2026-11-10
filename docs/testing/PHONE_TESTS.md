@@ -539,5 +539,5 @@ Areas: keys, navigation
 
 ### 75. Personal key status after let-in
 Areas: keys
-1. As a member whose phone was just let in, open **Family**. Pass if Family shows **Family keys: set up on this phone** and **Personal key: set up on this phone**. Open **Your phones** and capture the device list (and **Older sign in on this phone** when a prior id from this install is listed).
-2. With a personal key on another phone and this phone let in without holding that key: Pass if Home and Family show **Your personal key: approve this phone from your other phone** (not a generic enroll error). With no personal key anywhere and create unable to finish: Pass if a clear message and **Try again** appear (no key material in logs). Needs 2 simulators.
+1. As a member whose phone was just let in (recovery already seeded so personal create can finish), open **Family**. Pass if Family shows **Family keys: set up on this phone** and **Personal key: set up on this phone**. Open **Your phones** and capture the device list (and **Older sign in on this phone** when a prior id from this install is listed). Seed must assert personal ready before this step.
+2. Needs 2 simulators. Capture three states: (a) personal key only on another phone → **Your personal key: approve this phone from your other phone**; (b) no personal key and recovery not set up → calm **Set up recovery to finish your personal key** with **Set up recovery** (not the red enroll error); (c) recovery public present but create still fails → red enroll message and **Try again** (no key material in logs).

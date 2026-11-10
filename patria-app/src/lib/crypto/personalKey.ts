@@ -187,17 +187,36 @@ function enrollReasonCode(error: unknown): string {
   return 'enroll_failed';
 }
 
-export type PersonalKeyDeviceStatus = 'ready' | 'needsOtherPhone' | 'enrollError';
+export type PersonalKeyDeviceStatus =
+  | 'ready'
+  | 'needsOtherPhone'
+  | 'needsRecovery'
+  | 'enrollError';
 
 export type PersonalKeyEnsureResult = {
   status: PersonalKeyDeviceStatus;
   reasonCode?: string;
 };
 
+async function hasRecoveryPublicKey(spaceId: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('recovery_public_keys')
+    .select('user_id')
+    .eq('family_space_id', spaceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    logKeyStep('recovery_public_for_personal', error.code ?? 'unknown');
+    throw error;
+  }
+  return Boolean(data);
+}
+
 /**
  * After family keys are ready on this device (let in), finish the personal wrap:
  * enroll from cache if present; create only when no personal key exists anywhere;
  * otherwise needs-other-phone. Never mint a second personal key.
+ * Missing recovery is a calm next step, not a red enroll error.
  */
 export async function ensurePersonalKeyAfterFamilyReady(input: {
   spaceId: string;
@@ -239,6 +258,11 @@ export async function ensurePersonalKeyAfterFamilyReady(input: {
     return { status: 'needsOtherPhone' };
   }
 
+  if (!(await hasRecoveryPublicKey(input.spaceId, input.userId))) {
+    logKeyStep('ensure_personal_after_family', 'needs_recovery');
+    return { status: 'needsRecovery', reasonCode: 'missing_recovery_public' };
+  }
+
   try {
     const personalKey = await obtainPersonalKey({
       spaceId: input.spaceId,
@@ -261,6 +285,10 @@ export async function ensurePersonalKeyAfterFamilyReady(input: {
     if (reasonCode === 'needs_other_phone') {
       logKeyStep('ensure_personal_after_family', reasonCode);
       return { status: 'needsOtherPhone' };
+    }
+    if (reasonCode === 'missing_recovery_public') {
+      logKeyStep('ensure_personal_create', reasonCode);
+      return { status: 'needsRecovery', reasonCode };
     }
     // create_personal_key refuses a second key (42501) — never show a generic enroll
     // error when wraps / recovery seal already exist on another device.
