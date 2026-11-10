@@ -30,6 +30,13 @@ describe('copy', () => {
       'Waiting for one of your phones to let this one in',
     );
     expect(copy.home.keysNeedRelink).toBe('This phone needs to be let in again');
+    expect(copy.home.personalKeysReady).toBe('Personal key: set up on this phone');
+    expect(copy.home.personalKeysNeedOtherPhone).toBe(
+      'Your personal key: approve this phone from your other phone',
+    );
+    expect(copy.home.personalKeysEnrollFailedPill).toMatch(/not finished/i);
+    expect(copy.home.personalKeysEnrollFailed).toMatch(/personal key/i);
+    expect(copy.home.personalKeysEnrollRetry).toBe('Try again');
     expect(copy.home.letInNotice).toBe('{name} wants this phone let in');
     expect(copy.home.extraDeviceOwnNotice).toBe('Is this your new phone?');
     expect(copy.home.yesMyPhone).toBe('Yes, this is my phone');

@@ -1,0 +1,20 @@
+# PHONE_TESTS: 75
+# AREAS: keys
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element: "Family keys: set up on this phone"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Family keys: set up on this phone"
+- scrollUntilVisible:
+    element: "Personal key: set up on this phone"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    id: "family-personal-keys-status"
+    text: "Personal key: set up on this phone"

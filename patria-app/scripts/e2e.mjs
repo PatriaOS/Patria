@@ -1000,7 +1000,7 @@ function seedBeforeYouStart(testNumber) {
   if (
     ![
       9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-      67, 68, 69, 70, 71, 72, 73,
+      67, 68, 69, 70, 71, 72, 73, 75,
     ].includes(testNumber)
   ) {
     return;
@@ -3236,12 +3236,16 @@ try {
         });
       });
       await step(71, 2, 'Two keepers help; recipient opens with same seal code', () => {
-        // Test 3 stays on C from seed (step 1 only used A/B). No launchApp —
-        // relaunch remints SecureStore device ids and orphans personal wraps.
+        // With 3 sims Test 3 stays on C from seed — E2E_STAY avoids remint.
+        // With 2 sims step 1 left B as Test 2; sign Test 3 in explicitly.
+        const stayOnKeeper3 = args.devices >= 3 && deviceC ? '1' : undefined;
         maestro({
           flow: flow('71_keeper_help.yaml'),
           device: keeper3Device,
-          env: { ...signInEnv(secrets, 3), E2E_STAY: '1' },
+          env: {
+            ...signInEnv(secrets, 3),
+            ...(stayOnKeeper3 ? { E2E_STAY: stayOnKeeper3 } : {}),
+          },
         });
         // Test 4 shares B with the recipient — must sign in (launchApp). Dual-write
         // SecureStore + personal-wrap asserts in seed keep this device eligible.
@@ -3277,11 +3281,16 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'recipient' },
         });
         // Test 3 wrap is on B with 2 sims, or on C with 3 — never on A.
+        // With 2 sims, recipient just used B as Test 2 — do not E2E_STAY as Test 3.
         const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceB;
+        const stayOnKeeperPhone = args.devices >= 3 && deviceC ? '1' : undefined;
         maestro({
           flow: flow('71_keeper_help.yaml'),
           device: keeperDevice,
-          env: { ...signInEnv(secrets, 3), E2E_STAY: '1' },
+          env: {
+            ...signInEnv(secrets, 3),
+            ...(stayOnKeeperPhone ? { E2E_STAY: stayOnKeeperPhone } : {}),
+          },
         });
 
         maestro({
@@ -3313,6 +3322,19 @@ try {
           env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
         });
       });
+    }
+
+    if (test.number === 75) {
+      await step(75, 1, 'Family shows family and personal keys ready', () => {
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      await step(75, 2, 'Other-phone / enroll-error copy (manual)', () =>
+        result('skip', 'manual: needs a second phone holding the only personal wrap'),
+      );
     }
     } catch (error) {
       const failed = reports

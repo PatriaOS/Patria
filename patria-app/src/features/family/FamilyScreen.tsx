@@ -18,6 +18,7 @@ import {
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { copy } from '../../lib/copy';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { ensurePersonalKeyAfterFamilyReady } from '../../lib/crypto/personalKey';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchChildren, fetchMembers, fetchPendingInvites } from '../../lib/family';
@@ -74,16 +75,26 @@ export function FamilyScreen() {
     queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
   });
 
-  // keys_ready Maestro ends on Family — enroll personal wrap for this device here
-  // (same as Home) so keeper Help is not stuck on approve-other-phone.
+  const personalKeyQuery = useQuery({
+    queryKey: ['personalKeyStatus', spaceId, userId],
+    enabled: keyStatusQuery.data === 'ready' && Boolean(spaceId && userId),
+    queryFn: () =>
+      ensurePersonalKeyAfterFamilyReady({
+        spaceId: spaceId as string,
+        userId: userId as string,
+      }),
+    retry: false,
+  });
+
+  // After family keys are ready, finish personal wrap then letterbox (keeper Help).
   useEffect(() => {
-    if (keyStatusQuery.data !== 'ready' || !spaceId || !userId) {
+    if (personalKeyQuery.data?.status !== 'ready' || !spaceId || !userId) {
       return;
     }
     void ensureLetterboxKey({ spaceId, userId }).catch(() => {
-      // No personal key yet — Vault / Letters banners cover that.
+      // Recovery may still be missing — Vault / Letters banners cover that.
     });
-  }, [keyStatusQuery.data, spaceId, userId]);
+  }, [personalKeyQuery.data?.status, spaceId, userId]);
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
@@ -91,11 +102,12 @@ export function FamilyScreen() {
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
     }
-    if (spaceId) {
+      if (spaceId) {
       void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['children', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['invites', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+      void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
     }
     requestAnimationFrame(() => setPullRefreshing(false));
@@ -354,12 +366,17 @@ export function FamilyScreen() {
       />
       <SecurityStatusCard
         keyStatus={keyStatusQuery.data}
+        personalStatus={personalKeyQuery.data?.status}
         recoveryStatus={recoveryQuery.data?.status}
         keyHolder={keyHolder}
         admin={admin}
         familyName={current.space.name}
         keysTestID="family-keys-status"
+        personalKeysTestID="family-personal-keys-status"
         recoveryTestID="family-recovery-status"
+        onRetryPersonalEnroll={() => {
+          void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
+        }}
       />
       <Button
         label={copy.appearance.title}

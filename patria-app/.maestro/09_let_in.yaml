@@ -99,6 +99,12 @@ appId: app.patria.dev
           direction: DOWN
           timeout: 30000
       - assertVisible: "Family keys: set up on this phone"
+      # Let-in must finish with a personal wrap on this phone too (Family status).
+      - scrollUntilVisible:
+          element: "Personal key: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Personal key: set up on this phone"
 - runFlow:
     when:
       true: ${PHASE == 'no_notice'}

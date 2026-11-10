@@ -206,6 +206,13 @@ export const copy = {
     keysWaiting: 'Waiting for a family admin to let this phone in',
     keysWaitingOwnPhone: 'Waiting for one of your phones to let this one in',
     keysNeedRelink: 'This phone needs to be let in again',
+    personalKeysReady: 'Personal key: set up on this phone',
+    personalKeysNeedOtherPhone:
+      'Your personal key: approve this phone from your other phone',
+    personalKeysEnrollFailedPill: 'Personal key: not finished on this phone',
+    personalKeysEnrollFailed:
+      'We couldn’t finish setting up your personal key on this phone.',
+    personalKeysEnrollRetry: 'Try again',
     letInNotice: '{name} wants this phone let in',
     extraDeviceOwnNotice: 'Is this your new phone?',
     extraDeviceAdminNotice: '{name} added a new phone',

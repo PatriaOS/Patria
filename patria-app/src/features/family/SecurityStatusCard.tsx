@@ -1,13 +1,21 @@
 import { StyleSheet, View } from 'react-native';
 
+import { copy } from '../../lib/copy';
 import type { FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
+import type { PersonalKeyDeviceStatus } from '../../lib/crypto/personalKey';
 import type { RecoveryHomeStatus } from '../../lib/crypto/recoverySetup';
-import { Card, StatusPill } from '../../ui';
+import { Button, Card, ErrorState, StatusPill } from '../../ui';
 import { space } from '../../theme/tokens';
-import { keyStatusLabel, recoveryPill } from './securityStatus';
+import {
+  keyStatusLabel,
+  personalKeyStatusLabel,
+  personalKeyStatusTone,
+  recoveryPill,
+} from './securityStatus';
 
 type Props = {
   keyStatus: FamilyKeyStatus | undefined;
+  personalStatus?: PersonalKeyDeviceStatus | undefined;
   recoveryStatus: RecoveryHomeStatus | undefined;
   keyHolder: boolean;
   admin: boolean;
@@ -15,27 +23,35 @@ type Props = {
   /** Home shows only what needs attention; Family shows every status. */
   attentionOnly?: boolean;
   keysTestID: string;
+  personalKeysTestID?: string;
   recoveryTestID: string;
   rowTestID?: string;
+  onRetryPersonalEnroll?: () => void;
 };
 
 /** Keys and recovery status pills (same wording and tones Home used before D35). */
 export function SecurityStatusCard({
   keyStatus,
+  personalStatus,
   recoveryStatus,
   keyHolder,
   admin,
   familyName,
   attentionOnly = false,
   keysTestID,
+  personalKeysTestID = 'personal-keys-status',
   recoveryTestID,
   rowTestID,
+  onRetryPersonalEnroll,
 }: Props) {
   const showKeys = Boolean(keyStatus) && (!attentionOnly || keyStatus !== 'ready');
+  const showPersonal =
+    Boolean(personalStatus) &&
+    (!attentionOnly || personalStatus === 'needsOtherPhone' || personalStatus === 'enrollError');
   const pill = recoveryPill({ keyHolder, admin, familyName, status: recoveryStatus });
   const showRecovery =
     pill !== null && (!attentionOnly || recoveryStatus === 'needs_attention');
-  if (!showKeys && !showRecovery) {
+  if (!showKeys && !showPersonal && !showRecovery) {
     return null;
   }
   return (
@@ -48,10 +64,30 @@ export function SecurityStatusCard({
             tone={keyStatus === 'ready' ? 'success' : 'wait'}
           />
         ) : null}
+        {showPersonal && personalStatus ? (
+          <StatusPill
+            testID={personalKeysTestID}
+            label={personalKeyStatusLabel(personalStatus)}
+            tone={personalKeyStatusTone(personalStatus)}
+          />
+        ) : null}
         {showRecovery && pill ? (
           <StatusPill testID={recoveryTestID} label={pill.label} tone={pill.tone} />
         ) : null}
       </View>
+      {personalStatus === 'enrollError' ? (
+        <View style={styles.enrollError} testID="personal-keys-enroll-error">
+          <ErrorState message={copy.home.personalKeysEnrollFailed} />
+          {onRetryPersonalEnroll ? (
+            <Button
+              label={copy.home.personalKeysEnrollRetry}
+              variant="secondary"
+              testID="personal-keys-enroll-retry"
+              onPress={onRetryPersonalEnroll}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -61,5 +97,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.xs,
+  },
+  enrollError: {
+    marginTop: space.sm,
+    gap: space.sm,
   },
 });

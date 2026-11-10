@@ -536,3 +536,8 @@ Areas: letters, membership
 Areas: keys, navigation
 1. With two device ids for the same account on the server (current phone plus a prior id from this install’s device history), open **Family** → **Your phones**. Pass if the prior id is labeled **Older sign in on this phone** with **Last used** and a date, not only **Set up**.
 2. Tap **Remove** on that row and confirm. Pass if the row disappears and its family/personal wraps are gone (`remove_own_device`).
+
+### 75. Personal key status after let-in
+Areas: keys
+1. As a member whose phone was just let in, open **Family**. Pass if Family shows **Family keys: set up on this phone** and **Personal key: set up on this phone**.
+2. (manual) With a personal key only on another phone and this phone let in without holding that key: Pass if Family (and Home) show **Your personal key: approve this phone from your other phone**. If enroll fails, Pass if a clear message and **Try again** appear (no key material in logs).

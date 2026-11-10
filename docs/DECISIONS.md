@@ -300,6 +300,10 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 * **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
 * Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.
 
+## D44. Personal wrap after let-in (10 November 2026)
+
+Admin first-device let-in wraps only the family key (the admin never holds the member’s personal key). After family keys show ready on that phone, the app must finish a personal wrap for **this** device: enroll from local cache if present; create a personal key only when the user has none anywhere (no `personal_key_wraps` / recovery seal); if a personal key already exists on another device and this phone does not hold it, show “approve this phone from your other phone” and never mint a second key (`create_personal_key` already refuses). Enroll failures are not swallowed: clear copy, **Try again**, and a safe reason code in logs. Home (attention) and Family status reflect personal key as well as family keys. SecureStore accessibility and approval rules unchanged.
+
 ## D43. Letters Slice B rules (4 November 2026)
 
 LEG02 Slice B (keepers, age, early release, child/guardian) builds after Slice A. Slice B0 polish ships first.

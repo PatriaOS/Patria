@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Personal wrap after let-in + Test 72 session
+
+After family keys are ready, `ensurePersonalKeyAfterFamilyReady` enrolls from cache or creates only when no personal key exists anywhere; otherwise needs-other-phone. Enroll errors surface with retry and a safe reason code. Home/Family show personal key status. Unit tests refuse a second personal key; pgTAP already refuses `create_personal_key` twice. keys_ready / phone test 75 assert personal status. Runner: with 2 sims, Tests 71/72 sign Test 3 in instead of E2E_STAY after recipient on the same phone. No SecureStore or approval weakening; personal-wrap assert kept. No hosted migrate.
+
 ## 2026-11-09 — E2E infra retry + lighter B2 seed probes
 
 Maestro `isScreenStatic` 500 / connection refused / screenshot timeout: one automatic “infra retry” per step after restarting the XCTest driver; app asserts never retry. B2 `seedLetIn` skips the first `keys_ready` probe (fresh members wait → let in → final `keys_ready` must pass); short pause between let-ins. No app or SecureStore change. No hosted migrate.

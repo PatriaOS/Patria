@@ -145,6 +145,123 @@ async function personalKeyExists(spaceId: string, userId: string): Promise<boole
   return Boolean(data);
 }
 
+/** True when this user already has a personal key (recovery seal and/or any device wrap). */
+export async function personalKeyExistsAnywhere(
+  spaceId: string,
+  userId: string,
+): Promise<boolean> {
+  if (await personalKeyExists(spaceId, userId)) {
+    return true;
+  }
+  const { count, error } = await supabase
+    .from('personal_key_wraps')
+    .select('device_id', { count: 'exact', head: true })
+    .eq('family_space_id', spaceId)
+    .eq('user_id', userId);
+  if (error) {
+    logKeyStep('personal_key_wraps_exist', error.code ?? 'unknown');
+    throw error;
+  }
+  return (count ?? 0) > 0;
+}
+
+function enrollReasonCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string' && code.length > 0 && code.length <= 32) {
+      return code;
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message;
+    if (msg.startsWith(personalKeyNeedsOtherPhone)) {
+      return 'needs_other_phone';
+    }
+    if (msg === 'missing family key') {
+      return 'missing_family_key';
+    }
+    if (msg === 'missing recovery public key') {
+      return 'missing_recovery_public';
+    }
+  }
+  return 'enroll_failed';
+}
+
+export type PersonalKeyDeviceStatus = 'ready' | 'needsOtherPhone' | 'enrollError';
+
+export type PersonalKeyEnsureResult = {
+  status: PersonalKeyDeviceStatus;
+  reasonCode?: string;
+};
+
+/**
+ * After family keys are ready on this device (let in), finish the personal wrap:
+ * enroll from cache if present; create only when no personal key exists anywhere;
+ * otherwise needs-other-phone. Never mint a second personal key.
+ */
+export async function ensurePersonalKeyAfterFamilyReady(input: {
+  spaceId: string;
+  userId: string;
+}): Promise<PersonalKeyEnsureResult> {
+  const device = await ensureDeviceIdentity(input.userId);
+  if (!(await deviceHasFamilyWrap(input.spaceId, input.userId, device.deviceId))) {
+    logKeyStep('ensure_personal_after_family', 'no_family_wrap');
+    return { status: 'enrollError', reasonCode: 'no_family_wrap' };
+  }
+
+  const ownWrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
+  if (ownWrap) {
+    return { status: 'ready' };
+  }
+
+  const cached = await loadCachedPersonalKey(input.userId, input.spaceId);
+  if (cached) {
+    try {
+      const result = await enrollPersonalWrapFromCacheIfApproved({
+        spaceId: input.spaceId,
+        userId: input.userId,
+        personalKey: cached,
+      });
+      if (result === 'enrolled' || result === 'already') {
+        return { status: 'ready' };
+      }
+      logKeyStep('ensure_personal_after_family', 'not_approved');
+      return { status: 'enrollError', reasonCode: 'not_approved' };
+    } catch (error) {
+      const reasonCode = enrollReasonCode(error);
+      logKeyStep('enroll_personal_wrap_from_cache', reasonCode);
+      return { status: 'enrollError', reasonCode };
+    }
+  }
+
+  if (await personalKeyExistsAnywhere(input.spaceId, input.userId)) {
+    logKeyStep('ensure_personal_after_family', 'needs_other_phone');
+    return { status: 'needsOtherPhone' };
+  }
+
+  try {
+    const personalKey = await obtainPersonalKey({
+      spaceId: input.spaceId,
+      userId: input.userId,
+    });
+    wipe(personalKey);
+    const wrap = await fetchOwnPersonalWrap(input.spaceId, input.userId, device.deviceId);
+    if (!wrap) {
+      logKeyStep('ensure_personal_after_family', 'create_no_wrap');
+      return { status: 'enrollError', reasonCode: 'create_no_wrap' };
+    }
+    return { status: 'ready' };
+  } catch (error) {
+    const reasonCode = enrollReasonCode(error);
+    if (reasonCode === 'needs_other_phone') {
+      logKeyStep('ensure_personal_after_family', reasonCode);
+      return { status: 'needsOtherPhone' };
+    }
+    logKeyStep('ensure_personal_create', reasonCode);
+    return { status: 'enrollError', reasonCode };
+  }
+}
+
 async function enrollPersonalWrapFromKey(input: {
   spaceId: string;
   userId: string;
@@ -224,21 +341,15 @@ export async function loadPersonalKeyIfPresent(input: {
 }): Promise<Uint8Array | null> {
   const cached = await loadCachedPersonalKey(input.userId, input.spaceId);
   if (cached) {
-    try {
-      await enrollPersonalWrapFromCacheIfApproved({
-        spaceId: input.spaceId,
-        userId: input.userId,
-        personalKey: cached,
-      });
-    } catch (error) {
-      logKeyStep(
-        'enroll_personal_wrap_from_cache',
-        error instanceof Error ? error.message.slice(0, 48) : 'unknown',
-      );
-    }
+    // Enroll errors must surface — Home/Family show a clear retry; do not swallow.
+    await enrollPersonalWrapFromCacheIfApproved({
+      spaceId: input.spaceId,
+      userId: input.userId,
+      personalKey: cached,
+    });
     return cached;
   }
-  if (!(await personalKeyExists(input.spaceId, input.userId))) {
+  if (!(await personalKeyExistsAnywhere(input.spaceId, input.userId))) {
     return null;
   }
   const device = await ensureDeviceIdentity(input.userId);
@@ -248,8 +359,7 @@ export async function loadPersonalKeyIfPresent(input: {
       .from('personal_key_wraps')
       .select('device_id', { count: 'exact', head: true })
       .eq('family_space_id', input.spaceId)
-      .eq('user_id', input.userId)
-      .eq('device_id', device.deviceId);
+      .eq('user_id', input.userId);
     throw new Error(
       `${personalKeyNeedsOtherPhone}:d=${device.deviceId.slice(0, 8)}:s=${input.spaceId.slice(0, 8)}:n=${
         countError ? 'err' : String(count ?? 0)
@@ -272,6 +382,10 @@ export async function obtainPersonalKey(input: {
   const existing = await loadPersonalKeyIfPresent(input);
   if (existing) {
     return existing;
+  }
+  // Never mint a second personal key when wraps or a recovery seal already exist.
+  if (await personalKeyExistsAnywhere(input.spaceId, input.userId)) {
+    throw new Error(personalKeyNeedsOtherPhone);
   }
   const device = await ensureDeviceIdentity(input.userId);
   const targets = await listApprovedPersonalDevices(input.spaceId, input.userId);
