@@ -140,10 +140,15 @@ function remainingMs() {
 
 let driverUnreachable = false;
 
-function isDriverUnreachable(text) {
-  return /Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable|Failed to connect to \/127\.0\.0\.1/i.test(
+/** Maestro XCTest / transport death — not an app assertion failure. */
+function isMaestroInfraFailure(text) {
+  return /isScreenStatic|Request for isScreenStatic failed|Failed to get screenshot:\s*Timed out|Timed out while requesting screenshot|Connection refused|Failed to connect to \/127\.0\.0\.1|Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable/i.test(
     text,
   );
+}
+
+function isDriverUnreachable(text) {
+  return isMaestroInfraFailure(text);
 }
 
 function restartMaestroDriver(udid) {
@@ -172,8 +177,7 @@ function restartAllMaestroDrivers() {
 /** Last Simulator udid passed to Maestro — used for failure screenshots. */
 let lastMaestroDevice = null;
 
-function maestro({ flow, device, env }) {
-  lastMaestroDevice = device || deviceA || null;
+function runMaestroOnce({ flow, device, env }) {
   const args = ['test', '--no-ansi', '--platform', 'ios'];
   if (device) {
     args.push('--device', device);
@@ -186,7 +190,7 @@ function maestro({ flow, device, env }) {
   args.push(flow);
   const timeout = remainingMs();
   if (timeout <= 0) {
-    throw new Error('timed out');
+    return { ok: false, out: '', error: new Error('timed out'), infra: false };
   }
   const result = spawnSync('maestro', args, {
     cwd: APP_ROOT,
@@ -200,18 +204,53 @@ function maestro({ flow, device, env }) {
   if (out) {
     process.stdout.write(out);
   }
-  if (isDriverUnreachable(out)) {
+  const infra = isMaestroInfraFailure(out);
+  if (infra) {
     driverUnreachable = true;
   }
   if (result.error && result.error.code === 'ETIMEDOUT') {
-    throw new Error('timed out');
+    return { ok: false, out, error: new Error('timed out'), infra };
   }
   if (result.signal) {
-    throw new Error('timed out');
+    return { ok: false, out, error: new Error('timed out'), infra };
   }
   if (result.status !== 0) {
-    throw new Error(redactCli(`Command failed: maestro ${args.join(' ')}`));
+    return {
+      ok: false,
+      out,
+      error: new Error(redactCli(`Command failed: maestro ${args.join(' ')}`)),
+      infra,
+    };
   }
+  return { ok: true, out, error: null, infra: false };
+}
+
+/**
+ * Run one Maestro flow. Infra driver deaths (isScreenStatic 500, connection
+ * refused, screenshot timeout) get one automatic retry after restarting the
+ * driver — logged as "infra retry". App assertion failures are never retried.
+ */
+function maestro({ flow, device, env }) {
+  lastMaestroDevice = device || deviceA || null;
+  const udid = device || deviceA || null;
+  let attempt = runMaestroOnce({ flow, device, env });
+  if (attempt.ok) {
+    return;
+  }
+  if (attempt.infra) {
+    console.log(
+      `infra retry: Maestro driver failure on ${udid ?? 'device'}; restarting driver and retrying this step once.`,
+    );
+    restartMaestroDriver(udid);
+    attempt = runMaestroOnce({ flow, device, env });
+    if (attempt.ok) {
+      return;
+    }
+    if (attempt.infra) {
+      driverUnreachable = true;
+    }
+  }
+  throw attempt.error instanceof Error ? attempt.error : new Error('maestro failed');
 }
 
 function tryMaestro(opts) {
@@ -654,18 +693,15 @@ function memberHasWrap(memberN) {
 }
 
 function seedLetIn(memberN, device) {
-  // Prefer proving *this* phone has family keys. A DB wrap for an older device
-  // id is not enough (keeper Help → approve-other-phone).
+  // Fresh clear-state seeds: skip the first keys_ready probe (it only shows
+  // "Waiting for a family admin…"). Do waiting → let_in → keys_ready. Final
+  // keys_ready below must still pass on *this* phone (not a DB wrap alone).
   const keysReady = () =>
     tryMaestro({
       flow: flow('09_let_in.yaml'),
       device,
       env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
     });
-
-  if (keysReady().ok) {
-    return;
-  }
 
   const waiting = tryMaestro({
     flow: flow('09_let_in.yaml'),
@@ -679,7 +715,7 @@ function seedLetIn(memberN, device) {
       env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
     });
   } else {
-    // Member row exists but this phone needs let-in again (new device id).
+    // Already let in, or member row exists but this phone needs let-in again.
     maestro({
       flow: flow('09_let_in.yaml'),
       device: deviceA,
@@ -801,9 +837,16 @@ function seedLettersKeepersReady() {
   seedAdminKeys();
   const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
   const third = args.devices >= 3 && deviceC ? deviceC : other;
+  // Keepers 3/5 on third (Help Sim), 2/4 on other — same phones that will Help.
+  const pauseBetweenLetIns = () => {
+    execFileSync('sleep', ['2'], { stdio: 'ignore' });
+  };
   seedLetIn(2, other);
+  pauseBetweenLetIns();
   seedLetIn(3, third);
+  pauseBetweenLetIns();
   seedLetIn(4, other);
+  pauseBetweenLetIns();
   seedLetIn(5, third);
   maestro({
     flow: flow('09_let_in.yaml'),

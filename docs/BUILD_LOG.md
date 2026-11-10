@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-09 — E2E infra retry + lighter B2 seed probes
+
+Maestro `isScreenStatic` 500 / connection refused / screenshot timeout: one automatic “infra retry” per step after restarting the XCTest driver; app asserts never retry. B2 `seedLetIn` skips the first `keys_ready` probe (fresh members wait → let in → final `keys_ready` must pass); short pause between let-ins. No app or SecureStore change. No hosted migrate.
+
 ## 2026-11-09 — Keychain WHEN_UNLOCKED, stale phones, is_memory_role
 
 Revert SecureStore to `WHEN_UNLOCKED_THIS_DEVICE_ONLY` only (no AFTER_FIRST_UNLOCK / dual-write); remint guards stay. Personal wrap from cache only when the device already has a family wrap — never auto-approve. Your phones labels prior ids from this install as “Older sign in on this phone”; remove still uses `remove_own_device`. `is_memory_role` checks `_user_id` via `space_members`. Pair-box unit test opens copies after wipe. No hosted migrate.
