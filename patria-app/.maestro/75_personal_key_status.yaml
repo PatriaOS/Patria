@@ -101,19 +101,49 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$|^screen-family$|recovery-reminder-sheet"
+          timeout: 20000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
       - runFlow:
           file: subflows/open_family.yaml
+      # Keep "Your phones" fully above the tab bar (same pattern as test 10).
+      - swipe:
+          start: 50%, 80%
+          end: 50%, 20%
       - scrollUntilVisible:
           element:
             id: "^your-phones$"
           direction: DOWN
-          timeout: 20000
+          timeout: 30000
+          centerElement: true
       - tapOn:
           id: "^your-phones$"
+      # One retry if the first tap did not open the screen.
+      - runFlow:
+          when:
+            notVisible:
+              id: "screen-your-phones"
+          commands:
+            - swipe:
+                start: 50%, 80%
+                end: 50%, 20%
+            - scrollUntilVisible:
+                element:
+                  id: "^your-phones$"
+                direction: DOWN
+                timeout: 20000
+                centerElement: true
+            - tapOn:
+                text: "Your phones"
       - extendedWaitUntil:
           visible:
             id: "screen-your-phones"
-          timeout: 15000
+          timeout: 30000
+      - assertVisible:
+          id: "screen-your-phones"
       - takeScreenshot: 75-step1-your-phones-device-list
       - runFlow:
           when:

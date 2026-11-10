@@ -8,6 +8,7 @@ import {
   declineFirstDevice,
   extraDeviceWrapAad,
   firstDeviceWrapAad,
+  listOwnPhones,
   rejectOwnExtraDevice,
   removeOwnPhone,
   requestFirstDeviceAccess,
@@ -681,5 +682,64 @@ describe('extra-device self approval', () => {
       ),
     ).rejects.toThrow('first-device wrap only');
     expect(() => assertOwnExtraDevice(ELENA, MARCO)).toThrow('extra device wrap is self-only');
+  });
+
+  it('marks a prior device id from this install as older sign-in on Your phones', async () => {
+    const store = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    installMemoryStore(store);
+    resetDeviceIdentityMemory();
+    const first = await ensureDeviceIdentity(ELENA);
+    server.deviceKeys.set(`${ELENA}:${first.deviceId}`, {
+      userId: ELENA,
+      deviceId: first.deviceId,
+      publicKey: first.publicKey,
+      rejectedAt: null,
+    });
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: first.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+
+    // Second identity on the same install (real remint path records history).
+    store.delete(`patria.u.${ELENA}.device.id`);
+    store.delete(`patria.u.${ELENA}.device.private`);
+    resetDeviceIdentityMemory();
+    const second = await ensureDeviceIdentity(ELENA);
+    expect(second.deviceId).not.toBe(first.deviceId);
+    server.deviceKeys.set(`${ELENA}:${second.deviceId}`, {
+      userId: ELENA,
+      deviceId: second.deviceId,
+      publicKey: second.publicKey,
+      rejectedAt: null,
+    });
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: second.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+
+    const phones = await listOwnPhones(SPACE, ELENA, gateway);
+    const older = phones.find((row) => row.deviceId === first.deviceId);
+    expect(older?.olderSignInOnThisPhone).toBe(true);
+    expect(phones.map((row) => row.deviceId).sort()).toEqual(
+      [first.deviceId, second.deviceId].sort(),
+    );
+
+    // Another member's devices are never returned for this userId.
+    server.deviceKeys.set(`${MARCO}:d-marco`, {
+      userId: MARCO,
+      deviceId: 'd-marco',
+      publicKey: new Uint8Array(32).fill(9),
+      rejectedAt: null,
+    });
+    const again = await listOwnPhones(SPACE, ELENA, gateway);
+    expect(again.some((row) => row.deviceId === 'd-marco')).toBe(false);
   });
 });

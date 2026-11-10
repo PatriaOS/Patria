@@ -536,6 +536,7 @@ Areas: letters, membership
 Areas: keys, navigation
 1. With two device ids for the same account on the server (current phone plus a prior id from this install’s device history), open **Family** → **Your phones**. Pass if the prior id is labeled **Older sign in on this phone** with **Last used** and a date, not only **Set up**.
 2. Tap **Remove** on that row and confirm. Pass if the row disappears and its family/personal wraps are gone (`remove_own_device`).
+Automated coverage (no phone run required for CI): unit tests create a second device identity on the same install and assert the older-sign-in label + Last used; pgTAP proves `remove_own_device` deletes family/personal wraps, writes `device_removed_notices`, and other members cannot remove or read those wraps.
 
 ### 75. Personal key status after let-in
 Areas: keys

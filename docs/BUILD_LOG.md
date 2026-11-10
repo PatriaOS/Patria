@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Harden Your phones open + older-sign-in automated coverage
+
+Test 75 `older_sign_in` scrolls **Your phones** above the tab bar (swipe + center), retries once, and asserts the screen opens; older-sign-in row screenshot stays optional. Unit tests cover labeling a reminted prior id as **Older sign in on this phone** with Last used; pgTAP covers remove (family + personal wraps, `device_removed_notices`) and other-member isolation. Manual phone test 74 kept. No app change; no hosted migrate.
+
 ## 2026-11-10 — Maestro takeScreenshot bare names + review-captures copy
 
 Maestro rejects `takeScreenshot` paths with `../` or `/` (outside its run output folder). Flows 68–73/75 (and 07 / shots_needs_you) use bare names; the runner copies `~/.maestro/tests/*/…/takeScreenshot/*.png` into `e2e-artifacts/review-captures/` and writes INDEX (test, step, file). `e2e:check` rejects any takeScreenshot path containing `../` or `/`. No app change; no hosted migrate.
