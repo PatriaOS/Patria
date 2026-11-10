@@ -1,8 +1,19 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import {
   APP_BUNDLE_ID,
@@ -39,9 +50,12 @@ const SCRIPT = 'e2e';
 const ARTIFACTS = join(APP_ROOT, 'e2e-artifacts');
 const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
 const REVIEW_CAPTURES = join(ARTIFACTS, 'review-captures');
+/** Maestro writes bare takeScreenshot names under ~/.maestro/tests/<run>/<flow>/takeScreenshot/. */
+const MAESTRO_TESTS = join(homedir(), '.maestro', 'tests');
 /** Fixed path every run overwrites; also mirrored under e2e-artifacts/. */
 const BATCH_LOG = join(homedir(), 'patria-tests.log');
 const BATCH_LOG_ARTIFACT = join(ARTIFACTS, 'patria-tests.log');
+const batchStartedAtMs = Date.now();
 
 // simctl addmedia uses the file's creation date (birthtime), not mtime, when there is no EXIF.
 // copyFileSync / overwrite of a reused dest keeps the old birthtime (Oct 19 on this machine),
@@ -239,6 +253,7 @@ function maestro({ flow, device, env }) {
   const udid = device || deviceA || null;
   let attempt = runMaestroOnce({ flow, device, env });
   if (attempt.ok) {
+    collectReviewCapturesFromMaestro();
     return;
   }
   if (attempt.infra) {
@@ -248,6 +263,7 @@ function maestro({ flow, device, env }) {
     restartMaestroDriver(udid);
     attempt = runMaestroOnce({ flow, device, env });
     if (attempt.ok) {
+      collectReviewCapturesFromMaestro();
       return;
     }
     if (attempt.infra) {
@@ -517,38 +533,98 @@ function progress(line) {
   appendFileSync(progressPath, `${line}\n`);
 }
 
+function listMaestroTakeScreenshotFiles() {
+  const found = [];
+  if (!existsSync(MAESTRO_TESTS)) {
+    return found;
+  }
+  for (const run of readdirSync(MAESTRO_TESTS)) {
+    const runDir = join(MAESTRO_TESTS, run);
+    let runStat;
+    try {
+      runStat = statSync(runDir);
+    } catch {
+      continue;
+    }
+    if (!runStat.isDirectory()) {
+      continue;
+    }
+    let flows;
+    try {
+      flows = readdirSync(runDir);
+    } catch {
+      continue;
+    }
+    for (const flowName of flows) {
+      const shotDir = join(runDir, flowName, 'takeScreenshot');
+      if (!existsSync(shotDir)) {
+        continue;
+      }
+      let files;
+      try {
+        files = readdirSync(shotDir);
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (!/\.(png|jpg|jpeg)$/i.test(file)) {
+          continue;
+        }
+        const full = join(shotDir, file);
+        try {
+          const st = statSync(full);
+          // Include files from this batch (and a small clock skew cushion).
+          if (st.mtimeMs + 5000 < batchStartedAtMs) {
+            continue;
+          }
+          found.push({ path: full, name: file, mtimeMs: st.mtimeMs });
+        } catch {
+          // skip
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** Copy Maestro bare-name takeScreenshot files into e2e-artifacts/review-captures/. */
+function collectReviewCapturesFromMaestro() {
+  mkdirSync(REVIEW_CAPTURES, { recursive: true });
+  const byName = new Map();
+  for (const row of listMaestroTakeScreenshotFiles()) {
+    const prev = byName.get(row.name);
+    if (!prev || row.mtimeMs >= prev.mtimeMs) {
+      byName.set(row.name, row);
+    }
+  }
+  for (const row of byName.values()) {
+    copyFileSync(row.path, join(REVIEW_CAPTURES, row.name));
+  }
+}
+
 function writeReviewCapturesIndex() {
+  collectReviewCapturesFromMaestro();
   const names = existsSync(REVIEW_CAPTURES)
     ? readdirSync(REVIEW_CAPTURES)
         .filter((name) => /\.(png|jpg|jpeg)$/i.test(name))
         .sort()
     : [];
+  const rows = names.map((file) => {
+    const match = basename(file).match(/^(\d+)-step(\d+)-(.+)\.(?:png|jpg|jpeg)$/i);
+    if (match) {
+      return { test: match[1], step: match[2], file };
+    }
+    return { test: '-', step: '-', file };
+  });
   const lines = [
-    'Real Simulator captures from this e2e run (Maestro takeScreenshot).',
+    'Real Simulator captures from this e2e run (Maestro takeScreenshot → review-captures).',
     `Batch log: ${BATCH_LOG}`,
     `Also: ${BATCH_LOG_ARTIFACT}`,
     '',
-    'Expected names (test-step-label):',
-    '  68-step1-keeper-picker',
-    '  68-step1-surprise-note',
-    '  68-step1-seal-confirm-with-keepers',
-    '  69-step1-keeper-assignment-view',
-    '  70-step1-keeper-before-due',
-    '  71-step1-ask-your-keepers',
-    '  71-step2-help-them-open-it',
-    '  71-step2-open-with-keepers',
-    '  72-step1-ask-keepers-progress-one-of-two',
-    '  73-step1-needs-you-replace-a-keeper',
-    '  75-step1-family-personal-key-ready',
-    '  75-step1-your-phones-device-list',
-    '  75-step1-older-sign-in-in-device-list (when an older id is listed)',
-    '  75-step2-home-approve-from-other-phone',
-    '  75-step2-family-approve-from-other-phone',
-    '  75-step2-home-needs-recovery-set-up',
-    '  75-step2-home-enroll-error-try-again',
+    'test\tstep\tfile',
+    ...rows.map((row) => `${row.test}\t${row.step}\t${row.file}`),
     '',
-    `Present (${names.length}):`,
-    ...(names.length ? names.map((n) => `  ${n}`) : ['  (none yet)']),
+    `Present (${names.length}).`,
     '',
   ];
   writeFileSync(join(REVIEW_CAPTURES, 'INDEX.txt'), lines.join('\n'), { encoding: 'utf8' });

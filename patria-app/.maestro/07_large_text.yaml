@@ -6,20 +6,20 @@ appId: app.patria.dev
 - launchApp
 - runFlow:
     file: subflows/dismiss_open_in.yaml
-- takeScreenshot: e2e-artifacts/07-welcome
+- takeScreenshot: 07-welcome
 - runFlow:
     file: subflows/sign_in.yaml
-- takeScreenshot: e2e-artifacts/07-after-sign-in
+- takeScreenshot: 07-after-sign-in
 - extendedWaitUntil:
     visible:
       id: "home"
     timeout: 20000
-- takeScreenshot: e2e-artifacts/07-home
+- takeScreenshot: 07-home
 - runFlow:
     file: subflows/open_family.yaml
 - tapOn:
     id: "invite-someone"
-- takeScreenshot: e2e-artifacts/07-invite
+- takeScreenshot: 07-invite
 - tapOn:
     point: 8%, 12%
 - extendedWaitUntil:
@@ -28,4 +28,4 @@ appId: app.patria.dev
     timeout: 15000
 - tapOn:
     id: "add-a-child"
-- takeScreenshot: e2e-artifacts/07-add-child
+- takeScreenshot: 07-add-child

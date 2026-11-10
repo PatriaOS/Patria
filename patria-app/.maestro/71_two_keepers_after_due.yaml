@@ -42,7 +42,7 @@ appId: app.patria.dev
             id: "ask-keepers"
           timeout: 30000
       - assertVisible: "Ask your keepers"
-      - takeScreenshot: ../e2e-artifacts/review-captures/71-step1-ask-your-keepers
+      - takeScreenshot: 71-step1-ask-your-keepers
 - runFlow:
     when:
       true: ${PHASE == "keeper_help"}
@@ -119,7 +119,7 @@ appId: app.patria.dev
           timeout: 20000
       - assertVisible:
           id: "keepers-progress"
-      - takeScreenshot: ../e2e-artifacts/review-captures/71-step2-open-with-keepers
+      - takeScreenshot: 71-step2-open-with-keepers
       - tapOn:
           id: "open-with-keepers"
       - extendedWaitUntil:

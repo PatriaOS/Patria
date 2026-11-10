@@ -68,7 +68,7 @@ appId: app.patria.dev
     visible:
       id: "keeper-help"
     timeout: 20000
-- takeScreenshot: ../e2e-artifacts/review-captures/71-step2-help-them-open-it
+- takeScreenshot: 71-step2-help-them-open-it
 - tapOn:
     id: "keeper-help"
 - extendedWaitUntil:

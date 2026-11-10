@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -6,6 +7,7 @@ import {
   MAESTRO_DIR,
   PHONE_AREA_LIST,
   PHONE_TESTS,
+  REPO_ROOT,
   parseAreaList,
   parseE2eTestFlag,
   parsePhoneTests,
@@ -94,6 +96,54 @@ for (const test of tests) {
 }
 
 errors.push(...phoneCoverageErrors({ tests, flowNumbers, runnerNumbers }));
+
+// Maestro rejects takeScreenshot paths that leave its output folder (../ or dirs).
+{
+  let tracked = [];
+  try {
+    const out = execFileSync('git', ['ls-files', 'patria-app/.maestro'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    });
+    tracked = out
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => /\.ya?ml$/.test(line))
+      .map((line) => join(REPO_ROOT, line));
+  } catch {
+    // Fall back to on-disk walk if git is unavailable.
+    function walkYaml(dir) {
+      const out = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          out.push(...walkYaml(path));
+        } else if (entry.isFile() && /\.ya?ml$/.test(entry.name)) {
+          out.push(path);
+        }
+      }
+      return out;
+    }
+    tracked = existsSync(MAESTRO_DIR) ? walkYaml(MAESTRO_DIR) : [];
+  }
+  for (const path of tracked) {
+    if (!existsSync(path)) {
+      continue;
+    }
+    const contents = readFileSync(path, 'utf8');
+    const rel = path.includes(`${MAESTRO_DIR}/`)
+      ? path.slice(MAESTRO_DIR.length + 1)
+      : path;
+    for (const match of contents.matchAll(/^\s*-\s*takeScreenshot:\s*(.+)\s*$/gm)) {
+      const raw = match[1].trim().replace(/^["']|["']$/g, '');
+      if (raw.includes('..') || raw.includes('/')) {
+        errors.push(
+          `${rel}: takeScreenshot must be a bare name (no "/" or ".."); got ${raw}`,
+        );
+      }
+    }
+  }
+}
 
 for (const filename of flowFiles) {
   const path = join(MAESTRO_DIR, filename);

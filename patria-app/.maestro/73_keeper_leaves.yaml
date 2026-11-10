@@ -16,4 +16,4 @@ appId: app.patria.dev
       id: "needs-you-letter-keeper-left"
     timeout: 20000
 - assertVisible: "Replace a keeper"
-- takeScreenshot: ../e2e-artifacts/review-captures/73-step1-needs-you-replace-a-keeper
+- takeScreenshot: 73-step1-needs-you-replace-a-keeper

@@ -23,7 +23,7 @@ appId: app.patria.dev
       - assertVisible:
           id: "family-personal-keys-status"
           text: "Personal key: set up on this phone"
-      - takeScreenshot: ../e2e-artifacts/review-captures/75-step1-family-personal-key-ready
+      - takeScreenshot: 75-step1-family-personal-key-ready
 - runFlow:
     when:
       true: ${PHASE == 'needs_other_phone'}
@@ -41,7 +41,7 @@ appId: app.patria.dev
           direction: DOWN
           timeout: 30000
       - assertVisible: "Your personal key: approve this phone from your other phone"
-      - takeScreenshot: ../e2e-artifacts/review-captures/75-step2-home-approve-from-other-phone
+      - takeScreenshot: 75-step2-home-approve-from-other-phone
       - runFlow:
           file: subflows/open_family.yaml
       - scrollUntilVisible:
@@ -49,7 +49,7 @@ appId: app.patria.dev
           direction: DOWN
           timeout: 30000
       - assertVisible: "Your personal key: approve this phone from your other phone"
-      - takeScreenshot: ../e2e-artifacts/review-captures/75-step2-family-approve-from-other-phone
+      - takeScreenshot: 75-step2-family-approve-from-other-phone
 - runFlow:
     when:
       true: ${PHASE == 'needs_recovery'}
@@ -72,7 +72,7 @@ appId: app.patria.dev
       - assertVisible: "Set up recovery to finish your personal key"
       - assertVisible:
           id: "personal-keys-set-up-recovery"
-      - takeScreenshot: ../e2e-artifacts/review-captures/75-step2-home-needs-recovery-set-up
+      - takeScreenshot: 75-step2-home-needs-recovery-set-up
 - runFlow:
     when:
       true: ${PHASE == 'enroll_error'}
@@ -94,7 +94,7 @@ appId: app.patria.dev
           id: "personal-keys-enroll-error"
       - assertVisible:
           id: "personal-keys-enroll-retry"
-      - takeScreenshot: ../e2e-artifacts/review-captures/75-step2-home-enroll-error-try-again
+      - takeScreenshot: 75-step2-home-enroll-error-try-again
 - runFlow:
     when:
       true: ${PHASE == 'older_sign_in'}
@@ -114,10 +114,10 @@ appId: app.patria.dev
           visible:
             id: "screen-your-phones"
           timeout: 15000
-      - takeScreenshot: ../e2e-artifacts/review-captures/75-step1-your-phones-device-list
+      - takeScreenshot: 75-step1-your-phones-device-list
       - runFlow:
           when:
             visible:
               id: "older-sign-in-phone"
           commands:
-            - takeScreenshot: ../e2e-artifacts/review-captures/75-step1-older-sign-in-in-device-list
+            - takeScreenshot: 75-step1-older-sign-in-in-device-list

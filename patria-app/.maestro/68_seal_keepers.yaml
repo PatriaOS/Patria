@@ -49,7 +49,7 @@ appId: app.patria.dev
     visible:
       id: "letter-keeper-a-sheet"
     timeout: 10000
-- takeScreenshot: ../e2e-artifacts/review-captures/68-step1-keeper-picker
+- takeScreenshot: 68-step1-keeper-picker
 - tapOn: "Test 3"
 - tapOn:
     id: "letter-keeper-b"
@@ -68,7 +68,7 @@ appId: app.patria.dev
 - assertVisible: "Test 5"
 - tapOn: "Test 5"
 - assertVisible: "Because this is a Surprise letter, your keepers will know that a letter exists."
-- takeScreenshot: ../e2e-artifacts/review-captures/68-step1-surprise-note
+- takeScreenshot: 68-step1-surprise-note
 - scrollUntilVisible:
     element:
       id: "letter-date-1y"
@@ -88,7 +88,7 @@ appId: app.patria.dev
       id: "screen-letter-sealed"
     timeout: 45000
 - assertVisible: "Your letter is sealed"
-- takeScreenshot: ../e2e-artifacts/review-captures/68-step1-seal-confirm-with-keepers
+- takeScreenshot: 68-step1-seal-confirm-with-keepers
 - tapOn:
     id: "letter-sealed-done"
 - extendedWaitUntil:

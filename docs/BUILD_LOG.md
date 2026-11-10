@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Maestro takeScreenshot bare names + review-captures copy
+
+Maestro rejects `takeScreenshot` paths with `../` or `/` (outside its run output folder). Flows 68–73/75 (and 07 / shots_needs_you) use bare names; the runner copies `~/.maestro/tests/*/…/takeScreenshot/*.png` into `e2e-artifacts/review-captures/` and writes INDEX (test, step, file). `e2e:check` rejects any takeScreenshot path containing `../` or `/`. No app change; no hosted migrate.
+
 ## 2026-11-10 — Personal key needs-recovery + Test 75 seed
 
 Missing recovery public is a calm next step (**Set up recovery to finish your personal key** → recovery setup), not the red enroll error with **Try again**. Red enroll stays for real failures when a recovery public already exists. Test 75 seeds Test 1 recovery contacts + public key (admin-elders), asserts personal ready in seed (`home_keys_and_personal`), and captures needs-other-phone, needs-recovery, and enroll-error on two sims. No SecureStore change; no hosted migrate.

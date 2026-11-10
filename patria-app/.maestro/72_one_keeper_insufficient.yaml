@@ -42,4 +42,4 @@ appId: app.patria.dev
     text: "1 of 2 keepers have helped"
 - assertVisible:
     id: "open-with-keepers"
-- takeScreenshot: ../e2e-artifacts/review-captures/72-step1-ask-keepers-progress-one-of-two
+- takeScreenshot: 72-step1-ask-keepers-progress-one-of-two
