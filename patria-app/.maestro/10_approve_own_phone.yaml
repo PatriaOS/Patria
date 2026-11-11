@@ -143,6 +143,7 @@ appId: app.patria.dev
           timeout: 15000
       - assertVisible:
           id: "remove-phone-confirm"
+      - takeScreenshot: your-phones-remove-confirm
       - tapOn:
           id: "remove-phone-confirm-yes"
       - extendedWaitUntil:

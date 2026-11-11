@@ -9,7 +9,7 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ## 2026-11-11 — Test 10 remove_other: in-screen Remove confirm
 
-System `Alert.alert` titled **Remove** with a **Remove** button left four identical labels; Maestro re-tapped the list button and never confirmed. Your phones now uses a D32 in-card confirm (`remove-phone-confirm` / `remove-phone-confirm-yes`), same pattern as sign-out. Flow taps those ids. No hosted migrate.
+System `Alert.alert` titled **Remove** with a **Remove** button left four identical labels; Maestro re-tapped the list button and never confirmed. Your phones now uses a D32 in-card confirm (`remove-phone-confirm` / `remove-phone-confirm-yes`), same pattern as sign-out. Flow captures `your-phones-remove-confirm`, taps confirm, then `your-phones-after-remove`. No hosted migrate.
 
 ## 2026-11-11 — Expire never-approved pending devices after 7 days
 
