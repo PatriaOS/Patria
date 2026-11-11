@@ -18,6 +18,13 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      # Device notices live on Family (Needs you only navigates there).
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "Is this your new phone?"
+          direction: DOWN
+          timeout: 30000
       - assertVisible: "Is this your new phone?"
 - runFlow:
     when:
@@ -25,6 +32,12 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "added a new phone"
+          direction: DOWN
+          timeout: 30000
       - assertVisible: "added a new phone"
       - assertNotVisible:
           id: "yes-this-is-my-phone"
@@ -34,6 +47,13 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "yes-this-is-my-phone"
+          direction: DOWN
+          timeout: 30000
       - tapOn:
           id: "yes-this-is-my-phone"
 - runFlow:
@@ -42,6 +62,13 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "this-wasnt-me"
+          direction: DOWN
+          timeout: 30000
       - tapOn:
           id: "this-wasnt-me"
 - runFlow:

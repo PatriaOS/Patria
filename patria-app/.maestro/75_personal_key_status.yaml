@@ -1,6 +1,7 @@
 # PHONE_TESTS: 75
 # AREAS: keys
-# PHASE=ready | needs_other_phone | needs_recovery | enroll_error | older_sign_in
+# PHASE=ready | needs_recovery | older_sign_in
+# needsOtherPhone + enrollError: unit tests only (see PHONE_TESTS 75).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -26,32 +27,6 @@ appId: app.patria.dev
       - takeScreenshot: 75-step1-family-personal-key-ready
 - runFlow:
     when:
-      true: ${PHASE == 'needs_other_phone'}
-    commands:
-      - runFlow:
-          file: subflows/sign_in.yaml
-      - extendedWaitUntil:
-          visible:
-            id: "^home$|home-personal-keys-status|recovery-reminder-sheet"
-          timeout: 45000
-      - runFlow:
-          file: subflows/dismiss_recovery_reminder.yaml
-      - scrollUntilVisible:
-          element: "Your personal key: approve this phone from your other phone"
-          direction: DOWN
-          timeout: 30000
-      - assertVisible: "Your personal key: approve this phone from your other phone"
-      - takeScreenshot: 75-step2-home-approve-from-other-phone
-      - runFlow:
-          file: subflows/open_family.yaml
-      - scrollUntilVisible:
-          element: "Your personal key: approve this phone from your other phone"
-          direction: DOWN
-          timeout: 30000
-      - assertVisible: "Your personal key: approve this phone from your other phone"
-      - takeScreenshot: 75-step2-family-approve-from-other-phone
-- runFlow:
-    when:
       true: ${PHASE == 'needs_recovery'}
     commands:
       - runFlow:
@@ -73,28 +48,16 @@ appId: app.patria.dev
       - assertVisible:
           id: "personal-keys-set-up-recovery"
       - takeScreenshot: 75-step2-home-needs-recovery-set-up
-- runFlow:
-    when:
-      true: ${PHASE == 'enroll_error'}
-    commands:
       - runFlow:
-          file: subflows/sign_in.yaml
-      - extendedWaitUntil:
-          visible:
-            id: "^home$|personal-keys-enroll-error|recovery-reminder-sheet"
-          timeout: 45000
-      - runFlow:
-          file: subflows/dismiss_recovery_reminder.yaml
+          file: subflows/open_family.yaml
       - scrollUntilVisible:
           element:
-            id: "personal-keys-enroll-error"
+            id: "personal-keys-needs-recovery"
           direction: DOWN
           timeout: 30000
       - assertVisible:
-          id: "personal-keys-enroll-error"
-      - assertVisible:
-          id: "personal-keys-enroll-retry"
-      - takeScreenshot: 75-step2-home-enroll-error-try-again
+          id: "personal-keys-needs-recovery"
+      - takeScreenshot: 75-step2-family-needs-recovery-set-up
 - runFlow:
     when:
       true: ${PHASE == 'older_sign_in'}

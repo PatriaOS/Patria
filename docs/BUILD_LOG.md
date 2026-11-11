@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Test 75 step 2: real needs-recovery; Family for own-phone notices
+
+Device notices live on Family; Maestro `own_notice` / `approve` / `reject` open Family before assert or tap. Test 75 step 2 lets in **Test 2** (no recovery seeded) for real and asserts **Set up recovery to finish your personal key**. **Approve this phone from your other phone** and red enroll / **Try again** stay unit-only: a co-admin cannot wrap another member’s extra phone; own-approve also wraps personal; enroll error needs a fault switch. No SQL deletes of key data; no app change; no hosted migrate.
+
 ## 2026-11-10 — Harden Your phones open + older-sign-in automated coverage
 
 Test 75 `older_sign_in` scrolls **Your phones** above the tab bar (swipe + center), retries once, and asserts the screen opens; older-sign-in row screenshot stays optional. Unit tests cover labeling a reminted prior id as **Older sign in on this phone** with Last used; pgTAP covers remove (family + personal wraps, `device_removed_notices`) and other-member isolation. Manual phone test 74 kept. No app change; no hosted migrate.

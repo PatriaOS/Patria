@@ -3489,118 +3489,37 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'older_sign_in', E2E_STAY: '1' },
         });
       });
-      await step(75, 2, 'Needs recovery, other-phone, and enroll-error status copy', () => {
+      await step(75, 2, 'Needs-recovery personal key copy after real let-in', () => {
         if (args.devices < 2 || !deviceB) {
           return result(
             'skip',
             'needs 2 simulators (E2E_DEVICES=2) for personal-key status captures',
           );
         }
-        const email = TEST_EMAILS[1];
-        const userSql = `(SELECT id FROM auth.users WHERE email = '${email}' LIMIT 1)`;
-        const spaceSql = `(SELECT id FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' LIMIT 1)`;
-
-        // Put Test 1 on device B so we can remint without losing the only family wrap.
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceB,
-          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
-        });
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
-        });
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
-        });
-
-        // Drop the recovery seal so approve-own wraps family only. Personal wraps
-        // stay on A → reminted B must show needs-other-phone.
-        sqlOnE2eFamily(
-          `DELETE FROM public.personal_key_under_recovery
-             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};`,
-        );
+        // Real path: Test 2 (elder, no recovery seeded for test 75) is let in by
+        // Test 1 → family wrap only → calm needs-recovery. needsOtherPhone cannot
+        // be produced honestly on two Sims (admin cannot wrap another member’s
+        // extra phone; own-approve also wraps personal) — unit tests cover it.
+        // enrollError needs a fault switch — unit tests only.
         maestro({
           flow: flow('subflows/clear_state.yaml'),
           device: deviceB,
           env: {},
         });
         maestro({
-          flow: flow('10_approve_own_phone.yaml'),
+          flow: flow('09_let_in.yaml'),
           device: deviceB,
-          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
+          env: { ...signInEnv(secrets, 2), PHASE: 'waiting' },
         });
         maestro({
-          flow: flow('10_approve_own_phone.yaml'),
+          flow: flow('09_let_in.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
-        });
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
+          env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
         });
         maestro({
           flow: flow('75_personal_key_status.yaml'),
           device: deviceB,
-          env: { ...signInEnv(secrets, 1), PHASE: 'needs_other_phone' },
-        });
-
-        // No personal key + no recovery public → calm needs-recovery (not red enroll error).
-        sqlOnE2eFamily(
-          `DELETE FROM public.personal_key_wraps
-             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};
-           DELETE FROM public.personal_key_under_recovery
-             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};
-           DELETE FROM public.recovery_public_keys
-             WHERE family_space_id = ${spaceSql} AND user_id = ${userSql};`,
-        );
-        maestro({
-          flow: flow('subflows/clear_state.yaml'),
-          device: deviceA,
-          env: {},
-        });
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
-        });
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceB,
-          env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
-        });
-        maestro({
-          flow: flow('10_approve_own_phone.yaml'),
-          device: deviceB,
-          env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
-        });
-        maestro({
-          flow: flow('75_personal_key_status.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'needs_recovery' },
-        });
-
-        // Recovery public present but contacts gone → create refuses → real enroll error.
-        sqlOnE2eFamily(
-          `DELETE FROM public.recovery_contacts
-             WHERE family_space_id = ${spaceSql} AND member_id = ${userSql};
-           INSERT INTO public.recovery_public_keys (
-             family_space_id, user_id, public_key, recovery_key_epoch
-           ) VALUES (
-             ${spaceSql}, ${userSql}, decode(repeat('ab', 32), 'hex'), 1
-           )
-           ON CONFLICT (family_space_id, user_id) DO UPDATE
-             SET public_key = excluded.public_key,
-                 recovery_key_epoch = excluded.recovery_key_epoch;`,
-        );
-        maestro({
-          flow: flow('75_personal_key_status.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'enroll_error' },
+          env: { ...signInEnv(secrets, 2), PHASE: 'needs_recovery' },
         });
       });
     }

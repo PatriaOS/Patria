@@ -95,7 +95,7 @@ One device is enough: each account on the same device counts as its own device. 
 Areas: devices, keys
 Needs a second device for the same account (device B). Device A is where Test 1 already has keys.
 1. Sign in as Test 1 on device B. Pass if B says it is waiting for one of your existing phones.
-2. On device A as Test 1. Pass if a notice asks "Is this your new phone?" with when B was set up.
+2. On device A as Test 1, open **Family**. Pass if a notice asks "Is this your new phone?" with when B was set up.
 3. Make Test 2 a Co admin, sign in as Test 2. Pass if they see an information notice about Test 1's new phone with no button to let it in.
 4. On device A tap **Yes, this is my phone**. Pass if B now says family keys are set up and a new row for Test 1 and device B appears in `family_key_wraps`.
 5. Sign in as Test 1 on a fresh device (or B after clearing app data), then on device A tap **This wasn't me**. Pass if that device never gets keys and admins are told.
@@ -541,4 +541,5 @@ Automated coverage (no phone run required for CI): unit tests create a second de
 ### 75. Personal key status after let-in
 Areas: keys
 1. As a member whose phone was just let in (recovery already seeded so personal create can finish), open **Family**. Pass if Family shows **Family keys: set up on this phone** and **Personal key: set up on this phone**. Open **Your phones** and capture the device list (and **Older sign in on this phone** when a prior id from this install is listed). Seed must assert personal ready before this step.
-2. Needs 2 simulators. Capture three states: (a) personal key only on another phone → **Your personal key: approve this phone from your other phone**; (b) no personal key and recovery not set up → calm **Set up recovery to finish your personal key** with **Set up recovery** (not the red enroll error); (c) recovery public present but create still fails → red enroll message and **Try again** (no key material in logs).
+2. Needs 2 simulators. Clear Simulator B, sign in as **Test 2** (elder with no recovery seeded for this test), wait for admin let-in; as Test 1 on A open **Family** and **Let in**. Pass if B shows calm **Set up recovery to finish your personal key** with **Set up recovery** (Home and Family).
+   **Not on the phone suite:** **Approve this phone from your other phone** cannot be produced honestly on two Sims without deleting key rows or a fault switch — a co-admin cannot wrap another member’s extra phone, and when you approve your own extra phone the app also wraps the personal key. Covered by unit tests (`ensurePersonalKeyAfterFamilyReady` → `needsOtherPhone`). Red enroll / **Try again** also needs a fault path; unit tests only.
