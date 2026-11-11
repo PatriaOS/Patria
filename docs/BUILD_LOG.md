@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-11 — e2e device B is a second iPhone 17 Pro
+
+`bootDevices` only picks **iPhone 17 Pro** (never Pro Max). When fewer Pros exist than `E2E_DEVICES`, it creates `Patria e2e iPhone 17 Pro B` / `C`. The runner copies `app.patria.dev` from a Pro that already has the build onto any new Pro. Pro Max 3304 was dropping XCUITest mid-`eraseText` while Pro stayed stable. No app change; no hosted migrate.
+
 ## 2026-11-11 — Sign-in eraseText + seedLetIn XCUITest infra retry
 
 Test 72 seed failed on Sim 3304 (Pro Max) with Welcome still showing: Maestro reached sign-in, then `eraseText: 80` killed the XCUITest transport; waiting retries hammered a dead driver. `sign_in_form` now waits for the keyboard animation and uses bare `eraseText`. `seedLetIn` waiting detects Unreachable from the Maestro debug log (CLI often omits it), restarts the XCUITest driver once as an infra retry, then fails loudly. No app change; no hosted migrate.

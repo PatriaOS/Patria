@@ -24,9 +24,9 @@ import {
   TEST_EMAILS,
   TEST_TIMEOUT_MS,
   timeoutMsForTest,
-  assertAppInstalledOn,
   assertLocalSupabaseUrl,
   bootDevices,
+  ensureAppInstalledOn,
   e2eDeviceCount,
   ensureJavaHome,
   loadLocalFiles,
@@ -523,7 +523,7 @@ try {
 const [deviceA, deviceB, deviceC] = devices;
 if (devices.length > 0) {
   try {
-    assertAppInstalledOn(devices, SCRIPT);
+    ensureAppInstalledOn(devices, SCRIPT);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

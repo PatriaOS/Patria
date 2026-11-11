@@ -24,7 +24,7 @@ npm run e2e
 
 When you are done, stop Metro in the first terminal with Control and C.
 
-`e2e:build` reads `.env.e2e.local` in the script and passes only `EXPO_PUBLIC_` values into `npx expo run:ios`, with `EXPO_NO_DOTENV=1` so `.env` and the hosted test project are not mixed in. Env files are never imported into the app; Metro is told to ignore them. It boots the same number of iPhone simulators as `E2E_DEVICES` (default 2, including C when the value is 3), installs `app.patria.dev` on every one of them, and leaves Metro running in that terminal. `npm run e2e` refuses to start if the app is missing on any of those simulators. It starts Metro in the background if port 8081 is not already up, and waits until it is ready; it never waits for a command that does not exit. `npx expo start` without e2e is unchanged: it still loads `patria-app/.env` and talks to the hosted test project.
+`e2e:build` reads `.env.e2e.local` in the script and passes only `EXPO_PUBLIC_` values into `npx expo run:ios`, with `EXPO_NO_DOTENV=1` so `.env` and the hosted test project are not mixed in. Env files are never imported into the app; Metro is told to ignore them. It boots the same number of **iPhone 17 Pro** simulators as `E2E_DEVICES` (default 2, including C when the value is 3) — never Pro Max. If a second (or third) Pro is missing, `bootDevices` creates `Patria e2e iPhone 17 Pro B` / `C`. It installs `app.patria.dev` on every one of them, and leaves Metro running in that terminal. `npm run e2e` copies that build onto any newly created Pro that is missing the app; it only refuses to start when none of the e2e Pros have the app yet. It starts Metro in the background if port 8081 is not already up, and waits until it is ready; it never waits for a command that does not exit. `npx expo start` without e2e is unchanged: it still loads `patria-app/.env` and talks to the hosted test project.
 
 Each test reseeds a local starting state through `e2e-setup` (Test 1 as admin of **E2E Family**, using `create_family_space` the same way the app does). Progress is printed and written to `patria-app/e2e-artifacts/progress.txt`. A test that runs longer than 10 minutes is marked failed (timed out) and the runner moves on. When the suite finishes, macOS shows a notification with passed, failed and skipped counts.
 
@@ -70,7 +70,7 @@ npm run e2e -- --record
 npm run e2e -- --no-record
 ```
 
-`E2E_DEVICES` is `2` by default. `1` still works (tests that need a second or third phone are skipped, not failed). `3` automates all of test 12, including **This wasn’t me** on Test 2’s old phone while the new phone waits.
+`E2E_DEVICES` is `2` by default (device A = stock **iPhone 17 Pro**, device B = a second **iPhone 17 Pro**, created if needed). `1` still works (tests that need a second or third phone are skipped, not failed). `3` automates all of test 12, including **This wasn’t me** on Test 2’s old phone while the new phone waits.
 
 Invite share-sheet **Copy** is attempted; if the sheet is not automatable the step is skipped (manual), and the flow continues with the invite URL from the local database.
 
