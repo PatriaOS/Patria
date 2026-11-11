@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Your phones: clean test-10 seed + This phone first
+
+Test 10 seed keeps only Test 1’s newest approved device wrap (local SQL) so stale “Waiting to be let in” rows from earlier runs do not clutter the list. Your phones sorts **This phone** first, then newest first (`sortOwnPhonesForDisplay`). No hosted migrate.
+
 ## 2026-11-10 — Test 10 remove_other: scroll from Family top
 
 `remove_other` no longer swipes past **Your phones**. From Family it scrolls up to `family-name`, then down to **Your phones** with centering, opens the screen, asserts B’s **Set up** row and **Remove**, confirms, and asserts B is gone. No app change; no hosted migrate.

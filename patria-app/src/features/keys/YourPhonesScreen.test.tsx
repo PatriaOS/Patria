@@ -16,10 +16,14 @@ jest.mock('../../lib/currentFamily', () => ({
   readCurrentFamilyId: jest.fn(async () => 's1'),
 }));
 
-jest.mock('../../lib/crypto/deviceAccess', () => ({
-  listOwnPhones: jest.fn(async () => []),
-  removeOwnPhone: jest.fn(async () => undefined),
-}));
+jest.mock('../../lib/crypto/deviceAccess', () => {
+  const actual = jest.requireActual('../../lib/crypto/deviceAccess') as typeof import('../../lib/crypto/deviceAccess');
+  return {
+    listOwnPhones: jest.fn(async () => []),
+    removeOwnPhone: jest.fn(async () => undefined),
+    sortOwnPhonesForDisplay: actual.sortOwnPhonesForDisplay,
+  };
+});
 
 jest.mock('../../lib/crypto/deviceIdentity', () => ({
   ensureDeviceIdentity: jest.fn(async () => ({
@@ -74,6 +78,7 @@ describe('YourPhonesScreen', () => {
     );
     expect(await findByTestId('screen-your-phones')).toBeTruthy();
     expect(await findByText(copy.phones.thisPhone)).toBeTruthy();
+    expect(await findByTestId('this-phone')).toBeTruthy();
     expect(await findByText(copy.phones.olderSignIn)).toBeTruthy();
     expect(await findByTestId('older-sign-in-phone')).toBeTruthy();
     const whenLabel = formatDeviceWhen(STALE_CREATED);
@@ -81,7 +86,7 @@ describe('YourPhonesScreen', () => {
       await findByText(copy.phones.olderSignInWhen.replace('{when}', whenLabel)),
     ).toBeTruthy();
 
-    // This phone has no Remove; other phones do.
+    // This phone first; other phones (newest first) have Remove.
     const removeButtons = await findAllByTestId('remove-phone');
     expect(removeButtons).toHaveLength(2);
     expect(queryAllByText(copy.phones.thisPhone).length).toBe(1);
@@ -96,6 +101,45 @@ describe('YourPhonesScreen', () => {
       );
     });
     alertSpy.mockRestore();
+  });
+
+  it('sorts this phone first then newest other phones', async () => {
+    (listOwnPhones as jest.Mock).mockResolvedValue([
+      {
+        deviceId: 'd-old',
+        createdAt: '2026-10-01T12:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: false,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'd-new',
+        createdAt: '2026-10-20T12:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: false,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'd-this',
+        createdAt: '2026-10-05T12:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: true,
+        olderSignInOnThisPhone: false,
+      },
+    ]);
+    const { findAllByTestId, findByText } = await renderScreen(<YourPhonesScreen />);
+    expect(await findAllByTestId('this-phone')).toHaveLength(1);
+    expect(await findAllByTestId('other-phone')).toHaveLength(2);
+    expect(
+      await findByText(
+        copy.phones.setUp.replace('{when}', formatDeviceWhen('2026-10-20T12:00:00.000Z')),
+      ),
+    ).toBeTruthy();
+    expect(
+      await findByText(
+        copy.phones.setUp.replace('{when}', formatDeviceWhen('2026-10-01T12:00:00.000Z')),
+      ),
+    ).toBeTruthy();
   });
 
   it('marks this phone and lets the member remove another', async () => {

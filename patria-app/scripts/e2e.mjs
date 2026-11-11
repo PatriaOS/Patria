@@ -819,6 +819,49 @@ function seedAdminKeys() {
   });
 }
 
+/**
+ * Local e2e only: leave Test N with a single approved device (newest family wrap)
+ * so Your phones is not cluttered with stale "Waiting to be let in" rows from
+ * earlier Simulator runs. Never used against hosted.
+ */
+function clearMemberDevicesToNewestWrap(memberN) {
+  const email = TEST_EMAILS[memberN];
+  const userSql = `(SELECT id FROM auth.users WHERE email = '${email}' LIMIT 1)`;
+  const spaceSql = `(SELECT id FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' LIMIT 1)`;
+  const keepSql = `(
+    SELECT device_id
+    FROM public.family_key_wraps
+    WHERE family_space_id = ${spaceSql}
+      AND user_id = ${userSql}
+    ORDER BY created_at DESC, device_id DESC
+    LIMIT 1
+  )`;
+  const dropSql = `(
+    SELECT dk.device_id
+    FROM public.device_keys AS dk
+    WHERE dk.user_id = ${userSql}
+      AND EXISTS (${keepSql})
+      AND dk.device_id IS DISTINCT FROM ${keepSql}
+  )`;
+  sqlOnE2eFamily(
+    `DELETE FROM public.device_approval_notices
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.family_key_wraps
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.personal_key_wraps
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.recovery_contact_secrets
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.device_keys
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};`,
+  );
+}
+
 function seedAdminKeysAndPersonal() {
   maestro({
     flow: flow('08_family_key_created.yaml'),
@@ -1165,6 +1208,11 @@ function seedBeforeYouStart(testNumber) {
     return;
   }
   seedAdminKeys();
+  if (testNumber === 10) {
+    // After keys seed: only the current approved phone remains for Test 1.
+    clearMemberDevicesToNewestWrap(1);
+    return;
+  }
   if (
     testNumber === 26 ||
     testNumber === 27 ||

@@ -477,3 +477,18 @@ export async function listOwnPhones(
     olderSignInOnThisPhone: history.has(phone.deviceId),
   }));
 }
+
+/** This phone first, then newest registration first. */
+export function sortOwnPhonesForDisplay(
+  phones: OwnPhone[],
+  thisDeviceId: string | null,
+): OwnPhone[] {
+  return [...phones].sort((a, b) => {
+    const aThis = Boolean(thisDeviceId) && a.deviceId === thisDeviceId;
+    const bThis = Boolean(thisDeviceId) && b.deviceId === thisDeviceId;
+    if (aThis !== bThis) {
+      return aThis ? -1 : 1;
+    }
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}

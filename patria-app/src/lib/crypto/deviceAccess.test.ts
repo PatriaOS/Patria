@@ -4,6 +4,7 @@ import { secretsEqual, wipe } from './bytes';
 import {
   approveFirstDevice,
   approveOwnExtraDevice,
+  sortOwnPhonesForDisplay,
   assertOwnExtraDevice,
   declineFirstDevice,
   extraDeviceWrapAad,
@@ -741,5 +742,36 @@ describe('extra-device self approval', () => {
     });
     const again = await listOwnPhones(SPACE, ELENA, gateway);
     expect(again.some((row) => row.deviceId === 'd-marco')).toBe(false);
+  });
+
+  it('sorts this phone first then newest first for display', () => {
+    const rows: OwnPhone[] = [
+      {
+        deviceId: 'old',
+        createdAt: '2026-10-01T00:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: false,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'this',
+        createdAt: '2026-10-05T00:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: true,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'new',
+        createdAt: '2026-10-20T00:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: false,
+        olderSignInOnThisPhone: false,
+      },
+    ];
+    expect(sortOwnPhonesForDisplay(rows, 'this').map((row) => row.deviceId)).toEqual([
+      'this',
+      'new',
+      'old',
+    ]);
   });
 });

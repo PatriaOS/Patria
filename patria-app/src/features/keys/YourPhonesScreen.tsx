@@ -15,7 +15,12 @@ import {
 } from '../../ui';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
-import { listOwnPhones, removeOwnPhone, type OwnPhone } from '../../lib/crypto/deviceAccess';
+import {
+  listOwnPhones,
+  removeOwnPhone,
+  sortOwnPhonesForDisplay,
+  type OwnPhone,
+} from '../../lib/crypto/deviceAccess';
 import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
@@ -98,7 +103,7 @@ export function YourPhonesScreen() {
     );
   }
 
-  const phones = phonesQuery.data ?? [];
+  const phones = sortOwnPhonesForDisplay(phonesQuery.data ?? [], thisDeviceId);
 
   return (
     <Screen withHeader accessibilityLabel={copy.phones.title} testID="screen-your-phones">
@@ -126,7 +131,12 @@ export function YourPhonesScreen() {
             ? null
             : copy.phones.waiting;
         return (
-          <Card key={phone.deviceId} testID={isOlderSignIn ? 'older-sign-in-phone' : undefined}>
+          <Card
+            key={phone.deviceId}
+            testID={
+              isThis ? 'this-phone' : isOlderSignIn ? 'older-sign-in-phone' : 'other-phone'
+            }
+          >
             <Body>{title}</Body>
             {detail ? <Muted>{detail}</Muted> : null}
             {status ? <Muted>{status}</Muted> : null}

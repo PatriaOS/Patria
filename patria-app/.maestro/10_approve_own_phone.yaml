@@ -113,14 +113,18 @@ appId: app.patria.dev
           timeout: 30000
       - assertVisible:
           id: "screen-your-phones"
+      - assertVisible:
+          id: "this-phone"
       - assertVisible: "This phone"
-      # Device B (other approved phone on this account): Set up {when} + Remove.
+      # Device B (other approved phone): Set up {when} + Remove (This phone is first).
       - scrollUntilVisible:
           element:
-            text: "Set up .*"
+            id: "^other-phone$"
           direction: DOWN
           timeout: 20000
           centerElement: true
+      - assertVisible:
+          id: "^other-phone$"
       - assertVisible:
           text: "Set up .*"
       - scrollUntilVisible:
@@ -140,4 +144,7 @@ appId: app.patria.dev
           timeout: 30000
       - assertNotVisible:
           id: "^remove-phone$"
-      - assertVisible: "This phone"
+      - assertNotVisible:
+          id: "^other-phone$"
+      - assertVisible:
+          id: "this-phone"

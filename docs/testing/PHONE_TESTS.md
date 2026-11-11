@@ -99,7 +99,7 @@ Needs a second device for the same account (device B). Device A is where Test 1 
 3. Make Test 2 a Co admin, sign in as Test 2. Pass if they see an information notice about Test 1's new phone with no button to let it in.
 4. On device A tap **Yes, this is my phone**. Pass if B now says family keys are set up and a new row for Test 1 and device B appears in `family_key_wraps`.
 5. Sign in as Test 1 on a fresh device (or B after clearing app data), then on device A tap **This wasn't me**. Pass if that device never gets keys and admins are told.
-6. On device A, open the **Family** tab, then **Your phones** (scroll so the row is fully on screen). Pass if **This phone** and device B’s **Set up** row with **Remove** are listed. Tap **Remove** on B and confirm **Remove**. Pass if B’s row is gone and only **This phone** remains (B’s wrap is gone from `family_key_wraps`).
+6. On device A, open the **Family** tab, then **Your phones** (scroll so the row is fully on screen). Pass if the list is only **This phone** (first) and device B’s **Set up** row with **Remove** (seed clears Test 1’s stale device rows first). Tap **Remove** on B and confirm **Remove**. Pass if B’s row is gone and only **This phone** remains (B’s wrap is gone from `family_key_wraps`).
 
 ### 11. Set up recovery contacts and printed code (Step 6)
 Areas: recovery, keys
