@@ -138,6 +138,35 @@ describe('founding family key ceremony', () => {
     expect(status).toBe('waiting');
   });
 
+  it('shows waiting again with a fresh request after a pending request expired', async () => {
+    const stored = new Map<string, string>();
+    installMemoryStore(stored);
+    const upsert = jest.fn(async () => undefined);
+    const insertNotice = jest.fn(async () => undefined);
+    const access = memoryAccess(insertNotice);
+    access.upsertDevicePublicKey = upsert;
+
+    const first = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'teen' },
+      memoryGateway({ meta: { keyEpoch: 1 } }),
+      access,
+    );
+    expect(first).toBe('waiting');
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(insertNotice).toHaveBeenCalledTimes(1);
+
+    // Server expired the never-approved device_keys + notice; local identity remains.
+    const again = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'teen' },
+      memoryGateway({ meta: { keyEpoch: 1 } }),
+      access,
+    );
+    expect(again).toBe('waiting');
+    expect(upsert).toHaveBeenCalledTimes(2);
+    expect(insertNotice).toHaveBeenCalledTimes(2);
+    await expect(getSecretBytes(familyKeyStoreKey(USER, SPACE))).resolves.toBeNull();
+  });
+
   it('discards the local key when this phone loses the race', async () => {
     const stored = new Map<string, string>();
     installMemoryStore(stored);

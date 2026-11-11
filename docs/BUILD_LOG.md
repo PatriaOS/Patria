@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-11 — Expire never-approved pending devices after 7 days
+
+Server job `expire_pending_devices` (daily pg_cron `patria-expire-pending-devices`) deletes `device_keys` that never received a family or personal wrap and are older than 7 days. Writes `device_events` (`pending request expired`). Never deletes wraps. Waiting phones re-upsert and show waiting again (unit-tested). Migration fails if pg_cron is missing. Hosted migrate required.
+
 ## 2026-11-10 — Your phones: clean test-10 seed + This phone first
 
 Test 10 seed keeps only Test 1’s newest approved device wrap (local SQL) so stale “Waiting to be let in” rows from earlier runs do not clutter the list. Your phones sorts **This phone** first, then newest first (`sortOwnPhonesForDisplay`). No hosted migrate.

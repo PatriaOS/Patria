@@ -300,6 +300,10 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 * **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
 * Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.
 
+## D45. Pending device requests expire after 7 days (11 November 2026)
+
+Never-approved “Waiting to be let in” device rows (`device_keys` with no `family_key_wraps` and no `personal_key_wraps`) older than 7 days are removed by `expire_pending_devices`, run daily by pg_cron job `patria-expire-pending-devices`. Approved phones and their wraps are never touched. Each expiry writes a `device_events` row (`pending request expired`). The waiting phone re-requests on next open and shows the normal waiting screen again. Migration fails loudly if pg_cron is missing (same pattern as `patria-mark-due-letters`).
+
 ## D44. Personal wrap after let-in (10 November 2026)
 
 Admin first-device let-in wraps only the family key (the admin never holds the member’s personal key). After family keys show ready on that phone, the app must finish a personal wrap for **this** device: enroll from local cache if present; create a personal key only when the user has none anywhere (no `personal_key_wraps` / recovery seal); if a personal key already exists on another device and this phone does not hold it, show “approve this phone from your other phone” and never mint a second key (`create_personal_key` already refuses). If there is no personal key yet and recovery is not set up (no recovery public key), show a calm next step to set up recovery — not a red enroll error. Real enroll failures (recovery public already present, create/enroll still fails) keep clear copy, **Try again**, and a safe reason code in logs. Home (attention) and Family status reflect personal key as well as family keys. SecureStore accessibility and approval rules unchanged.
