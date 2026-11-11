@@ -93,10 +93,12 @@ appId: app.patria.dev
           visible:
             id: "screen-family"
           timeout: 20000
-      # Keep "Your phones" fully on screen (same pattern as test 75).
-      - swipe:
-          start: 50%, 80%
-          end: 50%, 20%
+      # Start from the top so "Your phones" is not tucked under the header.
+      - scrollUntilVisible:
+          element:
+            id: "family-name"
+          direction: UP
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "^your-phones$"
@@ -105,22 +107,6 @@ appId: app.patria.dev
           centerElement: true
       - tapOn:
           id: "^your-phones$"
-      - runFlow:
-          when:
-            notVisible:
-              id: "screen-your-phones"
-          commands:
-            - swipe:
-                start: 50%, 80%
-                end: 50%, 20%
-            - scrollUntilVisible:
-                element:
-                  id: "^your-phones$"
-                direction: DOWN
-                timeout: 20000
-                centerElement: true
-            - tapOn:
-                text: "Your phones"
       - extendedWaitUntil:
           visible:
             id: "screen-your-phones"

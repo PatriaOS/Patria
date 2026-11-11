@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Test 10 remove_other: scroll from Family top
+
+`remove_other` no longer swipes past **Your phones**. From Family it scrolls up to `family-name`, then down to **Your phones** with centering, opens the screen, asserts B’s **Set up** row and **Remove**, confirms, and asserts B is gone. No app change; no hosted migrate.
+
 ## 2026-11-10 — Harden test 10 Remove other phone open + assert
 
 Test 10 `remove_other` scrolls **Your phones** with centering, retries once if the screen does not open, asserts **This phone** plus device B’s **Set up** row and **Remove**, confirms remove, and asserts B’s row is gone. No app change; no hosted migrate.
