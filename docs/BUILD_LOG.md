@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-11 — Seed let-in hard path + clear stale devices for all test members
+
+`seedLetIn` no longer soft-skips let-in when waiting flakes: probe keys_ready only to skip when truly ready; otherwise retry waiting once, then hard let_in and hard keys_ready. Family scrolls to the top before `let-in-notice`. Local seed clears pending notices and never-approved devices for Tests 1–5 at the start of each seeded run. `expire_pending_devices` records `detail=let-in notice cleared` on the same event and leaves no notice (pgTAP). Hosted migrate required for the detail column.
+
 ## 2026-11-11 — Test 10 remove_other: in-screen Remove confirm
 
 System `Alert.alert` titled **Remove** with a **Remove** button left four identical labels; Maestro re-tapped the list button and never confirmed. Your phones now uses a D32 in-card confirm (`remove-phone-confirm` / `remove-phone-confirm-yes`), same pattern as sign-out. Flow captures `your-phones-remove-confirm`, taps confirm, then `your-phones-after-remove`. No hosted migrate.

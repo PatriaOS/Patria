@@ -55,11 +55,18 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
+      # Notices sit near the top; start from family-name so we do not miss them.
+      - scrollUntilVisible:
+          element:
+            id: "family-name"
+          direction: UP
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "let-in-notice"
           direction: DOWN
-          timeout: 15000
+          timeout: 30000
+          centerElement: true
       - assertVisible:
           id: "let-in-notice"
           text: ".*added a new phone.*"

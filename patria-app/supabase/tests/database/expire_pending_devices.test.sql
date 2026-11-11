@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(11);
+SELECT plan(12);
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
 RETURNS void
@@ -221,8 +221,9 @@ SELECT ok(
     WHERE device_id = 'd1111111-1111-1111-1111-111111111118'::uuid
       AND event_type = 'pending request expired'
       AND family_space_id = (SELECT space_id FROM fx)
+      AND detail = 'let-in notice cleared'
   ),
-  'records pending request expired device event'
+  'records pending request expired device event with let-in notice cleared'
 );
 
 SELECT ok(
@@ -230,7 +231,19 @@ SELECT ok(
     SELECT 1 FROM public.device_approval_notices
     WHERE device_id = 'd1111111-1111-1111-1111-111111111118'::uuid
   ),
-  'expired pending notice is cleared'
+  'expired device leaves no let-in notice behind'
+);
+
+SELECT ok(
+  NOT EXISTS (
+    SELECT 1 FROM public.device_approval_notices n
+    JOIN public.device_events e
+      ON e.device_id = n.device_id
+     AND e.user_id = n.user_id
+     AND e.event_type = 'pending request expired'
+    WHERE e.device_id = 'd1111111-1111-1111-1111-111111111118'::uuid
+  ),
+  'same expiry event has no leftover notice for that device'
 );
 
 SELECT throws_ok(

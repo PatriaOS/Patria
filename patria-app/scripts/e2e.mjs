@@ -820,12 +820,15 @@ function seedAdminKeys() {
 }
 
 /**
- * Local e2e only: leave Test N with a single approved device (newest family wrap)
- * so Your phones is not cluttered with stale "Waiting to be let in" rows from
- * earlier Simulator runs. Never used against hosted.
+ * Local e2e only: drop pending let-in notices and never-approved device rows for
+ * Test N in the e2e family. If they have family wraps, keep only the newest wrap
+ * device (and its wraps). Never used against hosted.
  */
-function clearMemberDevicesToNewestWrap(memberN) {
+function clearMemberDevicesAndPendingNotices(memberN) {
   const email = TEST_EMAILS[memberN];
+  if (!email) {
+    return;
+  }
   const userSql = `(SELECT id FROM auth.users WHERE email = '${email}' LIMIT 1)`;
   const spaceSql = `(SELECT id FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' LIMIT 1)`;
   const keepSql = `(
@@ -836,17 +839,30 @@ function clearMemberDevicesToNewestWrap(memberN) {
     ORDER BY created_at DESC, device_id DESC
     LIMIT 1
   )`;
+  // Never-approved in this family, plus older approved devices when a wrap exists.
   const dropSql = `(
     SELECT dk.device_id
     FROM public.device_keys AS dk
     WHERE dk.user_id = ${userSql}
-      AND EXISTS (${keepSql})
-      AND dk.device_id IS DISTINCT FROM ${keepSql}
+      AND (
+        NOT EXISTS (
+          SELECT 1 FROM public.family_key_wraps AS w
+          WHERE w.user_id = dk.user_id AND w.device_id = dk.device_id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM public.personal_key_wraps AS w
+          WHERE w.user_id = dk.user_id AND w.device_id = dk.device_id
+        )
+        OR (
+          EXISTS (${keepSql})
+          AND dk.device_id IS DISTINCT FROM ${keepSql}
+        )
+      )
   )`;
   sqlOnE2eFamily(
     `DELETE FROM public.device_approval_notices
-       WHERE user_id = ${userSql}
-         AND device_id IN ${dropSql};
+       WHERE family_space_id = ${spaceSql}
+         AND user_id = ${userSql};
      DELETE FROM public.family_key_wraps
        WHERE user_id = ${userSql}
          AND device_id IN ${dropSql};
@@ -856,10 +872,21 @@ function clearMemberDevicesToNewestWrap(memberN) {
      DELETE FROM public.recovery_contact_secrets
        WHERE user_id = ${userSql}
          AND device_id IN ${dropSql};
+     DELETE FROM public.recovery_requests
+       WHERE user_id = ${userSql}
+         AND new_device_id IN ${dropSql}
+         AND completed_at IS NULL;
      DELETE FROM public.device_keys
        WHERE user_id = ${userSql}
          AND device_id IN ${dropSql};`,
   );
+}
+
+/** Local e2e only: clear stale devices/notices for Tests 1–5 before seeding. */
+function clearStaleDevicesForAllTestMembers() {
+  for (const n of [1, 2, 3, 4, 5]) {
+    clearMemberDevicesAndPendingNotices(n);
+  }
 }
 
 function seedAdminKeysAndPersonal() {
@@ -883,50 +910,67 @@ function memberHasWrap(memberN) {
 }
 
 function seedLetIn(memberN, device) {
-  // Fresh clear-state seeds: skip the first keys_ready probe (it only shows
-  // "Waiting for a family admin…"). Do waiting → let_in → keys_ready. Final
-  // keys_ready below must still pass on *this* phone (not a DB wrap alone).
-  const keysReady = () =>
-    tryMaestro({
+  // Probe only: soft keys_ready is allowed here because failure continues into a
+  // full hard waiting → let_in → keys_ready path (never leaves the member half set up).
+  const alreadyReady = tryMaestro({
+    flow: flow('09_let_in.yaml'),
+    device,
+    env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+  });
+  if (alreadyReady.ok) {
+    const personalOk = dbCheck([
+      'assert-personal-wraps',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[memberN],
+    ]);
+    if (!personalOk.ok) {
+      throw new Error(
+        `Test ${memberN} shows family keys ready but has no personal wrap: ${
+          personalOk.error ?? 'assert-personal-wraps failed'
+        }`,
+      );
+    }
+    return;
+  }
+
+  const runWaiting = () =>
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device,
+      env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
+    });
+  const runLetIn = () =>
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: deviceA,
+      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+    });
+  const runKeysReady = () =>
+    maestro({
       flow: flow('09_let_in.yaml'),
       device,
       env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
     });
 
-  const waiting = tryMaestro({
-    flow: flow('09_let_in.yaml'),
-    device,
-    env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
-  });
-  if (waiting.ok) {
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device: deviceA,
-      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
-    });
-  } else {
-    // Already let in, or member row exists but this phone needs let-in again.
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device: deviceA,
-      env: {
-        ...signInEnv(secrets, 1),
-        PHASE: 'verify_member',
-        MEMBER_ID: `member-test-${memberN}`,
-      },
-    });
-    // If a new-phone notice appeared, let them in; ignore if none.
-    tryMaestro({
-      flow: flow('09_let_in.yaml'),
-      device: deviceA,
-      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
-    });
-  }
-
-  if (!keysReady().ok) {
-    // Reminted device id left family wraps on an older id — enroll this phone
-    // before seal (safe here: seedLetIn runs only before any keeper seal).
-    if (memberHasWrap(memberN)) {
+  let waitingDone = false;
+  try {
+    runWaiting();
+    waitingDone = true;
+  } catch (firstWaitError) {
+    try {
+      runWaiting();
+      waitingDone = true;
+    } catch (secondWaitError) {
+      if (!memberHasWrap(memberN)) {
+        throw new Error(
+          `Test ${memberN} never reached waiting for let-in (and has no family wrap): ${
+            secondWaitError instanceof Error ? secondWaitError.message : String(secondWaitError)
+          }`,
+        );
+      }
+      // Reminted device id: wrap exists for an older id — enroll this phone hard.
       const reset = dbCheck([
         'reset-letterbox-personal',
         '--family',
@@ -934,35 +978,37 @@ function seedLetIn(memberN, device) {
         '--email',
         TEST_EMAILS[memberN],
       ]);
-      if (reset.ok) {
-        signInOnDevice(memberN, device);
-        waitForLetterbox(memberN);
-        maestro({
-          flow: flow('09_let_in.yaml'),
-          device: deviceA,
-          env: {
-            ...signInEnv(secrets, 1),
-            PHASE: 'verify_member',
-            MEMBER_ID: `member-test-${memberN}`,
-          },
-        });
-        tryMaestro({
-          flow: flow('09_let_in.yaml'),
-          device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
-        });
+      if (!reset.ok) {
+        throw new Error(
+          `Test ${memberN} waiting failed and remint reset failed: ${
+            reset.error ??
+            (firstWaitError instanceof Error ? firstWaitError.message : String(firstWaitError))
+          }`,
+        );
       }
-    }
-    if (!keysReady().ok) {
-      throw new Error(
-        `Test ${memberN} has no family keys on this phone after let-in` +
-          (memberHasWrap(memberN) ? ' (wrap exists for another device id)' : ''),
-      );
+      signInOnDevice(memberN, device);
+      waitForLetterbox(memberN);
+      runWaiting();
+      waitingDone = true;
     }
   }
 
+  if (!waitingDone) {
+    throw new Error(`Test ${memberN} seedLetIn internal error: waiting not completed`);
+  }
+
+  runLetIn();
+  try {
+    runKeysReady();
+  } catch (keysError) {
+    throw new Error(
+      `Test ${memberN} has no family keys on this phone after let-in` +
+        (memberHasWrap(memberN) ? ' (wrap exists for another device id)' : '') +
+        `: ${keysError instanceof Error ? keysError.message : String(keysError)}`,
+    );
+  }
+
   // Do not reset letterbox here — after seal, pinned keeper letterbox keys must stay.
-  // Missing personal wraps for the live family wrap device means remint/let-in drift.
   const personalOk = dbCheck([
     'assert-personal-wraps',
     '--family',
@@ -1195,6 +1241,9 @@ function seedBeforeYouStart(testNumber) {
   ) {
     return;
   }
+  // Local only: drop stale pending notices / never-approved devices for Tests 1–5
+  // so let-in seed is not confused by earlier Simulator runs.
+  clearStaleDevicesForAllTestMembers();
   if ([59, 60, 61, 62, 63, 64, 65, 66, 67].includes(testNumber)) {
     seedLettersReady();
     return;
@@ -1209,8 +1258,9 @@ function seedBeforeYouStart(testNumber) {
   }
   seedAdminKeys();
   if (testNumber === 10) {
-    // After keys seed: only the current approved phone remains for Test 1.
-    clearMemberDevicesToNewestWrap(1);
+    // After keys seed: keep only Test 1’s newest wrap phone (clear again so remint
+    // clutter from seedAdminKeys does not stay on Your phones).
+    clearMemberDevicesAndPendingNotices(1);
     return;
   }
   if (

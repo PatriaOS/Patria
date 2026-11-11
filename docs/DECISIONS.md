@@ -302,7 +302,7 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 
 ## D45. Pending device requests expire after 7 days (11 November 2026)
 
-Never-approved “Waiting to be let in” device rows (`device_keys` with no `family_key_wraps` and no `personal_key_wraps`) older than 7 days are removed by `expire_pending_devices`, run daily by pg_cron job `patria-expire-pending-devices`. Approved phones and their wraps are never touched. Each expiry writes a `device_events` row (`pending request expired`). The waiting phone re-requests on next open and shows the normal waiting screen again. Migration fails loudly if pg_cron is missing (same pattern as `patria-mark-due-letters`).
+Never-approved “Waiting to be let in” device rows (`device_keys` with no `family_key_wraps` and no `personal_key_wraps`) older than 7 days are removed by `expire_pending_devices`, run daily by pg_cron job `patria-expire-pending-devices`. Approved phones and their wraps are never touched. Each expiry writes a `device_events` row (`pending request expired`) and clears matching let-in notices; when a notice existed, `detail` is `let-in notice cleared`. The waiting phone re-requests on next open and shows the normal waiting screen again. Migration fails loudly if pg_cron is missing (same pattern as `patria-mark-due-letters`).
 
 ## D44. Personal wrap after let-in (10 November 2026)
 
