@@ -93,6 +93,7 @@ appId: app.patria.dev
           visible:
             id: "screen-family"
           timeout: 20000
+      # Keep "Your phones" fully on screen (same pattern as test 75).
       - swipe:
           start: 50%, 80%
           end: 50%, 20%
@@ -100,18 +101,57 @@ appId: app.patria.dev
           element:
             id: "^your-phones$"
           direction: DOWN
-          timeout: 20000
+          timeout: 30000
+          centerElement: true
       - tapOn:
           id: "^your-phones$"
+      - runFlow:
+          when:
+            notVisible:
+              id: "screen-your-phones"
+          commands:
+            - swipe:
+                start: 50%, 80%
+                end: 50%, 20%
+            - scrollUntilVisible:
+                element:
+                  id: "^your-phones$"
+                direction: DOWN
+                timeout: 20000
+                centerElement: true
+            - tapOn:
+                text: "Your phones"
       - extendedWaitUntil:
           visible:
             id: "screen-your-phones"
+          timeout: 30000
+      - assertVisible:
+          id: "screen-your-phones"
+      - assertVisible: "This phone"
+      # Device B (other approved phone on this account): Set up {when} + Remove.
+      - scrollUntilVisible:
+          element:
+            text: "Set up .*"
+          direction: DOWN
           timeout: 20000
+          centerElement: true
+      - assertVisible:
+          text: "Set up .*"
       - scrollUntilVisible:
           element:
             id: "^remove-phone$"
           direction: DOWN
-          timeout: 10000
+          timeout: 20000
+          centerElement: true
+      - assertVisible:
+          id: "^remove-phone$"
       - tapOn:
           id: "^remove-phone$"
       - tapOn: "Remove"
+      - extendedWaitUntil:
+          notVisible:
+            id: "^remove-phone$"
+          timeout: 30000
+      - assertNotVisible:
+          id: "^remove-phone$"
+      - assertVisible: "This phone"

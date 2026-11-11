@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-10 — Harden test 10 Remove other phone open + assert
+
+Test 10 `remove_other` scrolls **Your phones** with centering, retries once if the screen does not open, asserts **This phone** plus device B’s **Set up** row and **Remove**, confirms remove, and asserts B’s row is gone. No app change; no hosted migrate.
+
 ## 2026-11-10 — Test 75 step 2: real needs-recovery; Family for own-phone notices
 
 Device notices live on Family; Maestro `own_notice` / `approve` / `reject` open Family before assert or tap. Test 75 step 2 lets in **Test 2** (no recovery seeded) for real and asserts **Set up recovery to finish your personal key**. **Approve this phone from your other phone** and red enroll / **Try again** stay unit-only: a co-admin cannot wrap another member’s extra phone; own-approve also wraps personal; enroll error needs a fault switch. No SQL deletes of key data; no app change; no hosted migrate.
