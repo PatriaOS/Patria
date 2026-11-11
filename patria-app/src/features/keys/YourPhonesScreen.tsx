@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 
 import {
   Body,
   Button,
+  ButtonStack,
   Card,
   EmptyState,
   ErrorState,
@@ -33,6 +33,7 @@ export function YourPhonesScreen() {
   const [spaceId, setSpaceId] = useState<string | null>(null);
   const [thisDeviceId, setThisDeviceId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,39 +53,29 @@ export function YourPhonesScreen() {
     queryFn: () => listOwnPhones(spaceId as string, userId as string),
   });
 
-  const onRemove = (phone: OwnPhone) => {
+  const runRemove = async (phone: OwnPhone) => {
     if (!spaceId || !userId || !thisDeviceId) {
       return;
     }
-    Alert.alert(copy.phones.remove, copy.phones.removeConfirm, [
-      { text: copy.common.cancel, style: 'cancel' },
-      {
-        text: copy.phones.remove,
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setError(null);
-            setBusyId(phone.deviceId);
-            try {
-              await removeOwnPhone({
-                spaceId,
-                userId,
-                deviceId: phone.deviceId,
-                thisDeviceId,
-              });
-              await queryClient.invalidateQueries({ queryKey: ['ownPhones', spaceId, userId] });
-            } catch (caught) {
-              const info = describeCaughtError(caught);
-              logFailedAction(caught);
-              logKeyStep('remove_phone_failed', `${info.code} ${info.message}`);
-              setError(copy.phones.removeFailed);
-            } finally {
-              setBusyId(null);
-            }
-          })();
-        },
-      },
-    ]);
+    setError(null);
+    setBusyId(phone.deviceId);
+    try {
+      await removeOwnPhone({
+        spaceId,
+        userId,
+        deviceId: phone.deviceId,
+        thisDeviceId,
+      });
+      setConfirmingId(null);
+      await queryClient.invalidateQueries({ queryKey: ['ownPhones', spaceId, userId] });
+    } catch (caught) {
+      const info = describeCaughtError(caught);
+      logFailedAction(caught);
+      logKeyStep('remove_phone_failed', `${info.code} ${info.message}`);
+      setError(copy.phones.removeFailed);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   if (!spaceId || phonesQuery.isLoading) {
@@ -130,6 +121,7 @@ export function YourPhonesScreen() {
           : phone.hasWrap
             ? null
             : copy.phones.waiting;
+        const confirming = confirmingId === phone.deviceId;
         return (
           <Card
             key={phone.deviceId}
@@ -140,14 +132,36 @@ export function YourPhonesScreen() {
             <Body>{title}</Body>
             {detail ? <Muted>{detail}</Muted> : null}
             {status ? <Muted>{status}</Muted> : null}
-            {!isThis ? (
+            {!isThis && confirming ? (
+              <ButtonStack>
+                <Muted testID="remove-phone-confirm">{copy.phones.removeConfirm}</Muted>
+                <Button
+                  label={copy.common.cancel}
+                  variant="secondary"
+                  testID="remove-phone-cancel"
+                  disabled={busyId !== null}
+                  onPress={() => setConfirmingId(null)}
+                />
+                <Button
+                  label={copy.phones.remove}
+                  variant="danger"
+                  testID="remove-phone-confirm-yes"
+                  busy={busyId === phone.deviceId}
+                  disabled={busyId !== null && busyId !== phone.deviceId}
+                  onPress={() => {
+                    void runRemove(phone);
+                  }}
+                  accessibilityHint={`${copy.phones.remove} ${title}`}
+                />
+              </ButtonStack>
+            ) : null}
+            {!isThis && !confirming ? (
               <Button
                 label={copy.phones.remove}
                 variant="secondary"
                 testID="remove-phone"
-                busy={busyId === phone.deviceId}
-                disabled={busyId !== null && busyId !== phone.deviceId}
-                onPress={() => onRemove(phone)}
+                disabled={busyId !== null}
+                onPress={() => setConfirmingId(phone.deviceId)}
                 accessibilityHint={`${copy.phones.remove} ${title}`}
               />
             ) : null}

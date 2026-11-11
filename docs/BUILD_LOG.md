@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-11 — Test 10 remove_other: in-screen Remove confirm
+
+System `Alert.alert` titled **Remove** with a **Remove** button left four identical labels; Maestro re-tapped the list button and never confirmed. Your phones now uses a D32 in-card confirm (`remove-phone-confirm` / `remove-phone-confirm-yes`), same pattern as sign-out. Flow taps those ids. No hosted migrate.
+
 ## 2026-11-11 — Expire never-approved pending devices after 7 days
 
 Server job `expire_pending_devices` (daily pg_cron `patria-expire-pending-devices`) deletes `device_keys` that never received a family or personal wrap and are older than 7 days. Writes `device_events` (`pending request expired`). Never deletes wraps. Waiting phones re-upsert and show waiting again (unit-tested). Migration fails if pg_cron is missing. Hosted migrate required.

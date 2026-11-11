@@ -1,5 +1,4 @@
 import { fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 
 import { copy } from '../../lib/copy';
 import { listOwnPhones, removeOwnPhone } from '../../lib/crypto/deviceAccess';
@@ -69,10 +68,6 @@ describe('YourPhonesScreen', () => {
   });
 
   it('lists an older sign-in with Last used date and lets the owner remove it', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      const remove = buttons?.find((item) => item.text === copy.phones.remove);
-      remove?.onPress?.();
-    });
     const { findByText, findAllByTestId, findByTestId, queryAllByText } = await renderScreen(
       <YourPhonesScreen />,
     );
@@ -92,6 +87,8 @@ describe('YourPhonesScreen', () => {
     expect(queryAllByText(copy.phones.thisPhone).length).toBe(1);
 
     await fireEvent.press(removeButtons[1]!);
+    expect(await findByTestId('remove-phone-confirm')).toBeTruthy();
+    await fireEvent.press(await findByTestId('remove-phone-confirm-yes'));
     await waitFor(() => {
       expect(removeOwnPhone).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -100,7 +97,6 @@ describe('YourPhonesScreen', () => {
         }),
       );
     });
-    alertSpy.mockRestore();
   });
 
   it('sorts this phone first then newest other phones', async () => {
@@ -143,15 +139,13 @@ describe('YourPhonesScreen', () => {
   });
 
   it('marks this phone and lets the member remove another', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      const remove = buttons?.find((item) => item.text === copy.phones.remove);
-      remove?.onPress?.();
-    });
     const { findByText, findAllByTestId, findByTestId } = await renderScreen(<YourPhonesScreen />);
     expect(await findByTestId('screen-your-phones')).toBeTruthy();
     expect(await findByText(copy.phones.thisPhone)).toBeTruthy();
     const removeButtons = await findAllByTestId('remove-phone');
     await fireEvent.press(removeButtons[0]!);
+    expect(await findByTestId('remove-phone-confirm')).toBeTruthy();
+    await fireEvent.press(await findByTestId('remove-phone-confirm-yes'));
     await waitFor(() => {
       expect(removeOwnPhone).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -160,6 +154,5 @@ describe('YourPhonesScreen', () => {
         }),
       );
     });
-    alertSpy.mockRestore();
   });
 });

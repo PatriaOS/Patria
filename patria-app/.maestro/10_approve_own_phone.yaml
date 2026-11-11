@@ -137,10 +137,17 @@ appId: app.patria.dev
           id: "^remove-phone$"
       - tapOn:
           id: "^remove-phone$"
-      - tapOn: "Remove"
+      - extendedWaitUntil:
+          visible:
+            id: "remove-phone-confirm"
+          timeout: 15000
+      - assertVisible:
+          id: "remove-phone-confirm"
+      - tapOn:
+          id: "remove-phone-confirm-yes"
       - extendedWaitUntil:
           notVisible:
-            id: "^remove-phone$"
+            id: "^other-phone$"
           timeout: 30000
       - assertNotVisible:
           id: "^remove-phone$"
@@ -148,3 +155,4 @@ appId: app.patria.dev
           id: "^other-phone$"
       - assertVisible:
           id: "this-phone"
+      - takeScreenshot: your-phones-after-remove
