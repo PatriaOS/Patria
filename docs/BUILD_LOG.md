@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-11 — Sign-in eraseText + seedLetIn XCUITest infra retry
+
+Test 72 seed failed on Sim 3304 (Pro Max) with Welcome still showing: Maestro reached sign-in, then `eraseText: 80` killed the XCUITest transport; waiting retries hammered a dead driver. `sign_in_form` now waits for the keyboard animation and uses bare `eraseText`. `seedLetIn` waiting detects Unreachable from the Maestro debug log (CLI often omits it), restarts the XCUITest driver once as an infra retry, then fails loudly. No app change; no hosted migrate.
+
 ## 2026-11-11 — Seed let-in hard path + clear stale devices for all test members
 
 `seedLetIn` no longer soft-skips let-in when waiting flakes: probe keys_ready only to skip when truly ready; otherwise retry waiting once, then hard let_in and hard keys_ready. Family scrolls to the top before `let-in-notice`. Local seed clears pending notices and never-approved devices for Tests 1–5 at the start of each seeded run. `expire_pending_devices` records `detail=let-in notice cleared` on the same event and leaves no notice (pgTAP). Hosted migrate required for the detail column.

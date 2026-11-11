@@ -160,13 +160,40 @@ let driverUnreachable = false;
 
 /** Maestro XCTest / transport death — not an app assertion failure. */
 function isMaestroInfraFailure(text) {
-  return /isScreenStatic|Request for isScreenStatic failed|Failed to get screenshot:\s*Timed out|Timed out while requesting screenshot|Connection refused|Failed to connect to \/127\.0\.0\.1|Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable/i.test(
+  return /isScreenStatic|Request for isScreenStatic failed|Failed to get screenshot:\s*Timed out|Timed out while requesting screenshot|Connection refused|Failed to connect to \/127\.0\.0\.1|Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable|DeviceUnreachableException/i.test(
     text,
   );
 }
 
 function isDriverUnreachable(text) {
   return isMaestroInfraFailure(text);
+}
+
+/** Maestro CLI often omits Unreachable from stdout; the debug maestro.log has it. */
+function maestroDebugFolderFromOut(out) {
+  const match = out.match(/==== Debug output[^\n]*====\s*\n\s*(\/[^\n]+)/);
+  return match ? match[1].trim() : null;
+}
+
+function maestroOutIndicatesInfraFailure(out) {
+  if (isMaestroInfraFailure(out)) {
+    return true;
+  }
+  const folder = maestroDebugFolderFromOut(out);
+  if (!folder) {
+    return false;
+  }
+  try {
+    const logPath = join(folder, 'maestro.log');
+    if (!existsSync(logPath)) {
+      return false;
+    }
+    const log = readFileSync(logPath, 'utf8');
+    const slice = log.length > 200_000 ? log.slice(-200_000) : log;
+    return isMaestroInfraFailure(slice);
+  } catch {
+    return false;
+  }
 }
 
 function restartMaestroDriver(udid) {
@@ -222,7 +249,7 @@ function runMaestroOnce({ flow, device, env }) {
   if (out) {
     process.stdout.write(out);
   }
-  const infra = isMaestroInfraFailure(out);
+  const infra = maestroOutIndicatesInfraFailure(out);
   if (infra) {
     driverUnreachable = true;
   }
@@ -935,12 +962,11 @@ function seedLetIn(memberN, device) {
     return;
   }
 
-  const runWaiting = () =>
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device,
-      env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
-    });
+  const waitingOpts = {
+    flow: flow('09_let_in.yaml'),
+    device,
+    env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
+  };
   const runLetIn = () =>
     maestro({
       flow: flow('09_let_in.yaml'),
@@ -954,43 +980,53 @@ function seedLetIn(memberN, device) {
       env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
     });
 
+  // One waiting attempt; on DeviceUnreachable / driver death, one infra retry
+  // after restarting XCUITest (not via maestro()'s retry — avoids a double retry).
+  lastMaestroDevice = device || deviceA || null;
+  let waitingAttempt = runMaestroOnce(waitingOpts);
+  if (!waitingAttempt.ok && waitingAttempt.infra) {
+    console.log(
+      `infra retry: Maestro driver failure during seedLetIn waiting for Test ${memberN} on ${device}; restarting XCUITest driver and retrying waiting once.`,
+    );
+    restartMaestroDriver(device);
+    waitingAttempt = runMaestroOnce(waitingOpts);
+  }
+
   let waitingDone = false;
-  try {
-    runWaiting();
+  if (waitingAttempt.ok) {
+    collectReviewCapturesFromMaestro();
     waitingDone = true;
-  } catch (firstWaitError) {
-    try {
-      runWaiting();
-      waitingDone = true;
-    } catch (secondWaitError) {
-      if (!memberHasWrap(memberN)) {
-        throw new Error(
-          `Test ${memberN} never reached waiting for let-in (and has no family wrap): ${
-            secondWaitError instanceof Error ? secondWaitError.message : String(secondWaitError)
-          }`,
-        );
-      }
-      // Reminted device id: wrap exists for an older id — enroll this phone hard.
-      const reset = dbCheck([
-        'reset-letterbox-personal',
-        '--family',
-        E2E_FAMILY_NAME,
-        '--email',
-        TEST_EMAILS[memberN],
-      ]);
-      if (!reset.ok) {
-        throw new Error(
-          `Test ${memberN} waiting failed and remint reset failed: ${
-            reset.error ??
-            (firstWaitError instanceof Error ? firstWaitError.message : String(firstWaitError))
-          }`,
-        );
-      }
-      signInOnDevice(memberN, device);
-      waitForLetterbox(memberN);
-      runWaiting();
-      waitingDone = true;
+  } else if (!memberHasWrap(memberN)) {
+    throw new Error(
+      `Test ${memberN} never reached waiting for let-in (and has no family wrap): ${
+        waitingAttempt.error instanceof Error
+          ? waitingAttempt.error.message
+          : String(waitingAttempt.error)
+      }`,
+    );
+  } else {
+    // Reminted device id: wrap exists for an older id — enroll this phone hard.
+    const reset = dbCheck([
+      'reset-letterbox-personal',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[memberN],
+    ]);
+    if (!reset.ok) {
+      throw new Error(
+        `Test ${memberN} waiting failed and remint reset failed: ${
+          reset.error ??
+          (waitingAttempt.error instanceof Error
+            ? waitingAttempt.error.message
+            : String(waitingAttempt.error))
+        }`,
+      );
     }
+    signInOnDevice(memberN, device);
+    waitForLetterbox(memberN);
+    maestro(waitingOpts);
+    waitingDone = true;
   }
 
   if (!waitingDone) {
