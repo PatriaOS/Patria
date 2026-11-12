@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { memberDisplayName } from '../../lib/displayName';
 import { fetchMembers } from '../../lib/family';
 import type { NeedsYouLetter } from '../family/needsYou';
-import { fetchLetters, type LetterRow } from './letterApi';
+import { fetchLetterKeepersForAuthor, fetchLetters, type LetterRow } from './letterApi';
 
 export function letterQueryKey(spaceId: string | null | undefined, userId: string | undefined) {
   return ['letters', spaceId, userId] as const;
@@ -12,6 +12,7 @@ export function letterQueryKey(spaceId: string | null | undefined, userId: strin
 export function toNeedsYouLetters(
   rows: LetterRow[],
   members: { userId: string; displayName: string }[],
+  keeperReplaceIds: Set<string> = new Set(),
 ): NeedsYouLetter[] {
   const nameOf = (id: string): string | null => {
     const member = members.find((row) => row.userId === id);
@@ -27,6 +28,7 @@ export function toNeedsYouLetters(
     triggerAt: row.triggerAt,
     authorName: nameOf(row.authorId),
     recipientName: nameOf(row.recipientId),
+    keeperReplaceNeeded: keeperReplaceIds.has(row.id),
   }));
 }
 
@@ -48,7 +50,25 @@ export function useLetterAttention(
         fetchLetters(spaceId as string),
         fetchMembers(spaceId as string),
       ]);
-      return toNeedsYouLetters(rows, members);
+      const authoredSealed = rows.filter(
+        (row) =>
+          row.authorId === userId &&
+          (row.status === 'sealed' || row.status === 'pending'),
+      );
+      const keeperReplaceIds = new Set<string>();
+      await Promise.all(
+        authoredSealed.map(async (row) => {
+          try {
+            const keepers = await fetchLetterKeepersForAuthor(row.id);
+            if (keepers.some((k) => !k.stillMember)) {
+              keeperReplaceIds.add(row.id);
+            }
+          } catch {
+            // Quiet: Needs you simply omits the row.
+          }
+        }),
+      );
+      return toNeedsYouLetters(rows, members, keeperReplaceIds);
     },
   });
   return query.data ?? [];

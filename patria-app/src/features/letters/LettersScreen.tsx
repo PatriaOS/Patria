@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 
 import {
   Banner,
+  Body,
   Button,
   EmptyState,
   ErrorState,
@@ -20,7 +21,12 @@ import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { isVaultWriterRole } from '../../lib/roles';
 import { useCurrentFamily } from '../family/useCurrentFamily';
 import { canWriteVault } from '../vault/VaultScreen';
-import { fetchFamilyTimezone, fetchLetters, type LetterRow } from './letterApi';
+import {
+  fetchFamilyTimezone,
+  fetchLetters,
+  fetchLettersForKeepers,
+  type LetterRow,
+} from './letterApi';
 import { letterOpensOnLine } from './letterOpenLabel';
 import { letterReleaseReadyForSealing } from './letterReleaseConfig';
 import { ensureLetterboxKey } from './letterboxEnsure';
@@ -64,6 +70,12 @@ export function LettersScreen() {
     queryKey: ['letters', spaceId],
     enabled: Boolean(spaceId),
     queryFn: () => fetchLetters(spaceId!),
+  });
+
+  const keepingQuery = useQuery({
+    queryKey: ['lettersForKeepers', spaceId, userId],
+    enabled: Boolean(spaceId && userId),
+    queryFn: () => fetchLettersForKeepers(spaceId!),
   });
 
   const membersQuery = useQuery({
@@ -216,6 +228,26 @@ export function LettersScreen() {
               testID={`letter-recv-status-${row.id}`}
               label={statusLabel(row)}
             />
+          }
+        />
+      ))}
+
+      {(keepingQuery.data ?? []).length > 0 ? (
+        <Body testID="letters-keeping-title">{copy.letters.lettersKeepingTitle}</Body>
+      ) : null}
+      {(keepingQuery.data ?? []).map((row) => (
+        <ListRow
+          key={`keep-${row.letterId}`}
+          title={copy.letters.keepersYouAreTitle}
+          body={copy.letters.keepersYouAreBody
+            .replace('{author}', row.authorName)
+            .replace('{recipient}', row.recipientName)}
+          onPress={() => router.push(routes.letterDetail(row.letterId))}
+          testID={`letter-keep-${row.letterId}`}
+          trailing={
+            row.due ? (
+              <StatusPill testID={`letter-keep-due-${row.letterId}`} label={copy.letters.keepersHelp} />
+            ) : null
           }
         />
       ))}

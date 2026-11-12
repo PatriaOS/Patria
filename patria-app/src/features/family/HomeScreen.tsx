@@ -24,6 +24,7 @@ import { fetchMembers } from '../../lib/family';
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { fetchFirstDeviceNotices } from '../../lib/crypto/deviceAccess';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { ensurePersonalKeyAfterFamilyReady } from '../../lib/crypto/personalKey';
 import { ensureLetterboxKey } from '../letters/letterboxEnsure';
 import {
   homeRotationQueryKey,
@@ -95,14 +96,25 @@ export function HomeScreen() {
       }),
   });
 
+  const personalKeyQuery = useQuery({
+    queryKey: ['personalKeyStatus', spaceId, userId],
+    enabled: keyStatusQuery.data === 'ready' && Boolean(spaceId && userId),
+    queryFn: () =>
+      ensurePersonalKeyAfterFamilyReady({
+        spaceId: spaceId as string,
+        userId: userId as string,
+      }),
+    retry: false,
+  });
+
   useEffect(() => {
-    if (keyStatusQuery.data !== 'ready' || !spaceId || !userId) {
+    if (personalKeyQuery.data?.status !== 'ready' || !spaceId || !userId) {
       return;
     }
     void ensureLetterboxKey({ spaceId, userId }).catch(() => {
       // Not every member has recovery yet; seal gate tells authors to wait.
     });
-  }, [keyStatusQuery.data, spaceId, userId]);
+  }, [personalKeyQuery.data?.status, spaceId, userId]);
 
   const noticesQuery = useQuery({
     queryKey: ['deviceApprovalNotices', spaceId],
@@ -151,6 +163,7 @@ export function HomeScreen() {
       void queryClient.invalidateQueries({ queryKey: ['children', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['invites', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+      void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
       void queryClient.invalidateQueries({ queryKey: ['deviceApprovalNotices', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
       void queryClient.invalidateQueries({ queryKey: ['recoveryRequests', spaceId] });
@@ -510,12 +523,20 @@ export function HomeScreen() {
       <SecurityStatusCard
         attentionOnly
         keyStatus={keyStatusQuery.data}
+        personalStatus={personalKeyQuery.data?.status}
         recoveryStatus={undefined}
         keyHolder={keyHolder}
         admin={admin}
         familyName={current.space.name}
         keysTestID="home-keys-status"
+        personalKeysTestID="home-personal-keys-status"
         recoveryTestID="home-recovery-status"
+        onRetryPersonalEnroll={() => {
+          void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
+        }}
+        onSetUpRecoveryForPersonal={() => {
+          router.push(routes.recoverySetup);
+        }}
       />
       <HomeToday />
       <HomeMenuDrawer

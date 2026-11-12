@@ -7,6 +7,86 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-11 — e2e device B is a second iPhone 17 Pro
+
+`bootDevices` only picks **iPhone 17 Pro** (never Pro Max). When fewer Pros exist than `E2E_DEVICES`, it creates `Patria e2e iPhone 17 Pro B` / `C`. The runner copies `app.patria.dev` from a Pro that already has the build onto any new Pro. Pro Max 3304 was dropping XCUITest mid-`eraseText` while Pro stayed stable. No app change; no hosted migrate.
+
+## 2026-11-11 — Sign-in eraseText + seedLetIn XCUITest infra retry
+
+Test 72 seed failed on Sim 3304 (Pro Max) with Welcome still showing: Maestro reached sign-in, then `eraseText: 80` killed the XCUITest transport; waiting retries hammered a dead driver. `sign_in_form` now waits for the keyboard animation and uses bare `eraseText`. `seedLetIn` waiting detects Unreachable from the Maestro debug log (CLI often omits it), restarts the XCUITest driver once as an infra retry, then fails loudly. No app change; no hosted migrate.
+
+## 2026-11-11 — Seed let-in hard path + clear stale devices for all test members
+
+`seedLetIn` no longer soft-skips let-in when waiting flakes: probe keys_ready only to skip when truly ready; otherwise retry waiting once, then hard let_in and hard keys_ready. Family scrolls to the top before `let-in-notice`. Local seed clears pending notices and never-approved devices for Tests 1–5 at the start of each seeded run. `expire_pending_devices` records `detail=let-in notice cleared` on the same event and leaves no notice (pgTAP). Hosted migrate required for the detail column.
+
+## 2026-11-11 — Test 10 remove_other: in-screen Remove confirm
+
+System `Alert.alert` titled **Remove** with a **Remove** button left four identical labels; Maestro re-tapped the list button and never confirmed. Your phones now uses a D32 in-card confirm (`remove-phone-confirm` / `remove-phone-confirm-yes`), same pattern as sign-out. Flow captures `your-phones-remove-confirm`, taps confirm, then `your-phones-after-remove`. No hosted migrate.
+
+## 2026-11-11 — Expire never-approved pending devices after 7 days
+
+Server job `expire_pending_devices` (daily pg_cron `patria-expire-pending-devices`) deletes `device_keys` that never received a family or personal wrap and are older than 7 days. Writes `device_events` (`pending request expired`). Never deletes wraps. Waiting phones re-upsert and show waiting again (unit-tested). Migration fails if pg_cron is missing. Hosted migrate required.
+
+## 2026-11-10 — Your phones: clean test-10 seed + This phone first
+
+Test 10 seed keeps only Test 1’s newest approved device wrap (local SQL) so stale “Waiting to be let in” rows from earlier runs do not clutter the list. Your phones sorts **This phone** first, then newest first (`sortOwnPhonesForDisplay`). No hosted migrate.
+
+## 2026-11-10 — Test 10 remove_other: scroll from Family top
+
+`remove_other` no longer swipes past **Your phones**. From Family it scrolls up to `family-name`, then down to **Your phones** with centering, opens the screen, asserts B’s **Set up** row and **Remove**, confirms, and asserts B is gone. No app change; no hosted migrate.
+
+## 2026-11-10 — Harden test 10 Remove other phone open + assert
+
+Test 10 `remove_other` scrolls **Your phones** with centering, retries once if the screen does not open, asserts **This phone** plus device B’s **Set up** row and **Remove**, confirms remove, and asserts B’s row is gone. No app change; no hosted migrate.
+
+## 2026-11-10 — Test 75 step 2: real needs-recovery; Family for own-phone notices
+
+Device notices live on Family; Maestro `own_notice` / `approve` / `reject` open Family before assert or tap. Test 75 step 2 lets in **Test 2** (no recovery seeded) for real and asserts **Set up recovery to finish your personal key**. **Approve this phone from your other phone** and red enroll / **Try again** stay unit-only: a co-admin cannot wrap another member’s extra phone; own-approve also wraps personal; enroll error needs a fault switch. No SQL deletes of key data; no app change; no hosted migrate.
+
+## 2026-11-10 — Harden Your phones open + older-sign-in automated coverage
+
+Test 75 `older_sign_in` scrolls **Your phones** above the tab bar (swipe + center), retries once, and asserts the screen opens; older-sign-in row screenshot stays optional. Unit tests cover labeling a reminted prior id as **Older sign in on this phone** with Last used; pgTAP covers remove (family + personal wraps, `device_removed_notices`) and other-member isolation. Manual phone test 74 kept. No app change; no hosted migrate.
+
+## 2026-11-10 — Maestro takeScreenshot bare names + review-captures copy
+
+Maestro rejects `takeScreenshot` paths with `../` or `/` (outside its run output folder). Flows 68–73/75 (and 07 / shots_needs_you) use bare names; the runner copies `~/.maestro/tests/*/…/takeScreenshot/*.png` into `e2e-artifacts/review-captures/` and writes INDEX (test, step, file). `e2e:check` rejects any takeScreenshot path containing `../` or `/`. No app change; no hosted migrate.
+
+## 2026-11-10 — Personal key needs-recovery + Test 75 seed
+
+Missing recovery public is a calm next step (**Set up recovery to finish your personal key** → recovery setup), not the red enroll error with **Try again**. Red enroll stays for real failures when a recovery public already exists. Test 75 seeds Test 1 recovery contacts + public key (admin-elders), asserts personal ready in seed (`home_keys_and_personal`), and captures needs-other-phone, needs-recovery, and enroll-error on two sims. No SecureStore change; no hosted migrate.
+
+## 2026-11-10 — B2 review captures + needs-other-phone vs enroll error
+
+Maestro `takeScreenshot` on 68–73 and 75 writes named PNGs under `e2e-artifacts/review-captures/` with an INDEX at end of run. Runner tees every batch to `~/patria-tests.log` (and a copy under `e2e-artifacts/`) and prints those paths. Cleared app data with a personal key still on another device must show **approve this phone from your other phone**, not the generic enroll error: `ensurePersonalKeyAfterFamilyReady` treats any existing wrap/recovery seal as needs-other-phone (including after a refused second `create_personal_key`). Test 75 step 2 drives both states on two sims. No SecureStore change; no hosted migrate.
+
+## 2026-11-10 — Test 75 seed invocation gap
+
+Phone 75 failed because the main loop’s seed allow-list omitted 75 while `seedBeforeYouStart` already knew about it — clear_state then ran the flow with no `seedAdminKeys`. Add 75 to the invocation list; `e2e:check` now requires the two lists to match. The “merged E2E_HELLO path” in the fail line was a space between `Family` and the flow path (`args.join(' ')`), not a bad argv. No app change in this slice.
+
+## 2026-11-10 — Personal wrap after let-in + Test 72 session
+
+After family keys are ready, `ensurePersonalKeyAfterFamilyReady` enrolls from cache or creates only when no personal key exists anywhere; otherwise needs-other-phone. Enroll errors surface with retry and a safe reason code. Home/Family show personal key status. Unit tests refuse a second personal key; pgTAP already refuses `create_personal_key` twice. keys_ready / phone test 75 assert personal status. Runner: with 2 sims, Tests 71/72 sign Test 3 in instead of E2E_STAY after recipient on the same phone. No SecureStore or approval weakening; personal-wrap assert kept. No hosted migrate.
+
+## 2026-11-09 — E2E infra retry + lighter B2 seed probes
+
+Maestro `isScreenStatic` 500 / connection refused / screenshot timeout: one automatic “infra retry” per step after restarting the XCTest driver; app asserts never retry. B2 `seedLetIn` skips the first `keys_ready` probe (fresh members wait → let in → final `keys_ready` must pass); short pause between let-ins. No app or SecureStore change. No hosted migrate.
+
+## 2026-11-09 — Keychain WHEN_UNLOCKED, stale phones, is_memory_role
+
+Revert SecureStore to `WHEN_UNLOCKED_THIS_DEVICE_ONLY` only (no AFTER_FIRST_UNLOCK / dual-write); remint guards stay. Personal wrap from cache only when the device already has a family wrap — never auto-approve. Your phones labels prior ids from this install as “Older sign in on this phone”; remove still uses `remove_own_device`. `is_memory_role` checks `_user_id` via `space_members`. Pair-box unit test opens copies after wipe. No hosted migrate.
+
+## 2026-11-09 — B2 debug: device identity, seal pair boxes, e2e --test parse
+
+Phone 68–73 debugging: SecureStore flaking reminted device ids and orphaned personal wraps (keeper Help → approve-other-phone). `ensureDeviceIdentity` retries, restores from session memory, dual-writes; `obtainFamilyKey` no longer reports ready from a stale cache when the live wrap is missing. Seal was wiping pair-box buffers before upload — copy them first. Recipient detail keeps keeper progress without ephemeral askKeepers. Runner: await every `step()`, seed keepers fully eligible, resolve supabase CLI for letter-release, `--test 65,68…` parses a list (`null` = no flag) so a bad parse cannot fall through to the full suite (unit assert in `e2e:check`). pgTAP seal refuses non-member / teen / no-letterbox / no-recovery keepers while the author is an eligible admin. No phone suite run after the stop order; no hosted migrate.
+
+## 2026-11-07 — B2 phone seed + letter_keeper_eligible role check
+
+Tests 68–73 failed at “Before you start” because four sequential let-ins exceeded the 10m budget (59–67 had a +15m seed buffer; B2 did not). Give B2 a 25m test timeout and the same seed buffer; skip the waiting probe when a wrap already exists; after Home for Tests 1–5 assert letterbox rows and `letter_keeper_eligible` for keepers 3–5. Eligibility also wrongly called `space_role(space, user)` which ignores `_user_id` (viewer-only); check the candidate’s `space_members` role instead. pgTAP teen fixture now has recovery so role alone blocks. Maestro 68 asserts the joined keepers line; keys_ready scrolls to the keys line. Tests 71–72 run keepers on Sims that hold their wraps, omit `E2E_STAY` when switching accounts, stop letter-release before mark-due, and assert keepers + due in SQL. Keeper Help is offered while sealed/pending (RPC still refuses before due — test 70). Seed retries once on Maestro driver unreachable. No assertion loosen; no hosted migrate.
+
+## 2026-11-07 — LEG02 Slice B2 keepers
+
+Optional 3 keepers (adult + letterbox + recovery). Holder secrets sealed to keeper letterboxes with recipient letterbox public pinned in AEAD; pairwise `shareP` boxes (HKDF by slot order). After due, keepers re-seal holders to the pinned recipient key; recipient opens with 2 holders + pair-box RPC when automatic release fails (test 71 stops local letter-release — no app flag). Withdraw deletes keeper tables. Profile birthday default ~30 years ago. D43: due-day keeper help can reveal an age-letter birthday — accepted. No hosted migrate.
+
 ## 2026-11-06 — LEG02 B1 review: wheel-driven birthday + view grants
 
 Remove Profile e2e date chips; Maestro swipes the iOS date wheels (fine notch gestures). Default empty birthday is 15 June eleven years ago. `REVOKE ALL` on `letters_for_api` from PUBLIC/anon. No hosted migrate.

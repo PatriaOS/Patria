@@ -99,7 +99,10 @@ export async function prefillLetterForEdit(input: {
     userId: input.userId,
   });
   if (!opened.ok) {
-    return { ok: false, reason: opened.reason };
+    return {
+      ok: false,
+      reason: opened.reason === 'need_keepers' ? 'failed' : opened.reason,
+    };
   }
   const letter = opened.letter;
   const body = opened.content.body;

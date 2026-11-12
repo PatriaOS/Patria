@@ -41,6 +41,14 @@ jest.mock('../../lib/crypto/familyCeremony', () => ({
   ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
 }));
 
+jest.mock('../../lib/crypto/personalKey', () => ({
+  ensurePersonalKeyAfterFamilyReady: jest.fn(async () => ({ status: 'ready' })),
+}));
+
+jest.mock('../letters/letterboxEnsure', () => ({
+  ensureLetterboxKey: jest.fn(async () => undefined),
+}));
+
 jest.mock('../../lib/crypto/recoverySetup', () => ({
   loadRecoverySnapshot: jest.fn(async () => ({
     contacts: [],
@@ -116,6 +124,8 @@ describe('Family tab', () => {
     const { findByTestId, findByText } = await renderScreen(<FamilyScreen />);
     expect(await findByTestId('family-keys-status', {}, { timeout: 10000 })).toBeTruthy();
     expect(await findByText(copy.home.keysReady)).toBeTruthy();
+    expect(await findByTestId('family-personal-keys-status')).toBeTruthy();
+    expect(await findByText(copy.home.personalKeysReady)).toBeTruthy();
     expect(await findByTestId('family-recovery-status')).toBeTruthy();
     expect(await findByText(copy.home.recoveryNotSetup)).toBeTruthy();
   });

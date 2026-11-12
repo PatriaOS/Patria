@@ -87,6 +87,15 @@ jest.mock('../../lib/crypto/familyCeremony', () => ({
   ensureKeysForOpenFamily: jest.fn(async () => 'ready'),
 }));
 
+jest.mock('../../lib/crypto/personalKey', () => ({
+  ensurePersonalKeyAfterFamilyReady: jest.fn(async () => ({ status: 'ready' })),
+  loadPersonalKeyIfPresent: jest.fn(async () => null),
+}));
+
+jest.mock('../letters/letterboxEnsure', () => ({
+  ensureLetterboxKey: jest.fn(async () => undefined),
+}));
+
 jest.mock('../../lib/crypto/rotateFamilyKey', () => ({
   rotateFamilyKeyIfNeeded: jest.fn(async () => 'idle'),
   homeRotationQueryKey: (spaceId: string) => ['homeRotationUi', spaceId],

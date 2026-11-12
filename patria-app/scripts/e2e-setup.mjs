@@ -31,12 +31,17 @@ function parseSetupArgs(argv) {
     }
   }
   if (
-    !['admin', 'admin-elder', 'admin-elders', 'admin-elder-extended', 'admin-elder-teen'].includes(
-      scenario,
-    )
+    ![
+      'admin',
+      'admin-elder',
+      'admin-elders',
+      'admin-elders-keepers',
+      'admin-elder-extended',
+      'admin-elder-teen',
+    ].includes(scenario)
   ) {
     console.error(
-      `${SCRIPT}: unknown scenario "${scenario}". Use admin, admin-elder, admin-elders, admin-elder-extended, or admin-elder-teen.`,
+      `${SCRIPT}: unknown scenario "${scenario}". Use admin, admin-elder, admin-elders, admin-elders-keepers, admin-elder-extended, or admin-elder-teen.`,
     );
     process.exit(1);
   }
@@ -96,7 +101,7 @@ if (!dbUrl) {
 }
 
 let wroteSecrets = false;
-for (const n of [1, 2, 3]) {
+for (const n of [1, 2, 3, 4, 5]) {
   if (!passwordFor(localSecrets, n)) {
     localSecrets[`E2E_PASSWORD_TEST${n}`] = randomBytes(18).toString('base64url');
     wroteSecrets = true;
@@ -110,6 +115,8 @@ if (wroteSecrets) {
       `E2E_PASSWORD_TEST1=${localSecrets.E2E_PASSWORD_TEST1}`,
       `E2E_PASSWORD_TEST2=${localSecrets.E2E_PASSWORD_TEST2}`,
       `E2E_PASSWORD_TEST3=${localSecrets.E2E_PASSWORD_TEST3}`,
+      `E2E_PASSWORD_TEST4=${localSecrets.E2E_PASSWORD_TEST4}`,
+      `E2E_PASSWORD_TEST5=${localSecrets.E2E_PASSWORD_TEST5}`,
       '',
     ].join('\n'),
     { encoding: 'utf8' },
@@ -127,7 +134,7 @@ try {
 const users = await adminJson(url, serviceKey, 'GET', '/auth/v1/admin/users?per_page=200');
 const list = users?.users ?? users ?? [];
 
-for (const n of [1, 2, 3]) {
+for (const n of [1, 2, 3, 4, 5]) {
   const email = TEST_EMAILS[n];
   const password = passwordFor(localSecrets, n);
   const existing = list.find((row) => row.email === email);
@@ -180,8 +187,55 @@ const emailsSql = Object.values(TEST_EMAILS)
   .join(', ');
 sql(
   dbUrl,
-  `SET session_replication_role = replica;
-DELETE FROM public.family_spaces WHERE created_by IN (SELECT id FROM auth.users WHERE email IN (${emailsSql}));
+  `-- Drop every space these accounts created or still belong to so leftover
+-- letter_keepers from prior runs cannot appear on Letters → Keeping.
+-- Replica role is required: space_members DELETE triggers (on_key_holder_departure)
+-- insert device_removed_notices and break a normal CASCADE delete mid-flight.
+-- Replica skips those triggers AND FK CASCADE, so we must sweep orphans after.
+SET session_replication_role = replica;
+DELETE FROM public.family_spaces
+ WHERE created_by IN (SELECT id FROM auth.users WHERE email IN (${emailsSql}))
+    OR id IN (
+         SELECT family_space_id FROM public.space_members
+          WHERE user_id IN (SELECT id FROM auth.users WHERE email IN (${emailsSql}))
+       );
+-- Child tables that reference family_spaces (replica skipped CASCADE).
+DELETE FROM public.letters WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.letter_keepers WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_payloads WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_author_shares WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_recipient_shares WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_patria_shares WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_keeper_pair_boxes WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letter_keeper_recipient_secrets WHERE NOT EXISTS (SELECT 1 FROM public.letters l WHERE l.id = letter_id);
+DELETE FROM public.letterbox_keys WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.letter_events WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.space_members WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.child_profiles WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.circles WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.circle_item_type_defaults WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.invites WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.family_key_meta WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.family_key_wraps WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.device_approval_notices WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_requests WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.device_removed_notices WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.family_key_under_recovery WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_public_keys WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_pair_wraps WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_contact_secrets WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.recovery_contacts WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.memory_items WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.memory_item_tombstones WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.memory_library_connections WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.vault_entries WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.personal_key_wraps WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.personal_key_under_recovery WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_schedules WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_meetings WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_agenda_items WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_notes WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
+DELETE FROM public.sync_tasks WHERE NOT EXISTS (SELECT 1 FROM public.family_spaces s WHERE s.id = family_space_id);
 SET session_replication_role = origin;`,
 );
 
@@ -268,13 +322,18 @@ async function inviteAndAccept(memberN, role, circleId = householdId) {
 if (
   scenario === 'admin-elder' ||
   scenario === 'admin-elders' ||
+  scenario === 'admin-elders-keepers' ||
   scenario === 'admin-elder-extended' ||
   scenario === 'admin-elder-teen'
 ) {
   await inviteAndAccept(2, 'elder', householdId);
 }
-if (scenario === 'admin-elders') {
+if (scenario === 'admin-elders' || scenario === 'admin-elders-keepers') {
   await inviteAndAccept(3, 'elder', householdId);
+}
+if (scenario === 'admin-elders-keepers') {
+  await inviteAndAccept(4, 'elder', householdId);
+  await inviteAndAccept(5, 'elder', householdId);
 }
 if (scenario === 'admin-elder-extended') {
   await inviteAndAccept(3, 'extended_relative', extendedId);
@@ -309,7 +368,14 @@ if (
   testNumber === 64 ||
   testNumber === 65 ||
   testNumber === 66 ||
-  testNumber === 67
+  testNumber === 67 ||
+  testNumber === 68 ||
+  testNumber === 69 ||
+  testNumber === 70 ||
+  testNumber === 71 ||
+  testNumber === 72 ||
+  testNumber === 73 ||
+  testNumber === 75
 ) {
   const contactA = await signIn(TEST_EMAILS[2], passwordFor(localSecrets, 2));
   const contactB = await signIn(TEST_EMAILS[3], passwordFor(localSecrets, 3));
@@ -337,7 +403,13 @@ if (
     testNumber === 64 ||
     testNumber === 65 ||
     testNumber === 66 ||
-    testNumber === 67
+    testNumber === 67 ||
+    testNumber === 68 ||
+    testNumber === 69 ||
+    testNumber === 70 ||
+    testNumber === 71 ||
+    testNumber === 72 ||
+    testNumber === 73
   ) {
     sql(
       dbUrl,
@@ -352,6 +424,37 @@ if (
          '${spaceId}', '${contactA.userId}', decode(repeat('cd', 32), 'hex'), 1
        );`,
     );
+  }
+  // B2 keepers (Tests 3–5) need recovery + will get letterboxes via seedLetIn.
+  if (
+    testNumber === 68 ||
+    testNumber === 69 ||
+    testNumber === 70 ||
+    testNumber === 71 ||
+    testNumber === 72 ||
+    testNumber === 73
+  ) {
+    const contactC = await signIn(TEST_EMAILS[4], passwordFor(localSecrets, 4));
+    const contactD = await signIn(TEST_EMAILS[5], passwordFor(localSecrets, 5));
+    for (const [member, hex] of [
+      [contactB, 'ef'],
+      [contactC, '11'],
+      [contactD, '22'],
+    ]) {
+      sql(
+        dbUrl,
+        `INSERT INTO public.recovery_contacts (
+           family_space_id, member_id, user_id, slot, status, created_by
+         ) VALUES
+           ('${spaceId}', '${member.userId}', '${adminSession.userId}', 'a', 'accepted', '${member.userId}'),
+           ('${spaceId}', '${member.userId}', '${contactA.userId}', 'b', 'accepted', '${member.userId}');
+         INSERT INTO public.recovery_public_keys (
+           family_space_id, user_id, public_key, recovery_key_epoch
+         ) VALUES (
+           '${spaceId}', '${member.userId}', decode(repeat('${hex}', 32), 'hex'), 1
+         );`,
+      );
+    }
   }
   // Test 67 no_dob: clear leftover birthday from 65/66 (profiles persist across family resets).
   if (testNumber === 67) {

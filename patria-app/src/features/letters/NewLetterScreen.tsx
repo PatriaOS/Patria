@@ -57,6 +57,7 @@ import {
 import {
   fetchFamilyTimezone,
   fetchLetter,
+  letterKeeperEligible,
   letterRecipientReady,
   letterWriterReady,
   type LetterTriggerKind,
@@ -69,6 +70,7 @@ import {
 } from './letterEditPrefill';
 import { letterReleaseReadyForSealing } from './letterReleaseConfig';
 import { sealLetterOnDevice } from './letterSeal';
+import type { LetterKeeperSlot } from '../../lib/crypto/letterKeeperBoxes';
 
 const schema = z.object({
   // Empty is OK until seal — we fill From with the member's name when it loads.
@@ -123,6 +125,9 @@ export function NewLetterScreen() {
   const [editPrefillError, setEditPrefillError] = useState<'locked' | 'failed' | null>(null);
   const [editPrefillReady, setEditPrefillReady] = useState(!editId);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [keeperA, setKeeperA] = useState<string | null>(null);
+  const [keeperB, setKeeperB] = useState<string | null>(null);
+  const [keeperC, setKeeperC] = useState<string | null>(null);
   const voicePlainRef = useRef<Uint8Array | null>(null);
   voicePlainRef.current = voicePlain;
 
@@ -288,6 +293,40 @@ export function NewLetterScreen() {
   const recipientName =
     readyMembers.find((m) => m.userId === effectiveRecipientId)?.displayName ??
     copy.letters.formerMember;
+
+  const keeperEligibleQuery = useQuery({
+    queryKey: [
+      'letterKeeperEligible',
+      spaceId,
+      userId,
+      effectiveRecipientId,
+      candidates.map((c) => c.userId).join(','),
+    ],
+    enabled: Boolean(spaceId && userId && effectiveRecipientId && candidates.length > 0),
+    queryFn: async () => {
+      const flags: Record<string, boolean> = {};
+      await Promise.all(
+        candidates.map(async (m) => {
+          if (m.userId === effectiveRecipientId) {
+            flags[m.userId] = false;
+            return;
+          }
+          flags[m.userId] = await letterKeeperEligible(
+            spaceId!,
+            m.userId,
+            userId!,
+            effectiveRecipientId!,
+          );
+        }),
+      );
+      return flags;
+    },
+  });
+  const keeperCandidates = candidates.filter((m) => keeperEligibleQuery.data?.[m.userId]);
+  const selectedKeepers = [keeperA, keeperB, keeperC].filter(Boolean) as string[];
+  const keepersComplete =
+    selectedKeepers.length === 0 ||
+    (selectedKeepers.length === 3 && new Set(selectedKeepers).size === 3);
   const ageValue = parseAgeInput(triggerAgeRaw);
   const ageOpenPreview =
     triggerKind === 'age' && ageValue != null
@@ -298,7 +337,9 @@ export function NewLetterScreen() {
     ? copy.letters.sealNeedRecipient
     : !hasContent
       ? copy.letters.sealNeedContent
-      : null;
+      : !keepersComplete
+        ? copy.letters.keepersNeedThree
+        : null;
   const canSeal = !sealing && !sealBlockedReason;
 
   const onSeal = handleSubmit(async (values) => {
@@ -361,6 +402,23 @@ export function NewLetterScreen() {
       setSealedFingerprint(editBaseline.fingerprint);
       return;
     }
+    let keepers:
+      | [
+          { keeperId: string; slot: LetterKeeperSlot },
+          { keeperId: string; slot: LetterKeeperSlot },
+          { keeperId: string; slot: LetterKeeperSlot },
+        ]
+      | null = null;
+    if (selectedKeepers.length === 3 && keeperA && keeperB && keeperC) {
+      keepers = [
+        { keeperId: keeperA, slot: 'a' },
+        { keeperId: keeperB, slot: 'b' },
+        { keeperId: keeperC, slot: 'c' },
+      ];
+    } else if (selectedKeepers.length > 0) {
+      setFormError(copy.letters.keepersNeedThree);
+      return;
+    }
     setSealing(true);
     try {
       const result = await sealLetterOnDevice({
@@ -379,6 +437,7 @@ export function NewLetterScreen() {
         voiceDurationSeconds: voiceDuration,
         previousVersion: existing?.version ?? editBaseline?.version,
         createDraft: !editId,
+        keepers,
       });
       if (!result.ok) {
         if (result.reason === 'age_no_dob') {
@@ -678,6 +737,53 @@ export function NewLetterScreen() {
           },
         ]}
       />
+
+      <View style={styles.field} testID="letter-keepers">
+        <Caption>{copy.letters.keepersLabel}</Caption>
+        <Caption tone="muted">{copy.letters.keepersHint}</Caption>
+        {visibility === 'surprise' && selectedKeepers.length > 0 ? (
+          <Banner message={copy.letters.keepersSurpriseNote} tone="info" />
+        ) : null}
+        {keeperCandidates.length === 0 ? (
+          <Caption tone="muted">{copy.letters.keepersNoneReady}</Caption>
+        ) : (
+          (['a', 'b', 'c'] as const).map((slot, index) => {
+            const value = slot === 'a' ? keeperA : slot === 'b' ? keeperB : keeperC;
+            const setValueFor =
+              slot === 'a' ? setKeeperA : slot === 'b' ? setKeeperB : setKeeperC;
+            const taken = new Set(
+              [keeperA, keeperB, keeperC].filter((id) => id && id !== value),
+            );
+            const options = [
+              {
+                value: '__none__',
+                label: '—',
+                description: copy.letters.keepersHint,
+                testID: `keeper-${slot}-none`,
+              },
+              ...keeperCandidates
+                .filter((m) => !taken.has(m.userId))
+                .map((m) => ({
+                  value: m.userId,
+                  label: m.displayName,
+                  description: m.displayName,
+                  testID: `keeper-${slot}-${m.userId}`,
+                })),
+            ];
+            return (
+              <SelectField
+                key={slot}
+                label={copy.letters.keepersPick.replace('{n}', String(index + 1))}
+                value={value ?? '__none__'}
+                testID={`letter-keeper-${slot}`}
+                sheetTestID={`letter-keeper-${slot}-sheet`}
+                onChange={(next) => setValueFor(next === '__none__' ? null : next)}
+                options={options}
+              />
+            );
+          })
+        )}
+      </View>
 
       {triggerKind === 'date' ? (
         <View style={styles.field}>

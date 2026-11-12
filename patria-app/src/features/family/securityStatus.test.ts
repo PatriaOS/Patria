@@ -1,5 +1,10 @@
 import { copy } from '../../lib/copy';
-import { keyStatusLabel, recoveryPill } from './securityStatus';
+import {
+  keyStatusLabel,
+  personalKeyStatusLabel,
+  personalKeyStatusTone,
+  recoveryPill,
+} from './securityStatus';
 
 describe('keyStatusLabel', () => {
   it('keeps the wording Home used', () => {
@@ -7,6 +12,23 @@ describe('keyStatusLabel', () => {
     expect(keyStatusLabel('waiting')).toBe(copy.home.keysWaiting);
     expect(keyStatusLabel('waitingOwnPhone')).toBe(copy.home.keysWaitingOwnPhone);
     expect(keyStatusLabel('needsRelink')).toBe(copy.home.keysNeedRelink);
+  });
+});
+
+describe('personalKeyStatusLabel', () => {
+  it('names ready, other-phone and enroll failure clearly', () => {
+    expect(personalKeyStatusLabel('ready')).toBe(copy.home.personalKeysReady);
+    expect(personalKeyStatusLabel('needsOtherPhone')).toBe(
+      copy.home.personalKeysNeedOtherPhone,
+    );
+    expect(personalKeyStatusLabel('needsRecovery')).toBe(
+      copy.home.personalKeysNeedRecoveryPill,
+    );
+    expect(personalKeyStatusLabel('enrollError')).toBe(copy.home.personalKeysEnrollFailedPill);
+    expect(personalKeyStatusTone('ready')).toBe('success');
+    expect(personalKeyStatusTone('needsOtherPhone')).toBe('wait');
+    expect(personalKeyStatusTone('needsRecovery')).toBe('wait');
+    expect(personalKeyStatusTone('enrollError')).toBe('danger');
   });
 });
 

@@ -196,9 +196,9 @@ export function formatBirthdayYmd(ymd: string): string {
   }).format(new Date(parsed.y, parsed.m - 1, parsed.d, 12, 0, 0, 0));
 }
 
-/** Default when the birthday wheel opens with no saved day: 15 June, eleven years ago. */
+/** Default when the birthday wheel opens with no saved day: 15 June, about thirty years ago. */
 export function defaultPastBirthdayYmd(now = new Date()): string {
-  const y = now.getFullYear() - 11;
+  const y = now.getFullYear() - 30;
   return `${String(y).padStart(4, '0')}-06-15`;
 }
 

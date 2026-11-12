@@ -1,0 +1,28 @@
+# Manual screenshot: sorted Your phones (This phone first).
+# Not a PHONE_TESTS flow.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      id: "family-name"
+    direction: UP
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "^your-phones$"
+    direction: DOWN
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: "^your-phones$"
+- extendedWaitUntil:
+    visible:
+      id: "screen-your-phones"
+    timeout: 30000
+- assertVisible:
+    id: "this-phone"
+- takeScreenshot: your-phones-this-phone-first

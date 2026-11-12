@@ -1,8 +1,19 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import {
+  appendFileSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 
 import {
   APP_BUNDLE_ID,
@@ -13,9 +24,9 @@ import {
   TEST_EMAILS,
   TEST_TIMEOUT_MS,
   timeoutMsForTest,
-  assertAppInstalledOn,
   assertLocalSupabaseUrl,
   bootDevices,
+  ensureAppInstalledOn,
   e2eDeviceCount,
   ensureJavaHome,
   loadLocalFiles,
@@ -28,6 +39,9 @@ import {
   runnerNumbersFromSource,
   selectAffectedPhoneTests,
   SMOKE_TEST_NUMBERS,
+  parseE2eTestFlag,
+  resolveSupabaseCli,
+  selectPhoneTestsForRun,
   supabaseStatusEnv,
   supabaseUrlFromEnv,
 } from './e2e-lib.mjs';
@@ -35,6 +49,13 @@ import {
 const SCRIPT = 'e2e';
 const ARTIFACTS = join(APP_ROOT, 'e2e-artifacts');
 const RECORDINGS = join(APP_ROOT, 'e2e-recordings');
+const REVIEW_CAPTURES = join(ARTIFACTS, 'review-captures');
+/** Maestro writes bare takeScreenshot names under ~/.maestro/tests/<run>/<flow>/takeScreenshot/. */
+const MAESTRO_TESTS = join(homedir(), '.maestro', 'tests');
+/** Fixed path every run overwrites; also mirrored under e2e-artifacts/. */
+const BATCH_LOG = join(homedir(), 'patria-tests.log');
+const BATCH_LOG_ARTIFACT = join(ARTIFACTS, 'patria-tests.log');
+const batchStartedAtMs = Date.now();
 
 // simctl addmedia uses the file's creation date (birthtime), not mtime, when there is no EXIF.
 // copyFileSync / overwrite of a reused dest keeps the old birthtime (Oct 19 on this machine),
@@ -50,11 +71,17 @@ function samplePhotoDatedNow() {
 
 function parseArgs(argv) {
   let devicesRaw = process.env.E2E_DEVICES || '2';
-  const out = { test: null, record: null, devices: 2, mode: 'full' };
+  // tests: null = no --test flag; array = --test was passed (never fall through to full).
+  const out = { tests: null, record: null, devices: 2, mode: 'full' };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--test') {
-      out.test = Number(argv[i + 1]);
+      const raw = argv[i + 1];
+      if (raw == null || String(raw).startsWith('--')) {
+        console.error(`${SCRIPT}: --test needs a number or comma list (e.g. --test 65,68,71).`);
+        process.exit(1);
+      }
+      out.tests = parseE2eTestFlag(raw);
       i += 1;
     } else if (arg === '--record') {
       out.record = true;
@@ -131,10 +158,42 @@ function remainingMs() {
 
 let driverUnreachable = false;
 
-function isDriverUnreachable(text) {
-  return /Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable|Failed to connect to \/127\.0\.0\.1/i.test(
+/** Maestro XCTest / transport death — not an app assertion failure. */
+function isMaestroInfraFailure(text) {
+  return /isScreenStatic|Request for isScreenStatic failed|Failed to get screenshot:\s*Timed out|Timed out while requesting screenshot|Connection refused|Failed to connect to \/127\.0\.0\.1|Device became unreachable|Transport unreachable|XCUITestServerError\$Unreachable|DeviceUnreachableException/i.test(
     text,
   );
+}
+
+function isDriverUnreachable(text) {
+  return isMaestroInfraFailure(text);
+}
+
+/** Maestro CLI often omits Unreachable from stdout; the debug maestro.log has it. */
+function maestroDebugFolderFromOut(out) {
+  const match = out.match(/==== Debug output[^\n]*====\s*\n\s*(\/[^\n]+)/);
+  return match ? match[1].trim() : null;
+}
+
+function maestroOutIndicatesInfraFailure(out) {
+  if (isMaestroInfraFailure(out)) {
+    return true;
+  }
+  const folder = maestroDebugFolderFromOut(out);
+  if (!folder) {
+    return false;
+  }
+  try {
+    const logPath = join(folder, 'maestro.log');
+    if (!existsSync(logPath)) {
+      return false;
+    }
+    const log = readFileSync(logPath, 'utf8');
+    const slice = log.length > 200_000 ? log.slice(-200_000) : log;
+    return isMaestroInfraFailure(slice);
+  } catch {
+    return false;
+  }
 }
 
 function restartMaestroDriver(udid) {
@@ -163,8 +222,7 @@ function restartAllMaestroDrivers() {
 /** Last Simulator udid passed to Maestro — used for failure screenshots. */
 let lastMaestroDevice = null;
 
-function maestro({ flow, device, env }) {
-  lastMaestroDevice = device || deviceA || null;
+function runMaestroOnce({ flow, device, env }) {
   const args = ['test', '--no-ansi', '--platform', 'ios'];
   if (device) {
     args.push('--device', device);
@@ -177,7 +235,7 @@ function maestro({ flow, device, env }) {
   args.push(flow);
   const timeout = remainingMs();
   if (timeout <= 0) {
-    throw new Error('timed out');
+    return { ok: false, out: '', error: new Error('timed out'), infra: false };
   }
   const result = spawnSync('maestro', args, {
     cwd: APP_ROOT,
@@ -191,18 +249,55 @@ function maestro({ flow, device, env }) {
   if (out) {
     process.stdout.write(out);
   }
-  if (isDriverUnreachable(out)) {
+  const infra = maestroOutIndicatesInfraFailure(out);
+  if (infra) {
     driverUnreachable = true;
   }
   if (result.error && result.error.code === 'ETIMEDOUT') {
-    throw new Error('timed out');
+    return { ok: false, out, error: new Error('timed out'), infra };
   }
   if (result.signal) {
-    throw new Error('timed out');
+    return { ok: false, out, error: new Error('timed out'), infra };
   }
   if (result.status !== 0) {
-    throw new Error(redactCli(`Command failed: maestro ${args.join(' ')}`));
+    return {
+      ok: false,
+      out,
+      error: new Error(redactCli(`Command failed: maestro ${args.join(' ')}`)),
+      infra,
+    };
   }
+  return { ok: true, out, error: null, infra: false };
+}
+
+/**
+ * Run one Maestro flow. Infra driver deaths (isScreenStatic 500, connection
+ * refused, screenshot timeout) get one automatic retry after restarting the
+ * driver — logged as "infra retry". App assertion failures are never retried.
+ */
+function maestro({ flow, device, env }) {
+  lastMaestroDevice = device || deviceA || null;
+  const udid = device || deviceA || null;
+  let attempt = runMaestroOnce({ flow, device, env });
+  if (attempt.ok) {
+    collectReviewCapturesFromMaestro();
+    return;
+  }
+  if (attempt.infra) {
+    console.log(
+      `infra retry: Maestro driver failure on ${udid ?? 'device'}; restarting driver and retrying this step once.`,
+    );
+    restartMaestroDriver(udid);
+    attempt = runMaestroOnce({ flow, device, env });
+    if (attempt.ok) {
+      collectReviewCapturesFromMaestro();
+      return;
+    }
+    if (attempt.infra) {
+      driverUnreachable = true;
+    }
+  }
+  throw attempt.error instanceof Error ? attempt.error : new Error('maestro failed');
 }
 
 function tryMaestro(opts) {
@@ -249,7 +344,7 @@ function signInEnv(secrets, n) {
 
 /** Matches ProfileScreen defaultPastBirthdayYmd + en-US formatBirthdayYmd (US Simulator). */
 function birthdayWheelEnv(now = new Date()) {
-  const y = now.getFullYear() - 11;
+  const y = now.getFullYear() - 30;
   const label = new Intl.DateTimeFormat('en-US', {
     day: 'numeric',
     month: 'long',
@@ -371,23 +466,40 @@ try {
 
 const tests = parsePhoneTests(readFileSync(PHONE_TESTS, 'utf8'));
 const runnerNumbers = runnerNumbersFromSource(readFileSync(join(APP_ROOT, 'scripts', 'e2e.mjs'), 'utf8'));
-let selected = tests;
-if (args.test) {
-  selected = tests.filter((test) => test.number === args.test);
-} else if (args.mode === 'smoke') {
-  selected = tests.filter((test) => SMOKE_TEST_NUMBERS.includes(test.number));
-  console.log(`e2e:smoke: tests ${SMOKE_TEST_NUMBERS.join(', ')} (auth, invites, keys).`);
-} else if (args.mode === 'affected') {
-  const picked = selectAffectedPhoneTests(tests);
-  for (const line of picked.reasons) {
-    console.log(line);
+let selected;
+try {
+  if (args.mode === 'affected' && args.tests === null) {
+    const picked = selectAffectedPhoneTests(tests);
+    for (const line of picked.reasons) {
+      console.log(line);
+    }
+    selected = selectPhoneTestsForRun({
+      allTests: tests,
+      testNumbers: null,
+      mode: 'affected',
+      smokeNumbers: SMOKE_TEST_NUMBERS,
+      affectedNumbers: picked.numbers,
+    });
+    if (selected.length === 0) {
+      console.log('e2e:affected: no phone tests to run.');
+      process.exit(0);
+    }
+    console.log(`e2e:affected: running tests ${picked.numbers.join(', ')}.`);
+  } else {
+    selected = selectPhoneTestsForRun({
+      allTests: tests,
+      testNumbers: args.tests,
+      mode: args.mode,
+      smokeNumbers: SMOKE_TEST_NUMBERS,
+      affectedNumbers: [],
+    });
+    if (args.mode === 'smoke' && args.tests === null) {
+      console.log(`e2e:smoke: tests ${SMOKE_TEST_NUMBERS.join(', ')} (auth, invites, keys).`);
+    }
   }
-  selected = tests.filter((test) => picked.numbers.includes(test.number));
-  if (selected.length === 0) {
-    console.log('e2e:affected: no phone tests to run.');
-    process.exit(0);
-  }
-  console.log(`e2e:affected: running tests ${picked.numbers.join(', ')}.`);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : `${SCRIPT}: no matching test.`);
+  process.exit(1);
 }
 if (selected.length === 0) {
   console.error(`${SCRIPT}: no matching test.`);
@@ -411,19 +523,138 @@ try {
 const [deviceA, deviceB, deviceC] = devices;
 if (devices.length > 0) {
   try {
-    assertAppInstalledOn(devices, SCRIPT);
+    ensureAppInstalledOn(devices, SCRIPT);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 }
 mkdirSync(ARTIFACTS, { recursive: true });
+mkdirSync(REVIEW_CAPTURES, { recursive: true });
 const progressPath = join(ARTIFACTS, 'progress.txt');
 writeFileSync(progressPath, '', { encoding: 'utf8' });
+writeFileSync(BATCH_LOG, '', { encoding: 'utf8' });
+writeFileSync(BATCH_LOG_ARTIFACT, '', { encoding: 'utf8' });
+
+function appendBatchLog(chunk) {
+  const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+  appendFileSync(BATCH_LOG, text);
+  appendFileSync(BATCH_LOG_ARTIFACT, text);
+}
+
+{
+  const origOut = process.stdout.write.bind(process.stdout);
+  const origErr = process.stderr.write.bind(process.stderr);
+  process.stdout.write = (chunk, encoding, cb) => {
+    appendBatchLog(chunk);
+    return origOut(chunk, encoding, cb);
+  };
+  process.stderr.write = (chunk, encoding, cb) => {
+    appendBatchLog(chunk);
+    return origErr(chunk, encoding, cb);
+  };
+}
 
 function progress(line) {
   console.log(line);
   appendFileSync(progressPath, `${line}\n`);
+}
+
+function listMaestroTakeScreenshotFiles() {
+  const found = [];
+  if (!existsSync(MAESTRO_TESTS)) {
+    return found;
+  }
+  for (const run of readdirSync(MAESTRO_TESTS)) {
+    const runDir = join(MAESTRO_TESTS, run);
+    let runStat;
+    try {
+      runStat = statSync(runDir);
+    } catch {
+      continue;
+    }
+    if (!runStat.isDirectory()) {
+      continue;
+    }
+    let flows;
+    try {
+      flows = readdirSync(runDir);
+    } catch {
+      continue;
+    }
+    for (const flowName of flows) {
+      const shotDir = join(runDir, flowName, 'takeScreenshot');
+      if (!existsSync(shotDir)) {
+        continue;
+      }
+      let files;
+      try {
+        files = readdirSync(shotDir);
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (!/\.(png|jpg|jpeg)$/i.test(file)) {
+          continue;
+        }
+        const full = join(shotDir, file);
+        try {
+          const st = statSync(full);
+          // Include files from this batch (and a small clock skew cushion).
+          if (st.mtimeMs + 5000 < batchStartedAtMs) {
+            continue;
+          }
+          found.push({ path: full, name: file, mtimeMs: st.mtimeMs });
+        } catch {
+          // skip
+        }
+      }
+    }
+  }
+  return found;
+}
+
+/** Copy Maestro bare-name takeScreenshot files into e2e-artifacts/review-captures/. */
+function collectReviewCapturesFromMaestro() {
+  mkdirSync(REVIEW_CAPTURES, { recursive: true });
+  const byName = new Map();
+  for (const row of listMaestroTakeScreenshotFiles()) {
+    const prev = byName.get(row.name);
+    if (!prev || row.mtimeMs >= prev.mtimeMs) {
+      byName.set(row.name, row);
+    }
+  }
+  for (const row of byName.values()) {
+    copyFileSync(row.path, join(REVIEW_CAPTURES, row.name));
+  }
+}
+
+function writeReviewCapturesIndex() {
+  collectReviewCapturesFromMaestro();
+  const names = existsSync(REVIEW_CAPTURES)
+    ? readdirSync(REVIEW_CAPTURES)
+        .filter((name) => /\.(png|jpg|jpeg)$/i.test(name))
+        .sort()
+    : [];
+  const rows = names.map((file) => {
+    const match = basename(file).match(/^(\d+)-step(\d+)-(.+)\.(?:png|jpg|jpeg)$/i);
+    if (match) {
+      return { test: match[1], step: match[2], file };
+    }
+    return { test: '-', step: '-', file };
+  });
+  const lines = [
+    'Real Simulator captures from this e2e run (Maestro takeScreenshot → review-captures).',
+    `Batch log: ${BATCH_LOG}`,
+    `Also: ${BATCH_LOG_ARTIFACT}`,
+    '',
+    'test\tstep\tfile',
+    ...rows.map((row) => `${row.test}\t${row.step}\t${row.file}`),
+    '',
+    `Present (${names.length}).`,
+    '',
+  ];
+  writeFileSync(join(REVIEW_CAPTURES, 'INDEX.txt'), lines.join('\n'), { encoding: 'utf8' });
 }
 
 function captureScreen(udid, name) {
@@ -615,41 +846,86 @@ function seedAdminKeys() {
   });
 }
 
-function seedLetIn(memberN, device) {
-  const waiting = tryMaestro({
-    flow: flow('09_let_in.yaml'),
-    device,
-    env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
-  });
-  if (waiting.ok) {
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device: deviceA,
-      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
-    });
-    maestro({
-      flow: flow('09_let_in.yaml'),
-      device,
-      env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
-    });
+/**
+ * Local e2e only: drop pending let-in notices and never-approved device rows for
+ * Test N in the e2e family. If they have family wraps, keep only the newest wrap
+ * device (and its wraps). Never used against hosted.
+ */
+function clearMemberDevicesAndPendingNotices(memberN) {
+  const email = TEST_EMAILS[memberN];
+  if (!email) {
     return;
   }
-  // Already let in (common when test 9 ran first): verify member + approved device.
+  const userSql = `(SELECT id FROM auth.users WHERE email = '${email}' LIMIT 1)`;
+  const spaceSql = `(SELECT id FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' LIMIT 1)`;
+  const keepSql = `(
+    SELECT device_id
+    FROM public.family_key_wraps
+    WHERE family_space_id = ${spaceSql}
+      AND user_id = ${userSql}
+    ORDER BY created_at DESC, device_id DESC
+    LIMIT 1
+  )`;
+  // Never-approved in this family, plus older approved devices when a wrap exists.
+  const dropSql = `(
+    SELECT dk.device_id
+    FROM public.device_keys AS dk
+    WHERE dk.user_id = ${userSql}
+      AND (
+        NOT EXISTS (
+          SELECT 1 FROM public.family_key_wraps AS w
+          WHERE w.user_id = dk.user_id AND w.device_id = dk.device_id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM public.personal_key_wraps AS w
+          WHERE w.user_id = dk.user_id AND w.device_id = dk.device_id
+        )
+        OR (
+          EXISTS (${keepSql})
+          AND dk.device_id IS DISTINCT FROM ${keepSql}
+        )
+      )
+  )`;
+  sqlOnE2eFamily(
+    `DELETE FROM public.device_approval_notices
+       WHERE family_space_id = ${spaceSql}
+         AND user_id = ${userSql};
+     DELETE FROM public.family_key_wraps
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.personal_key_wraps
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.recovery_contact_secrets
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};
+     DELETE FROM public.recovery_requests
+       WHERE user_id = ${userSql}
+         AND new_device_id IN ${dropSql}
+         AND completed_at IS NULL;
+     DELETE FROM public.device_keys
+       WHERE user_id = ${userSql}
+         AND device_id IN ${dropSql};`,
+  );
+}
+
+/** Local e2e only: clear stale devices/notices for Tests 1–5 before seeding. */
+function clearStaleDevicesForAllTestMembers() {
+  for (const n of [1, 2, 3, 4, 5]) {
+    clearMemberDevicesAndPendingNotices(n);
+  }
+}
+
+function seedAdminKeysAndPersonal() {
   maestro({
-    flow: flow('09_let_in.yaml'),
+    flow: flow('08_family_key_created.yaml'),
     device: deviceA,
-    env: {
-      ...signInEnv(secrets, 1),
-      PHASE: 'verify_member',
-      MEMBER_ID: `member-test-${memberN}`,
-    },
+    env: { ...signInEnv(secrets, 1), PHASE: 'home_keys_and_personal' },
   });
-  maestro({
-    flow: flow('09_let_in.yaml'),
-    device,
-    env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
-  });
-  const wraps = dbCheck([
+}
+
+function memberHasWrap(memberN) {
+  return dbCheck([
     'assert-wraps',
     '--family',
     E2E_FAMILY_NAME,
@@ -657,10 +933,130 @@ function seedLetIn(memberN, device) {
     TEST_EMAILS[memberN],
     '--min',
     '1',
-  ]);
-  if (!wraps.ok) {
+  ]).ok;
+}
+
+function seedLetIn(memberN, device) {
+  // Probe only: soft keys_ready is allowed here because failure continues into a
+  // full hard waiting → let_in → keys_ready path (never leaves the member half set up).
+  const alreadyReady = tryMaestro({
+    flow: flow('09_let_in.yaml'),
+    device,
+    env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+  });
+  if (alreadyReady.ok) {
+    const personalOk = dbCheck([
+      'assert-personal-wraps',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[memberN],
+    ]);
+    if (!personalOk.ok) {
+      throw new Error(
+        `Test ${memberN} shows family keys ready but has no personal wrap: ${
+          personalOk.error ?? 'assert-personal-wraps failed'
+        }`,
+      );
+    }
+    return;
+  }
+
+  const waitingOpts = {
+    flow: flow('09_let_in.yaml'),
+    device,
+    env: { ...signInEnv(secrets, memberN), PHASE: 'waiting' },
+  };
+  const runLetIn = () =>
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device: deviceA,
+      env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+    });
+  const runKeysReady = () =>
+    maestro({
+      flow: flow('09_let_in.yaml'),
+      device,
+      env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+    });
+
+  // One waiting attempt; on DeviceUnreachable / driver death, one infra retry
+  // after restarting XCUITest (not via maestro()'s retry — avoids a double retry).
+  lastMaestroDevice = device || deviceA || null;
+  let waitingAttempt = runMaestroOnce(waitingOpts);
+  if (!waitingAttempt.ok && waitingAttempt.infra) {
+    console.log(
+      `infra retry: Maestro driver failure during seedLetIn waiting for Test ${memberN} on ${device}; restarting XCUITest driver and retrying waiting once.`,
+    );
+    restartMaestroDriver(device);
+    waitingAttempt = runMaestroOnce(waitingOpts);
+  }
+
+  let waitingDone = false;
+  if (waitingAttempt.ok) {
+    collectReviewCapturesFromMaestro();
+    waitingDone = true;
+  } else if (!memberHasWrap(memberN)) {
     throw new Error(
-      `Test ${memberN} is a member but has no approved device wrap: ${wraps.error ?? 'assert-wraps failed'}`,
+      `Test ${memberN} never reached waiting for let-in (and has no family wrap): ${
+        waitingAttempt.error instanceof Error
+          ? waitingAttempt.error.message
+          : String(waitingAttempt.error)
+      }`,
+    );
+  } else {
+    // Reminted device id: wrap exists for an older id — enroll this phone hard.
+    const reset = dbCheck([
+      'reset-letterbox-personal',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[memberN],
+    ]);
+    if (!reset.ok) {
+      throw new Error(
+        `Test ${memberN} waiting failed and remint reset failed: ${
+          reset.error ??
+          (waitingAttempt.error instanceof Error
+            ? waitingAttempt.error.message
+            : String(waitingAttempt.error))
+        }`,
+      );
+    }
+    signInOnDevice(memberN, device);
+    waitForLetterbox(memberN);
+    maestro(waitingOpts);
+    waitingDone = true;
+  }
+
+  if (!waitingDone) {
+    throw new Error(`Test ${memberN} seedLetIn internal error: waiting not completed`);
+  }
+
+  runLetIn();
+  try {
+    runKeysReady();
+  } catch (keysError) {
+    throw new Error(
+      `Test ${memberN} has no family keys on this phone after let-in` +
+        (memberHasWrap(memberN) ? ' (wrap exists for another device id)' : '') +
+        `: ${keysError instanceof Error ? keysError.message : String(keysError)}`,
+    );
+  }
+
+  // Do not reset letterbox here — after seal, pinned keeper letterbox keys must stay.
+  const personalOk = dbCheck([
+    'assert-personal-wraps',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+  ]);
+  if (!personalOk.ok) {
+    throw new Error(
+      `Test ${memberN} family wrap has no personal wrap (keeper Help would fail): ${
+        personalOk.error ?? 'assert-personal-wraps failed'
+      }`,
     );
   }
 }
@@ -687,20 +1083,222 @@ function seedLettersReady() {
   signInOnDevice(2, other);
 }
 
+function waitForLetterbox(memberN, { attempts = 20, delayMs = 1500 } = {}) {
+  let lastError = '';
+  for (let i = 0; i < attempts; i += 1) {
+    const letterbox = dbCheck([
+      'assert-letterbox',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[memberN],
+    ]);
+    if (letterbox.ok) {
+      return;
+    }
+    lastError = letterbox.error ?? 'assert-letterbox failed';
+    execFileSync('sleep', [String(delayMs / 1000)], { stdio: 'ignore' });
+  }
+  throw new Error(
+    `Test ${memberN} has wrap/recovery but no letterbox after Home: ${lastError}`,
+  );
+}
+
+/** B2: let in Tests 2–5; each adult must have letterbox + recovery (reuse sims). */
+function seedLettersKeepersReady() {
+  seedAdminKeys();
+  const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+  const third = args.devices >= 3 && deviceC ? deviceC : other;
+  // Keepers 3/5 on third (Help Sim), 2/4 on other — same phones that will Help.
+  const pauseBetweenLetIns = () => {
+    execFileSync('sleep', ['2'], { stdio: 'ignore' });
+  };
+  seedLetIn(2, other);
+  pauseBetweenLetIns();
+  seedLetIn(3, third);
+  pauseBetweenLetIns();
+  seedLetIn(4, other);
+  pauseBetweenLetIns();
+  seedLetIn(5, third);
+  maestro({
+    flow: flow('09_let_in.yaml'),
+    device: deviceA,
+    env: {
+      ...signInEnv(secrets, 1),
+      PHASE: 'verify_member',
+      MEMBER_ID: 'member-test-2',
+    },
+  });
+  // Home runs ensureLetterboxKey. Always visit — a leftover letterbox row from an
+  // older device id is not enough (Help → approve-other-phone). Keepers must end
+  // seed on the same phone that will Help, with personal wraps for every family
+  // wrap device. Tests 71/72 re-check keys_ready before Help after shared Sims.
+  const deviceFor = {
+    1: deviceA,
+    2: other,
+    3: third,
+    4: other,
+    5: third,
+  };
+  for (const n of [1, 2, 3, 4, 5]) {
+    const wrapsOk = dbCheck([
+      'assert-personal-wraps',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[n],
+    ]);
+    const letterboxOk = dbCheck([
+      'assert-letterbox',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[n],
+    ]);
+    if (!wrapsOk.ok || !letterboxOk.ok) {
+      if (letterboxOk.ok && !wrapsOk.ok) {
+        // Letterbox exists for an older device id only — mint fresh on this phone.
+        const reset = dbCheck([
+          'reset-letterbox-personal',
+          '--family',
+          E2E_FAMILY_NAME,
+          '--email',
+          TEST_EMAILS[n],
+        ]);
+        if (!reset.ok) {
+          throw new Error(
+            `Could not reset letterbox/personal for Test ${n}: ${reset.error ?? 'reset failed'}`,
+          );
+        }
+      }
+      signInOnDevice(n, deviceFor[n]);
+      waitForLetterbox(n);
+    }
+  }
+  // Final pass: each keeper on their Help phone with family keys visible.
+  // End with Test 3 on C and Test 4 on B so Help can E2E_STAY without relaunch
+  // (Test 5 also uses C — do 5 before 3).
+  for (const n of [5, 3, 4]) {
+    const runKeysReady = () =>
+      maestro({
+        flow: flow('09_let_in.yaml'),
+        device: deviceFor[n],
+        env: { ...signInEnv(secrets, n), PHASE: 'keys_ready' },
+      });
+    try {
+      runKeysReady();
+    } catch (error) {
+      // launchApp can remint this user's device id while an older family wrap
+      // remains — keys_ready then shows "wrap exists for another device id".
+      const reset = dbCheck([
+        'reset-letterbox-personal',
+        '--family',
+        E2E_FAMILY_NAME,
+        '--email',
+        TEST_EMAILS[n],
+      ]);
+      if (!reset.ok) {
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+      signInOnDevice(n, deviceFor[n]);
+      waitForLetterbox(n);
+      runKeysReady();
+    }
+    const wrapsOk = dbCheck([
+      'assert-personal-wraps',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[n],
+    ]);
+    if (!wrapsOk.ok) {
+      // Remint during keys_ready left family wrap without personal — repair before seal.
+      const reset = dbCheck([
+        'reset-letterbox-personal',
+        '--family',
+        E2E_FAMILY_NAME,
+        '--email',
+        TEST_EMAILS[n],
+      ]);
+      if (!reset.ok) {
+        throw new Error(
+          `Test ${n} personal wraps missing after keys_ready and reset failed: ${
+            wrapsOk.error ?? reset.error ?? 'unknown'
+          }`,
+        );
+      }
+      signInOnDevice(n, deviceFor[n]);
+      waitForLetterbox(n);
+      const again = dbCheck([
+        'assert-personal-wraps',
+        '--family',
+        E2E_FAMILY_NAME,
+        '--email',
+        TEST_EMAILS[n],
+      ]);
+      if (!again.ok) {
+        throw new Error(
+          `Test ${n} still missing personal wraps for family devices: ${
+            again.error ?? 'assert-personal-wraps failed'
+          }`,
+        );
+      }
+      // Leave this keeper signed in on their Help phone after repair.
+      runKeysReady();
+    }
+  }
+  // Keepers (3–5) must be fully eligible vs author Test 1 and recipient Test 2.
+  for (const n of [3, 4, 5]) {
+    const eligible = dbCheck([
+      'assert-keeper-eligible',
+      '--family',
+      E2E_FAMILY_NAME,
+      '--email',
+      TEST_EMAILS[n],
+      '--author',
+      TEST_EMAILS[1],
+      '--recipient',
+      TEST_EMAILS[2],
+    ]);
+    if (!eligible.ok) {
+      throw new Error(
+        `Test ${n} is not letter_keeper_eligible: ${eligible.error ?? 'assert-keeper-eligible failed'}`,
+      );
+    }
+  }
+}
+
 function seedBeforeYouStart(testNumber) {
   if (
     ![
       9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-      67,
+      67, 68, 69, 70, 71, 72, 73, 75,
     ].includes(testNumber)
   ) {
     return;
   }
+  // Local only: drop stale pending notices / never-approved devices for Tests 1–5
+  // so let-in seed is not confused by earlier Simulator runs.
+  clearStaleDevicesForAllTestMembers();
   if ([59, 60, 61, 62, 63, 64, 65, 66, 67].includes(testNumber)) {
     seedLettersReady();
     return;
   }
+  if ([68, 69, 70, 71, 72, 73].includes(testNumber)) {
+    seedLettersKeepersReady();
+    return;
+  }
+  if (testNumber === 75) {
+    seedAdminKeysAndPersonal();
+    return;
+  }
   seedAdminKeys();
+  if (testNumber === 10) {
+    // After keys seed: keep only Test 1’s newest wrap phone (clear again so remint
+    // clutter from seedAdminKeys does not stay on Your phones).
+    clearMemberDevicesAndPendingNotices(1);
+    return;
+  }
   if (
     testNumber === 26 ||
     testNumber === 27 ||
@@ -739,7 +1337,7 @@ function seedBeforeYouStart(testNumber) {
   }
 }
 
-function step(testNumber, stepNumber, label, fn) {
+async function step(testNumber, stepNumber, label, fn) {
   if (remainingMs() <= 0) {
     reports.push({ testNumber, stepNumber, label, status: 'fail', detail: 'timed out' });
     console.log(`  ${stepNumber}. ${label}: FAIL (timed out)`);
@@ -748,7 +1346,9 @@ function step(testNumber, stepNumber, label, fn) {
   let status = 'pass';
   let detail = '';
   try {
-    const out = fn();
+    // Must await: async step callbacks used to return a Promise and mark PASS
+    // before maestro/dbCheck finished (false green on 69/71/72).
+    const out = await Promise.resolve(fn());
     if (out && out.status) {
       status = out.status;
       detail = out.detail ?? '';
@@ -831,6 +1431,7 @@ if (record && deviceA) {
 const FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX =
   '78c5bcc55c54ed015e7452df3b55a395401c17c2088049bcd1a9c678dca33a85';
 let letterReleaseReady = false;
+let letterReleasePid = null;
 
 async function letterReleaseResponds() {
   try {
@@ -846,9 +1447,39 @@ async function letterReleaseResponds() {
   }
 }
 
+function killLetterReleaseServes() {
+  if (letterReleasePid) {
+    try {
+      process.kill(letterReleasePid, 'SIGTERM');
+    } catch {
+      // already gone
+    }
+    letterReleasePid = null;
+  }
+  for (const pattern of [
+    'supabase functions serve letter-release',
+    'functions serve letter-release',
+  ]) {
+    try {
+      execFileSync('pkill', ['-f', pattern], { stdio: 'ignore' });
+    } catch {
+      // none running
+    }
+  }
+  letterReleaseReady = false;
+}
+
 async function ensureLetterReleaseServe() {
   if (letterReleaseReady && (await letterReleaseResponds())) {
     return;
+  }
+  // Bare `npx supabase` re-fetches the CLI and never becomes ready (Kong stays 503
+  // "name resolution failed"). Prefer the resolved binary like status does.
+  const cli = resolveSupabaseCli();
+  if (!cli) {
+    throw new Error(
+      'No supabase CLI binary for letter-release serve. Set SUPABASE_CLI or install the CLI.',
+    );
   }
   const envBody = [
     '# Local e2e only. Fake letter-release private key; hosted refuses this fingerprint.',
@@ -859,23 +1490,24 @@ async function ensureLetterReleaseServe() {
   const supabaseEnvPath = join(APP_ROOT, 'supabase', '.env');
   writeFileSync(functionsEnvPath, envBody, { encoding: 'utf8' });
   writeFileSync(supabaseEnvPath, envBody, { encoding: 'utf8' });
-  progress('Starting letter-release Edge Function serve.');
+  killLetterReleaseServes();
+  progress(`Starting letter-release Edge Function serve (${cli}).`);
   const log = join(ARTIFACTS, 'letter-release.log');
-  const child = spawn(
-    'npx',
-    ['supabase', 'functions', 'serve', 'letter-release', '--env-file', functionsEnvPath],
-    {
-      cwd: APP_ROOT,
-      env: {
-        ...process.env,
-        LETTER_RELEASE_PRIVATE_KEY_HEX: FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX,
-      },
-      stdio: ['ignore', 'ignore', 'ignore'],
-      detached: true,
+  mkdirSync(ARTIFACTS, { recursive: true });
+  const child = spawn(cli, ['functions', 'serve', 'letter-release', '--env-file', functionsEnvPath], {
+    cwd: APP_ROOT,
+    env: {
+      ...process.env,
+      LETTER_RELEASE_PRIVATE_KEY_HEX: FAKE_LETTER_RELEASE_PRIVATE_KEY_HEX,
     },
-  );
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
+  });
+  letterReleasePid = child.pid;
+  appendFileSync(log, `\n--- spawn ${new Date().toISOString()} pid=${child.pid} cli=${cli}\n`);
+  child.stdout?.on('data', (chunk) => appendFileSync(log, chunk));
+  child.stderr?.on('data', (chunk) => appendFileSync(log, chunk));
   child.unref();
-  appendFileSync(log, `spawned letter-release pid=${child.pid}\n`);
   const started = Date.now();
   while (Date.now() - started < 90000) {
     if (await letterReleaseResponds()) {
@@ -885,7 +1517,21 @@ async function ensureLetterReleaseServe() {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error('letter-release Edge Function did not become ready on :54321.');
+  throw new Error(
+    `letter-release Edge Function did not become ready on :54321 (see ${log}).`,
+  );
+}
+
+/** Stop local letter-release so automatic open fails (test 71). No app flag. */
+function stopLetterReleaseServe() {
+  const functionsEnvPath = join(APP_ROOT, 'supabase', 'functions', '.env');
+  writeFileSync(
+    functionsEnvPath,
+    '# Cleared for keeper-path e2e — automatic release must fail locally.\n',
+    { encoding: 'utf8' },
+  );
+  killLetterReleaseServes();
+  progress('Stopped local letter-release for keeper-path test.');
 }
 
 function markDueLettersPastTrigger() {
@@ -898,6 +1544,16 @@ function markDueLettersPastTrigger() {
        AND status = 'sealed';`,
   );
   sqlOnE2eFamily(`SELECT public.mark_due_letters();`);
+  const due = dbCheck([
+    'assert-letter-due',
+    '--family',
+    E2E_FAMILY_NAME,
+  ]);
+  if (!due.ok) {
+    throw new Error(
+      `letter not due after mark_due_letters: ${due.error ?? 'assert-letter-due failed'}`,
+    );
+  }
 }
 
 await ensureMetro();
@@ -947,11 +1603,13 @@ try {
       timeoutMsForTest(test.number) +
       ([9, 10, 11, 13, 30, 34, 59, 60, 61, 62, 63, 64, 65, 66, 67].includes(test.number)
         ? 15 * 60 * 1000
-        : 0);
+        : [68, 69, 70, 71, 72, 73].includes(test.number)
+          ? 35 * 60 * 1000
+          : 0);
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
     } catch (error) {
-      step(test.number, 1, 'Seed starting state', () => {
+      await step(test.number, 1, 'Seed starting state', () => {
         throw error instanceof Error ? error : new Error('e2e-setup failed');
       });
       endTestLine(test, ordinal, started);
@@ -966,7 +1624,7 @@ try {
         });
       }
     } catch (error) {
-      step(test.number, 1, 'Clear app state on each device', () => {
+      await step(test.number, 1, 'Clear app state on each device', () => {
         throw error instanceof Error ? error : new Error('clearState failed');
       });
       if (driverUnreachable && !retriedTests.has(test.number)) {
@@ -999,16 +1657,29 @@ try {
       continue;
     }
 
+    // Must match every number seedBeforeYouStart knows about (including 75).
     if (
       [
         9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-        67,
+        67, 68, 69, 70, 71, 72, 73, 75,
       ].includes(test.number)
     ) {
       try {
         seedBeforeYouStart(test.number);
       } catch (error) {
-        step(test.number, 1, 'Before you start: keys and let-in on devices', () => {
+        if (driverUnreachable && !retriedTests.has(test.number)) {
+          retriedTests.add(test.number);
+          progress(
+            `RETRY Test ${test.number}: Maestro driver unreachable during let-in seed; restarted the driver and retrying this test once.`,
+          );
+          const kept = reports.filter((row) => row.testNumber !== test.number);
+          reports.length = 0;
+          reports.push(...kept);
+          restartAllMaestroDrivers();
+          index -= 1;
+          continue;
+        }
+        await step(test.number, 1, 'Before you start: keys and let-in on devices', () => {
           throw error instanceof Error ? error : new Error('let-in seed failed');
         });
         continue;
@@ -1017,7 +1688,7 @@ try {
     testDeadline = Date.now() + timeoutMsForTest(test.number);
 
     if (!test.manual && !runnerNumbers.has(test.number)) {
-      step(test.number, 1, 'Runner wired in e2e.mjs', () => {
+      await step(test.number, 1, 'Runner wired in e2e.mjs', () => {
         throw new Error(
           `phone test ${test.number} ("${test.title}") has no if (test.number === ${test.number}) runner in scripts/e2e.mjs`,
         );
@@ -1026,34 +1697,34 @@ try {
     }
 
     if (test.number === 1) {
-      step(1, 1, 'Sign in as Test 1, land on Home', () => {
+      await step(1, 1, 'Sign in as Test 1, land on Home', () => {
         maestro({
           flow: flow('01_back_navigation.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(1, 2, 'Invite someone shows back arrow; tap returns Home', () => result('pass'));
-      step(1, 3, 'Back arrow returns Home', () => result('pass'));
-      step(1, 4, 'Swipe from invite returns Home', () => result('pass'));
-      step(1, 5, 'Add a child swipe; Home has no back arrow', () => result('pass'));
+      await step(1, 2, 'Invite someone shows back arrow; tap returns Home', () => result('pass'));
+      await step(1, 3, 'Back arrow returns Home', () => result('pass'));
+      await step(1, 4, 'Swipe from invite returns Home', () => result('pass'));
+      await step(1, 5, 'Add a child swipe; Home has no back arrow', () => result('pass'));
       continue;
     }
 
     if (test.number === 2) {
-      step(2, 1, 'Pull to refresh on Home', () => {
+      await step(2, 1, 'Pull to refresh on Home', () => {
         maestro({
           flow: flow('02_pull_to_refresh.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(2, 2, 'Spinner, reload, no Continue', () => result('pass'));
+      await step(2, 2, 'Spinner, reload, no Continue', () => result('pass'));
       continue;
     }
 
     if (test.number === 3) {
-      step(3, 1, 'Invite Test 2 as Elder', () => {
+      await step(3, 1, 'Invite Test 2 as Elder', () => {
         maestro({
           flow: flow('03_invite_and_accept.yaml'),
           device: deviceA,
@@ -1065,29 +1736,29 @@ try {
         device: deviceA,
         env: { PHASE: 'share_copy' },
       });
-      step(3, 2, 'Share sheet Copy', () =>
+      await step(3, 2, 'Share sheet Copy', () =>
         share.ok ? result('pass') : result('skip', 'share sheet Copy not automatable; marked manual'),
       );
       const url = dbCheck(['invite-url', '--email', TEST_EMAILS[2]]);
-      step(3, 3, 'Sign in as Test 2', () => {
+      await step(3, 3, 'Sign in as Test 2', () => {
         if (!url.ok) {
           throw new Error('no invite URL from local db');
         }
       });
-      step(3, 4, 'Paste invite and Open', () => {
+      await step(3, 4, 'Paste invite and Open', () => {
         maestro({
           flow: flow('03_invite_and_accept.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 2), PHASE: 'accept', INVITE_URL: url.stdout, EXPECT_HOME: '0' },
         });
       });
-      step(3, 5, 'Preview family, role, what others see', () => result('pass'));
-      step(3, 6, 'Accept lands on Home', () => result('pass'));
+      await step(3, 5, 'Preview family, role, what others see', () => result('pass'));
+      await step(3, 6, 'Accept lands on Home', () => result('pass'));
       continue;
     }
 
     if (test.number === 4) {
-      step(4, 1, 'Invite Test 3', () => {
+      await step(4, 1, 'Invite Test 3', () => {
         maestro({
           flow: flow('04_cancelled_invite.yaml'),
           device: deviceA,
@@ -1103,8 +1774,8 @@ try {
         reports[reports.length - 1].detail = `${reports[reports.length - 1].detail} share Copy skipped`;
       }
       const url = dbCheck(['invite-url', '--email', TEST_EMAILS[3]]);
-      step(4, 2, 'Revoke pending invite', () => result('pass'));
-      step(4, 3, 'Test 3 pastes revoked link', () => {
+      await step(4, 2, 'Revoke pending invite', () => result('pass'));
+      await step(4, 3, 'Test 3 pastes revoked link', () => {
         if (!url.ok) {
           throw new Error('no invite URL');
         }
@@ -1114,33 +1785,33 @@ try {
           env: { ...signInEnv(secrets, 3), PHASE: 'open_revoked', INVITE_URL: url.stdout, EXPECT_HOME: '0' },
         });
       });
-      step(4, 4, 'Friendly no longer valid', () => result('pass'));
-      step(4, 5, 'Old invite does not reappear', () => result('pass'));
+      await step(4, 4, 'Friendly no longer valid', () => result('pass'));
+      await step(4, 5, 'Old invite does not reappear', () => result('pass'));
       continue;
     }
 
     if (test.number === 5) {
-      step(5, 1, 'Sign out shows Welcome', () => {
+      await step(5, 1, 'Sign out shows Welcome', () => {
         maestro({
           flow: flow('05_sign_out.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(5, 2, 'Swipe stays on Welcome', () => result('pass'));
+      await step(5, 2, 'Swipe stays on Welcome', () => result('pass'));
       continue;
     }
 
     if (test.number === 6) {
-      step(6, 1, 'Add child Lily as Test 1', () => {
+      await step(6, 1, 'Add child Lily as Test 1', () => {
         maestro({
           flow: flow('06_add_a_child.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'admin' },
         });
       });
-      step(6, 2, 'Lily in list, no email', () => result('pass'));
-      step(6, 3, 'Test 2 has no Add a child and no emails', () => {
+      await step(6, 2, 'Lily in list, no email', () => result('pass'));
+      await step(6, 3, 'Test 2 has no Add a child and no emails', () => {
         maestro({
           flow: flow('06_add_a_child.yaml'),
           device: deviceA,
@@ -1151,7 +1822,7 @@ try {
     }
 
     if (test.number === 7) {
-      step(7, 1, 'Large text screenshots for review', () => {
+      await step(7, 1, 'Large text screenshots for review', () => {
         maestro({
           flow: flow('07_large_text.yaml'),
           device: deviceA,
@@ -1163,15 +1834,15 @@ try {
           'manual: person sets Larger Text in Settings; writing UIPreferredContentSizeCategoryName redboxes RN before Welcome',
         );
       });
-      step(7, 2, 'Open Welcome, Home, Invite, Add a child', () =>
+      await step(7, 2, 'Open Welcome, Home, Invite, Add a child', () =>
         result('skip', 'manual judgement'),
       );
-      step(7, 3, 'Readable, not cut off, scrollable', () => result('skip', 'manual judgement'));
+      await step(7, 3, 'Readable, not cut off, scrollable', () => result('skip', 'manual judgement'));
       continue;
     }
 
     if (test.number === 8) {
-      step(8, 1, 'Create Test Keys Family or use current family', () => {
+      await step(8, 1, 'Create Test Keys Family or use current family', () => {
         const created = tryMaestro({
           flow: flow('08_family_key_created.yaml'),
           device: deviceA,
@@ -1190,8 +1861,8 @@ try {
           return result('skip', 'already in a family; no Create another family control');
         }
       });
-      step(8, 2, 'Home shows keys set up', () => result('pass'));
-      step(8, 3, 'family_key_meta epoch 1', () => {
+      await step(8, 2, 'Home shows keys set up', () => result('pass'));
+      await step(8, 3, 'family_key_meta epoch 1', () => {
         const check = dbCheck(['assert-epoch', '--family', E2E_FAMILY_NAME, '--equals', '1']);
         if (!check.ok) {
           const fallback = dbCheck(['assert-wraps', '--family', E2E_FAMILY_NAME, '--min', '1']);
@@ -1201,16 +1872,16 @@ try {
           return result('skip', 'created family name not found; checked wraps on current data');
         }
       });
-      step(8, 4, 'Exactly one wrap of unreadable bytes', () => {
+      await step(8, 4, 'Exactly one wrap of unreadable bytes', () => {
         const check = dbCheck(['assert-wraps', '--family', E2E_FAMILY_NAME, '--min', '1']);
         if (!check.ok) {
           throw new Error(check.error);
         }
       });
-      step(8, 5, 'Older family gets keys automatically', () =>
+      await step(8, 5, 'Older family gets keys automatically', () =>
         result('skip', 'needs a second family name on this account'),
       );
-      step(8, 6, 'Test 2 waiting if not let in', () => {
+      await step(8, 6, 'Test 2 waiting if not let in', () => {
         // Never sign Test 2 onto device A — step 7 reopens A and must stay Test 1.
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators so Test 2 does not take over device A');
@@ -1224,7 +1895,7 @@ try {
           return result('skip', 'Test 2 may already be let in');
         }
       });
-      step(8, 7, 'Reopen app, keys still set up', () => {
+      await step(8, 7, 'Reopen app, keys still set up', () => {
         maestro({
           flow: flow('08_family_key_created.yaml'),
           device: deviceA,
@@ -1236,7 +1907,7 @@ try {
 
     if (test.number === 9) {
       const otherDevice = args.devices >= 2 ? deviceB : deviceA;
-      step(9, 1, 'Invite Test 2 as Elder if needed', () => {
+      await step(9, 1, 'Invite Test 2 as Elder if needed', () => {
         tryMaestro({
           flow: flow('09_let_in.yaml'),
           device: deviceA,
@@ -1248,15 +1919,15 @@ try {
           },
         });
       });
-      step(9, 2, 'Test 2 waiting for admin', () => {
+      await step(9, 2, 'Test 2 waiting for admin', () => {
         maestro({
           flow: flow('09_let_in.yaml'),
           device: otherDevice,
           env: { ...signInEnv(secrets, 2), PHASE: 'waiting' },
         });
       });
-      step(9, 3, 'Test 1 sees let-in notice', () => result('pass', 'checked in let_in phase'));
-      step(9, 4, 'Let in; wrap row for Test 2', () => {
+      await step(9, 3, 'Test 1 sees let-in notice', () => result('pass', 'checked in let_in phase'));
+      await step(9, 4, 'Let in; wrap row for Test 2', () => {
         maestro({
           flow: flow('09_let_in.yaml'),
           device: deviceA,
@@ -1275,14 +1946,14 @@ try {
           return result('skip', 'wrap check needs Test Keys Family name');
         }
       });
-      step(9, 5, 'Test 2 keys ready', () => {
+      await step(9, 5, 'Test 2 keys ready', () => {
         maestro({
           flow: flow('09_let_in.yaml'),
           device: otherDevice,
           env: { ...signInEnv(secrets, 2), PHASE: 'keys_ready' },
         });
       });
-      step(9, 6, 'Extended relative: no let-in notice', () => {
+      await step(9, 6, 'Extended relative: no let-in notice', () => {
         tryMaestro({
           flow: flow('09_let_in.yaml'),
           device: deviceA,
@@ -1307,7 +1978,7 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'no_notice' },
         });
       });
-      step(9, 7, 'Decline Elder invite on other family', () =>
+      await step(9, 7, 'Decline Elder invite on other family', () =>
         result('skip', 'needs a second test family on Test 1'),
       );
       continue;
@@ -1318,34 +1989,34 @@ try {
         skipRest(10, 1, 'needs 2 simulators (E2E_DEVICES=2)', 6);
         continue;
       }
-      step(10, 1, 'Test 1 on device B waiting', () => {
+      await step(10, 1, 'Test 1 on device B waiting', () => {
         maestro({
           flow: flow('10_approve_own_phone.yaml'),
           device: deviceB,
           env: { ...signInEnv(secrets, 1), PHASE: 'waiting_own' },
         });
       });
-      step(10, 2, 'Device A shows Is this your new phone', () => {
+      await step(10, 2, 'Device A shows Is this your new phone', () => {
         maestro({
           flow: flow('10_approve_own_phone.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'own_notice' },
         });
       });
-      step(10, 3, 'Test 2 Co admin info notice, no let-in', () =>
+      await step(10, 3, 'Test 2 Co admin info notice, no let-in', () =>
         result('skip', 'Co admin role change not done in this flow yet'),
       );
-      step(10, 4, 'Yes this is my phone', () => {
+      await step(10, 4, 'Yes this is my phone', () => {
         maestro({
           flow: flow('10_approve_own_phone.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'approve' },
         });
       });
-      step(10, 5, 'This wasn’t me on a later extra phone', () =>
+      await step(10, 5, 'This wasn’t me on a later extra phone', () =>
         result('skip', 'needs a third fresh device or cleared app data'),
       );
-      step(10, 6, 'Remove device B from Your phones', () => {
+      await step(10, 6, 'Remove device B from Your phones', () => {
         maestro({
           flow: flow('10_approve_own_phone.yaml'),
           device: deviceA,
@@ -1356,14 +2027,14 @@ try {
     }
 
     if (test.number === 11) {
-      step(11, 1, 'Set up recovery card on Home', () => {
+      await step(11, 1, 'Set up recovery card on Home', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'open_card' },
         });
       });
-      step(11, 2, 'Choose Test 2 as first contact', () => {
+      await step(11, 2, 'Choose Test 2 as first contact', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
@@ -1375,14 +2046,14 @@ try {
           },
         });
       });
-      step(11, 3, 'Test 2 accepts recovery invite', () => {
+      await step(11, 3, 'Test 2 accepts recovery invite', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: args.devices >= 2 ? deviceB : deviceA,
           env: { ...signInEnv(secrets, 2), PHASE: 'accept_contact' },
         });
       });
-      step(11, 4, 'Second contact Test 3', () => {
+      await step(11, 4, 'Second contact Test 3', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
@@ -1399,7 +2070,7 @@ try {
           env: { ...signInEnv(secrets, 3), PHASE: 'accept_contact' },
         });
       });
-      step(11, 5, 'Printed code on screen, words kept in clipboard', () => {
+      await step(11, 5, 'Printed code on screen, words kept in clipboard', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
@@ -1407,13 +2078,13 @@ try {
         });
         wipeSensitiveArtifacts(11);
       });
-      step(11, 6, 'Database: public keys only, no printed words', () => {
+      await step(11, 6, 'Database: public keys only, no printed words', () => {
         const cols = dbCheck(['assert-no-print-columns']);
         if (!cols.ok) {
           throw new Error(cols.error);
         }
       });
-      step(11, 7, 'Remove Test 3 as contact; needs attention', () => {
+      await step(11, 7, 'Remove Test 3 as contact; needs attention', () => {
         const removed = tryMaestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
@@ -1423,7 +2094,7 @@ try {
           return result('skip', 'second contact may not be present');
         }
       });
-      step(11, 8, 'Elder Test 2 sets up recovery choosing Test 1', () => {
+      await step(11, 8, 'Elder Test 2 sets up recovery choosing Test 1', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators so Test 2 can set up recovery');
         }
@@ -1462,45 +2133,45 @@ try {
         );
         continue;
       }
-      step(12, 1, 'New phone starts recovery', () =>
+      await step(12, 1, 'New phone starts recovery', () =>
         result(
           'skip',
           'manual, pending automation: Start recovery succeeds but Maestro does not see Waiting until',
         ),
       );
-      step(12, 2, 'Old phone shows This wasn’t me while new waits', () =>
+      await step(12, 2, 'Old phone shows This wasn’t me while new waits', () =>
         result('skip', 'manual, pending automation: depends on step 1 completing'),
       );
-      step(12, 3, 'Cancel from old phone', () =>
+      await step(12, 3, 'Cancel from old phone', () =>
         result('skip', 'manual, pending automation: restarting recovery after cancel hits the same start assertion'),
       );
-      step(12, 4, 'Admin stop recovery', () =>
+      await step(12, 4, 'Admin stop recovery', () =>
         result('skip', 'manual, pending automation: Stop this recovery is not stable after a cancelled request'),
       );
-      step(12, 5, 'Approve locked until wait ends', () =>
+      await step(12, 5, 'Approve locked until wait ends', () =>
         result('skip', 'Help with recovery is hidden until not_before; no separate locked Approve copy'),
       );
-      step(12, 6, 'After wait, contact help', () =>
+      await step(12, 6, 'After wait, contact help', () =>
         result('skip', 'manual, pending automation: Help with recovery depends on an open request from step 1'),
       );
-      step(12, 7, 'Type printed code from clipboard', () =>
+      await step(12, 7, 'Type printed code from clipboard', () =>
         result('skip', 'manual, pending automation: printed-code field only appears after recovery can finish'),
       );
-      step(12, 8, 'Remove old phones', () =>
+      await step(12, 8, 'Remove old phones', () =>
         result(
           'skip',
           'manual, pending automation: Maestro relaunches onto Home, so Remove your old phones is gone',
         ),
       );
-      step(12, 9, 'One helper is not enough', () =>
+      await step(12, 9, 'One helper is not enough', () =>
         result('skip', 'optional isolation of helpers not automated in this pass'),
       );
-      step(12, 10, 'Recover with two contacts, no code', () => result('skip', 'manual'));
+      await step(12, 10, 'Recover with two contacts, no code', () => result('skip', 'manual'));
       continue;
     }
 
     if (test.number === 13) {
-      step(13, 1, 'Remove Test 3; key updates', () => {
+      await step(13, 1, 'Remove Test 3; key updates', () => {
         const removed = tryMaestro({
           flow: flow('13_key_rotation.yaml'),
           device: deviceA,
@@ -1517,7 +2188,7 @@ try {
           );
         }
       });
-      step(13, 2, 'Epoch up; no wraps for Test 3', () => {
+      await step(13, 2, 'Epoch up; no wraps for Test 3', () => {
         const gone = dbCheck([
           'assert-no-wraps',
           '--family',
@@ -1529,14 +2200,14 @@ try {
           throw new Error(gone.error);
         }
       });
-      step(13, 3, 'Test 2 still has keys', () => {
+      await step(13, 3, 'Test 2 still has keys', () => {
         maestro({
           flow: flow('13_key_rotation.yaml'),
           device: args.devices >= 2 ? deviceB : deviceA,
           env: { ...signInEnv(secrets, 2), PHASE: 'keys_ready' },
         });
       });
-      step(13, 4, 'Test 3 no longer sees the family', () => {
+      await step(13, 4, 'Test 3 no longer sees the family', () => {
         maestro({
           flow: flow('13_key_rotation.yaml'),
           device: args.devices >= 2 ? deviceB : deviceA,
@@ -1548,25 +2219,25 @@ try {
           },
         });
       });
-      step(13, 5, 'Recovery needs attention if Test 3 was a contact', () =>
+      await step(13, 5, 'Recovery needs attention if Test 3 was a contact', () =>
         result(
           'skip',
           'manual, pending automation: seeding Test 1 recovery contacts before Remove exceeds the time budget',
         ),
       );
-      step(13, 6, 'under_recovery rows for remaining members', () =>
+      await step(13, 6, 'under_recovery rows for remaining members', () =>
         result(
           'skip',
           'manual, pending automation: depends on recovery being seeded before Remove',
         ),
       );
-      step(13, 7, 'Leave family as Test 3', () =>
+      await step(13, 7, 'Leave family as Test 3', () =>
         result(
           'skip',
           'manual, pending automation: inviting Test 3 back onto their member row is not stable in Maestro',
         ),
       );
-      step(13, 8, 'Change Test 2 to Extended relative', () => {
+      await step(13, 8, 'Change Test 2 to Extended relative', () => {
         maestro({
           flow: flow('13_key_rotation.yaml'),
           device: deviceA,
@@ -1578,32 +2249,32 @@ try {
           },
         });
       });
-      step(13, 9, 'Add and remove a Caregiver, epoch unchanged', () =>
+      await step(13, 9, 'Add and remove a Caregiver, epoch unchanged', () =>
         result('skip', 'caregiver invite not in this pass'),
       );
-      step(13, 10, 'Two admins remove at once', () => result('skip', 'manual'));
+      await step(13, 10, 'Two admins remove at once', () => result('skip', 'manual'));
     }
 
     if (test.number === 14) {
       if (args.devices < 2 || !deviceB) {
         skipRest(14, 1, 'needs 2 simulators (E2E_DEVICES=2)', 5);
       } else {
-        step(14, 1, 'Add two photos as Test 1', () =>
+        await step(14, 1, 'Add two photos as Test 1', () =>
           result(
             'skip',
             'manual: Maestro cannot drive the system photo picker; automated runs use bundled samples only when EXPO_PUBLIC_E2E=1',
           ),
         );
-        step(14, 2, 'Household is selected by default', () => {
+        await step(14, 2, 'Household is selected by default', () => {
           maestro({
             flow: flow('14_add_photos.yaml'),
             device: deviceA,
             env: { ...signInEnv(secrets, 1), PHASE: 'share' },
           });
         });
-        step(14, 3, 'Share shows progress and library items', () => result('pass'));
-        step(14, 4, 'Full screen shows caption, badge, date, no location', () => result('pass'));
-        step(14, 5, 'Test 2 pull to refresh sees both', () => {
+        await step(14, 3, 'Share shows progress and library items', () => result('pass'));
+        await step(14, 4, 'Full screen shows caption, badge, date, no location', () => result('pass'));
+        await step(14, 5, 'Test 2 pull to refresh sees both', () => {
           maestro({
             flow: flow('14_add_photos.yaml'),
             device: deviceB,
@@ -1617,7 +2288,7 @@ try {
       if (args.devices < 3 || !deviceC) {
         skipRest(15, 1, 'needs 3 simulators (E2E_DEVICES=3)', 5);
       } else {
-        step(15, 1, 'Add Photo A to Household and Photo B to Extended Family', () => {
+        await step(15, 1, 'Add Photo A to Household and Photo B to Extended Family', () => {
           maestro({
             flow: flow('15_circle_visibility.yaml'),
             device: deviceA,
@@ -1629,26 +2300,26 @@ try {
             env: { ...signInEnv(secrets, 1), PHASE: 'add_b' },
           });
         });
-        step(15, 2, 'Test 2 sees Household photos', () => {
+        await step(15, 2, 'Test 2 sees Household photos', () => {
           maestro({
             flow: flow('15_circle_visibility.yaml'),
             device: deviceB,
             env: { ...signInEnv(secrets, 2), PHASE: 'test2' },
           });
         });
-        step(15, 3, 'Test 3 sees Photo B only', () =>
+        await step(15, 3, 'Test 3 sees Photo B only', () =>
           result(
             'skip',
             'manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in',
           ),
         );
-        step(15, 4, 'Only Me is hidden from others', () =>
+        await step(15, 4, 'Only Me is hidden from others', () =>
           result(
             'skip',
             'manual, pending automation: checking Test 3 for Photo C hits the same third-Simulator sign-in',
           ),
         );
-        step(15, 5, 'Test 3 cannot fetch Photo A or mint a viewing link', () => {
+        await step(15, 5, 'Test 3 cannot fetch Photo A or mint a viewing link', () => {
           assertMemoryRecordHidden(3, 'Photo A');
           const pathCheck = dbCheck(['memory-path', '--caption', 'Photo A']);
           if (!pathCheck.ok || !pathCheck.stdout) {
@@ -1663,13 +2334,13 @@ try {
       if (args.devices < 3 || !deviceC) {
         skipRest(16, 1, 'needs 3 simulators (E2E_DEVICES=3)', 4);
       } else {
-        step(16, 1, 'Move Photo B to Household; Test 3 no longer sees it', () =>
+        await step(16, 1, 'Move Photo B to Household; Test 3 no longer sees it', () =>
           result(
             'skip',
             'manual, pending automation: Move is tapped but Maestro does not see Household on the item, so Test 3 refresh is not a fair check',
           ),
         );
-        step(16, 2, 'Moving to a larger circle asks to confirm', () => {
+        await step(16, 2, 'Moving to a larger circle asks to confirm', () => {
           maestro({
             flow: flow('16_move_delete.yaml'),
             device: deviceA,
@@ -1681,13 +2352,13 @@ try {
             env: { ...signInEnv(secrets, 1), PHASE: 'widen' },
           });
         });
-        step(16, 3, 'Delete removes the photo and its files', () =>
+        await step(16, 3, 'Delete removes the photo and its files', () =>
           result(
             'skip',
             'manual, pending automation: Delete confirm is tapped but Maestro does not land back on the library',
           ),
         );
-        step(16, 4, 'Test 2 has no Delete or Move', () =>
+        await step(16, 4, 'Test 2 has no Delete or Move', () =>
           result(
             'skip',
             'manual, pending automation: Test 2 never got a Photo B row to open after the move/delete steps',
@@ -1701,7 +2372,7 @@ try {
         skipRest(17, 1, 'needs 3 simulators (E2E_DEVICES=3)', 3);
       } else {
         let objectPath = '';
-        step(17, 1, 'Remove Test 3 from the family', () => {
+        await step(17, 1, 'Remove Test 3 from the family', () => {
           maestro({
             flow: flow('17_access_ends.yaml'),
             device: deviceA,
@@ -1715,13 +2386,13 @@ try {
             env: { ...signInEnv(secrets, 1), PHASE: 'remove_member' },
           });
         });
-        step(17, 2, 'Test 3 no longer sees family photos', () =>
+        await step(17, 2, 'Test 3 no longer sees family photos', () =>
           result(
             'skip',
             'manual, pending automation: Test 3 on the third Simulator leaves Welcome but Maestro does not see Sign in',
           ),
         );
-        step(17, 3, 'Test 3 cannot mint a new viewing link', () => {
+        await step(17, 3, 'Test 3 cannot mint a new viewing link', () => {
           if (!objectPath) {
             throw new Error('missing Photo B path');
           }
@@ -1731,13 +2402,13 @@ try {
     }
 
     if (test.number === 18) {
-      step(18, 1, 'Pick two photos and a short video as Test 1', () =>
+      await step(18, 1, 'Pick two photos and a short video as Test 1', () =>
         result(
           'skip',
           'manual: Maestro cannot drive the system photo picker; automated runs use bundled samples only when EXPO_PUBLIC_E2E=1',
         ),
       );
-      step(18, 2, 'Count, Household, then Share', () => {
+      await step(18, 2, 'Count, Household, then Share', () => {
         maestro({
           flow: flow('18_pick_many.yaml'),
           device: deviceA,
@@ -1745,11 +2416,11 @@ try {
         });
         captureScreen(deviceA, '18-video-player');
       });
-      step(18, 3, 'Video plays full screen with pause and no location', () => result('pass'));
-      step(18, 4, 'Refuse an over-limit video', () =>
+      await step(18, 3, 'Video plays full screen with pause and no location', () => result('pass'));
+      await step(18, 4, 'Refuse an over-limit video', () =>
         result('skip', 'manual: needs a long or large video on the phone'),
       );
-      step(18, 5, 'Refuse a video that still has location', () =>
+      await step(18, 5, 'Refuse a video that still has location', () =>
         result('skip', 'manual: keep a real GPS video check on a phone before treating video as done'),
       );
     }
@@ -1758,18 +2429,18 @@ try {
       if (args.devices < 2 || !deviceB) {
         skipRest(19, 1, 'needs 2 simulators (E2E_DEVICES=2)', 5);
       } else {
-        step(19, 1, 'Explainer before permission', () => {
+        await step(19, 1, 'Explainer before permission', () => {
           maestro({
             flow: flow('19_connect_library.yaml'),
             device: deviceA,
             env: { ...signInEnv(secrets, 1), PHASE: 'connect' },
           });
         });
-        step(19, 2, 'Household, From today, turn sharing on', () => result('pass'));
-        step(19, 3, 'New camera photo appears automatically', () =>
+        await step(19, 2, 'Household, From today, turn sharing on', () => result('pass'));
+        await step(19, 3, 'New camera photo appears automatically', () =>
           result('skip', 'manual: needs a new photo from the phone camera'),
         );
-        step(19, 4, 'New Simulator photo is shared automatically', () => {
+        await step(19, 4, 'New Simulator photo is shared automatically', () => {
           execFileSync(
             'xcrun',
             ['simctl', 'addmedia', deviceA, samplePhotoDatedNow()],
@@ -1786,217 +2457,217 @@ try {
             env: { ...signInEnv(secrets, 2), PHASE: 'see_auto' },
           });
         });
-        step(19, 5, 'Limited access copy', () =>
+        await step(19, 5, 'Limited access copy', () =>
           result('skip', 'manual: Limited Photo Library on a real iPhone'),
         );
       }
     }
 
     if (test.number === 20) {
-      step(20, 1, 'Selected albums is offered with full access', () => {
+      await step(20, 1, 'Selected albums is offered with full access', () => {
         maestro({
           flow: flow('20_selected_albums.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(20, 2, 'Photo outside the album is not shared', () =>
+      await step(20, 2, 'Photo outside the album is not shared', () =>
         result('skip', 'manual: Simulator albums are not a reliable stand-in for a phone library'),
       );
     }
 
     if (test.number === 21) {
-      step(21, 1, 'Pause sharing', () => {
+      await step(21, 1, 'Pause sharing', () => {
         maestro({
           flow: flow('21_sync_status.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(21, 2, 'Resume sharing', () => result('pass'));
-      step(21, 3, 'Waiting for WiFi', () =>
+      await step(21, 2, 'Resume sharing', () => result('pass'));
+      await step(21, 3, 'Waiting for WiFi', () =>
         result('skip', 'manual: needs WiFi off on the phone'),
       );
     }
 
     if (test.number === 22) {
-      step(22, 1, 'Disconnect explains shared photos stay', () => {
+      await step(22, 1, 'Disconnect explains shared photos stay', () => {
         maestro({
           flow: flow('22_disconnect.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(22, 2, 'Connect is offered again', () => result('pass'));
+      await step(22, 2, 'Connect is offered again', () => result('pass'));
     }
 
     if (test.number === 23) {
-      step(23, 1, 'Share a photo automatically', () =>
+      await step(23, 1, 'Share a photo automatically', () =>
         result('skip', 'manual: needs library sync of a real photo'),
       );
-      step(23, 2, 'Open and offer delete', () =>
+      await step(23, 2, 'Open and offer delete', () =>
         result('skip', 'manual: depends on an automatically shared photo'),
       );
-      step(23, 3, 'Delete it', () =>
+      await step(23, 3, 'Delete it', () =>
         result('skip', 'manual: depends on an automatically shared photo'),
       );
-      step(23, 4, 'Deleted photo is not shared again after reopen', () =>
+      await step(23, 4, 'Deleted photo is not shared again after reopen', () =>
         result('skip', 'manual: delete a photo that was shared automatically, then reopen Patria'),
       );
     }
 
     if (test.number === 24) {
-      step(24, 1, 'Home, Memories, Vault and Family tabs', () => {
+      await step(24, 1, 'Home, Memories, Vault and Family tabs', () => {
         maestro({
           flow: flow('24_tabs.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(24, 2, 'Memories library opens', () => result('pass'));
-      step(24, 3, 'Vault empty and lock note', () => result('pass'));
-      step(24, 4, 'Family Invite someone and Sign out', () => result('pass'));
-      step(24, 5, 'Quiet Home tab has no notice dot', () => result('pass'));
-      step(24, 6, 'Home notice label when something is waiting', () =>
+      await step(24, 2, 'Memories library opens', () => result('pass'));
+      await step(24, 3, 'Vault empty and lock note', () => result('pass'));
+      await step(24, 4, 'Family Invite someone and Sign out', () => result('pass'));
+      await step(24, 5, 'Quiet Home tab has no notice dot', () => result('pass'));
+      await step(24, 6, 'Home notice label when something is waiting', () =>
         result('skip', 'Jest covers the let-in case; this run asserts the quiet case'),
       );
     }
 
     if (test.number === 25) {
-      step(25, 1, 'Open Appearance from Family', () => {
+      await step(25, 1, 'Open Appearance from Family', () => {
         maestro({
           flow: flow('25_appearance.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(25, 2, 'Match my phone, Light or Dark', () => result('pass'));
-      step(25, 3, 'Dark applies to Family, tabs and header', () => result('pass'));
-      step(25, 4, 'Light returns to linen', () => result('pass'));
+      await step(25, 2, 'Match my phone, Light or Dark', () => result('pass'));
+      await step(25, 3, 'Dark applies to Family, tabs and header', () => result('pass'));
+      await step(25, 4, 'Light returns to linen', () => result('pass'));
     }
 
     if (test.number === 26) {
-      step(26, 1, 'Empty vault and lock note', () => {
+      await step(26, 1, 'Empty vault and lock note', () => {
         maestro({
           flow: flow('26_write_decision.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(26, 2, 'Save a decision to the list', () => result('pass'));
-      step(26, 3, 'Open it and read the body', () => result('pass'));
+      await step(26, 2, 'Save a decision to the list', () => result('pass'));
+      await step(26, 3, 'Open it and read the body', () => result('pass'));
     }
 
     if (test.number === 27) {
-      step(27, 1, 'Teen has no New decision', () => {
+      await step(27, 1, 'Teen has no New decision', () => {
         maestro({
           flow: flow('27_teen_read_only.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 3),
         });
       });
-      step(27, 2, 'Vault still opens', () => result('pass'));
+      await step(27, 2, 'Vault still opens', () => result('pass'));
     }
 
     if (test.number === 28) {
-      step(28, 1, 'Write a decision and open follow-up', () => {
+      await step(28, 1, 'Write a decision and open follow-up', () => {
         maestro({
           flow: flow('28_follow_up.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(28, 2, 'Follow-up is on the original', () => result('pass'));
+      await step(28, 2, 'Follow-up is on the original', () => result('pass'));
     }
 
     if (test.number === 29) {
-      step(29, 1, 'Recovery first, no New decision', () => {
+      await step(29, 1, 'Recovery first, no New decision', () => {
         maestro({
           flow: flow('29_recovery_first.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(29, 2, 'Empty vault is still readable', () => result('pass'));
+      await step(29, 2, 'Empty vault is still readable', () => result('pass'));
     }
 
     if (test.number === 30) {
-      step(30, 1, 'Write a decision', () => {
+      await step(30, 1, 'Write a decision', () => {
         maestro({
           flow: flow('30_read_after_rotation.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'write' },
         });
       });
-      step(30, 2, 'Remove Test 3; family key updates', () => {
+      await step(30, 2, 'Remove Test 3; family key updates', () => {
         maestro({
           flow: flow('30_read_after_rotation.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'remove_and_read' },
         });
       });
-      step(30, 3, 'Decision still opens after rotation', () => result('pass'));
+      await step(30, 3, 'Decision still opens after rotation', () => result('pass'));
     }
 
     if (test.number === 31) {
-      step(31, 1, 'Record and play before saving', () => {
+      await step(31, 1, 'Record and play before saving', () => {
         maestro({
           flow: flow('31_voice_note.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(31, 2, 'Saved voice note shows length and plays', () => result('pass'));
-      step(31, 3, 'Test 2 can play the family voice note', () =>
+      await step(31, 2, 'Saved voice note shows length and plays', () => result('pass'));
+      await step(31, 3, 'Test 2 can play the family voice note', () =>
         result('skip', 'manual: second account on another phone'),
       );
-      step(31, 4, 'Recording stops at five minutes', () =>
+      await step(31, 4, 'Recording stops at five minutes', () =>
         result('skip', 'manual: hold Record until the five-minute stop'),
       );
-      step(31, 5, 'Stored audio is unreadable bytes', () =>
+      await step(31, 5, 'Stored audio is unreadable bytes', () =>
         result('skip', 'manual: inspect the vault object on the server'),
       );
     }
 
     if (test.number === 32) {
-      step(32, 1, 'Write an Only me decision', () => {
+      await step(32, 1, 'Write an Only me decision', () => {
         maestro({
           flow: flow('32_only_me.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(32, 2, 'Only me badge is on the list and entry', () => result('pass'));
-      step(32, 3, 'Test 2 sees no sign of it', () =>
+      await step(32, 2, 'Only me badge is on the list and entry', () => result('pass'));
+      await step(32, 3, 'Test 2 sees no sign of it', () =>
         result('skip', 'manual: second account on another phone'),
       );
-      step(32, 4, 'Server returns nothing to Test 2', () =>
+      await step(32, 4, 'Server returns nothing to Test 2', () =>
         result('skip', 'manual: inspect the hosted query as Test 2'),
       );
     }
 
     if (test.number === 33) {
-      step(33, 1, 'Switch Only me to Family and confirm', () => {
+      await step(33, 1, 'Switch Only me to Family and confirm', () => {
         maestro({
           flow: flow('33_visibility.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(33, 2, 'Test 2 can read after the switch', () =>
+      await step(33, 2, 'Test 2 can read after the switch', () =>
         result('skip', 'manual: second account on another phone'),
       );
-      step(33, 3, 'Switch back to Only me warns they may remember it', () => result('pass'));
-      step(33, 4, 'Test 2 cannot see it after the switch back', () =>
+      await step(33, 3, 'Switch back to Only me warns they may remember it', () => result('pass'));
+      await step(33, 4, 'Test 2 cannot see it after the switch back', () =>
         result('skip', 'manual: second account on another phone'),
       );
     }
 
     if (test.number === 34) {
-      step(34, 1, 'Approve your own new phone opens Only me', () =>
+      await step(34, 1, 'Approve your own new phone opens Only me', () =>
         result('skip', 'manual: needs a second phone for Test 1'),
       );
-      step(34, 2, 'After a family key change, Only me and family voice still open', () => {
+      await step(34, 2, 'After a family key change, Only me and family voice still open', () => {
         maestro({
           flow: flow('34_only_me_phone.yaml'),
           device: deviceA,
@@ -2008,38 +2679,38 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'remove_and_read' },
         });
       });
-      step(34, 3, 'After recovery on a new phone, Only me opens', () =>
+      await step(34, 3, 'After recovery on a new phone, Only me opens', () =>
         result('skip', 'manual: recover on a new phone'),
       );
     }
 
     if (test.number === 35) {
-      step(35, 1, 'Leave family warning mentions Only me entries', () => {
+      await step(35, 1, 'Leave family warning mentions Only me entries', () => {
         maestro({
           flow: flow('35_leave_only_me.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(35, 2, 'After Test 2 leaves, their family entry stays as a former member', () =>
+      await step(35, 2, 'After Test 2 leaves, their family entry stays as a former member', () =>
         result('skip', 'manual: Test 2 leaves, Test 1 opens the family entry'),
       );
-      step(35, 3, 'Test 2 private rows and personal keys are gone', () =>
+      await step(35, 3, 'Test 2 private rows and personal keys are gone', () =>
         result('skip', 'manual: inspect the database after Test 2 leaves'),
       );
     }
 
     if (test.number === 36) {
-      step(36, 1, 'Sync tab shows Set up our Sync', () => {
+      await step(36, 1, 'Sync tab shows Set up our Sync', () => {
         maestro({
           flow: flow('36_set_up_sync.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'set_up' },
         });
       });
-      step(36, 2, 'Schedule fields: day, time, zone, circle', () => result('pass'));
-      step(36, 3, 'Save schedule returns to Sync hub', () => result('pass'));
-      step(36, 4, 'Non-admin sees schedule without Schedule button', () => {
+      await step(36, 2, 'Schedule fields: day, time, zone, circle', () => result('pass'));
+      await step(36, 3, 'Save schedule returns to Sync hub', () => result('pass'));
+      await step(36, 4, 'Non-admin sees schedule without Schedule button', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2049,28 +2720,28 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'member_sees_schedule' },
         });
       });
-      step(36, 5, 'Non-admin with no schedule sees ask-admin copy', () =>
+      await step(36, 5, 'Non-admin with no schedule sees ask-admin copy', () =>
         result('skip', 'manual: separate family with no schedule yet'),
       );
     }
 
     if (test.number === 37) {
-      step(37, 1, 'Add to the agenda kinds and placement line', () => {
+      await step(37, 1, 'Add to the agenda kinds and placement line', () => {
         maestro({
           flow: flow('37_add_agenda.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'add' },
         });
       });
-      step(37, 2, 'Discuss item appears on the agenda', () => result('pass'));
-      step(37, 3, 'Edit agenda title and save', () => {
+      await step(37, 2, 'Discuss item appears on the agenda', () => result('pass'));
+      await step(37, 3, 'Edit agenda title and save', () => {
         maestro({
           flow: flow('37_add_agenda.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'edit', E2E_STAY: '1' },
         });
       });
-      step(37, 4, 'Test 2 Win shows for Test 1 after refresh', () => {
+      await step(37, 4, 'Test 2 Win shows for Test 1 after refresh', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2088,7 +2759,7 @@ try {
     }
 
     if (test.number === 38) {
-      step(38, 1, 'Not yet leaves the meeting upcoming', () => {
+      await step(38, 1, 'Not yet leaves the meeting upcoming', () => {
         const spaceId = e2eFamilySpaceId();
         // Force a day-before start so Start early + Not yet is deterministic.
         sqlOnE2eFamily(
@@ -2107,19 +2778,19 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'not_yet' },
         });
       });
-      step(38, 2, 'Start early confirms and opens Wins', () => {
+      await step(38, 2, 'Start early confirms and opens Wins', () => {
         maestro({
           flow: flow('38_run_sync.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'run', E2E_STAY: '1' },
         });
       });
-      step(38, 3, 'Look ahead after Wins', () => result('pass'));
-      step(38, 4, 'Decide then Gratitude', () => result('pass'));
-      step(38, 5, 'Priority and a task', () => result('pass'));
-      step(38, 6, 'Finish returns to Sync', () => result('pass'));
-      step(38, 7, 'Tasks list shows the new task', () => result('pass'));
-      step(38, 8, 'Missed meeting offers Hold it now without guilt', () => {
+      await step(38, 3, 'Look ahead after Wins', () => result('pass'));
+      await step(38, 4, 'Decide then Gratitude', () => result('pass'));
+      await step(38, 5, 'Priority and a task', () => result('pass'));
+      await step(38, 6, 'Finish returns to Sync', () => result('pass'));
+      await step(38, 7, 'Tasks list shows the new task', () => result('pass'));
+      await step(38, 8, 'Missed meeting offers Hold it now without guilt', () => {
         const spaceId = e2eFamilySpaceId();
         sqlOnE2eFamily(
           `UPDATE public.sync_meetings
@@ -2136,14 +2807,14 @@ try {
     }
 
     if (test.number === 39) {
-      step(39, 1, 'Test 1 starts the Sync', () => {
+      await step(39, 1, 'Test 1 starts the Sync', () => {
         maestro({
           flow: flow('39_follow_along.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'start' },
         });
       });
-      step(39, 2, 'Test 2 sees Follow along, no Continue', () => {
+      await step(39, 2, 'Test 2 sees Follow along, no Continue', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2153,8 +2824,8 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'follow' },
         });
       });
-      step(39, 3, 'Follow along is read only', () => result('pass'));
-      step(39, 4, 'Notes appear on the second phone after refresh', () => {
+      await step(39, 3, 'Follow along is read only', () => result('pass'));
+      await step(39, 4, 'Notes appear on the second phone after refresh', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2172,49 +2843,49 @@ try {
     }
 
     if (test.number === 40) {
-      step(40, 1, 'Past meetings lists the finished Sync', () => {
+      await step(40, 1, 'Past meetings lists the finished Sync', () => {
         maestro({
           flow: flow('40_past_meetings.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(40, 2, 'Decision under that meeting', () => result('pass'));
-      step(40, 3, 'Empty past list copy', () =>
+      await step(40, 2, 'Decision under that meeting', () => result('pass'));
+      await step(40, 3, 'Empty past list copy', () =>
         result('skip', 'manual: family with no finished Sync'),
       );
     }
 
     if (test.number === 41) {
-      step(41, 1, 'Bottom bar includes Sync between Memories and Vault', () => {
+      await step(41, 1, 'Bottom bar includes Sync between Memories and Vault', () => {
         maestro({
           flow: flow('41_sync_tab.yaml'),
           device: deviceA,
           env: signInEnv(secrets, 1),
         });
       });
-      step(41, 2, 'Sync tab opens Family Sync', () => result('pass'));
-      step(41, 3, 'Sync is a root tab with no back arrow', () => result('pass'));
-      step(41, 4, 'Largest text scrolls on Sync', () =>
+      await step(41, 2, 'Sync tab opens Family Sync', () => result('pass'));
+      await step(41, 3, 'Sync is a root tab with no back arrow', () => result('pass'));
+      await step(41, 4, 'Largest text scrolls on Sync', () =>
         result('skip', 'manual judgement'),
       );
     }
 
     if (test.number === 42) {
-      step(42, 1, 'Home greeting, family name and avatars', () => {
+      await step(42, 1, 'Home greeting, family name and avatars', () => {
         maestro({
           flow: flow('42_home_today.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'main' },
         });
       });
-      step(42, 2, 'Sync card overline, title and actions', () => result('pass'));
-      step(42, 3, 'Review agenda and Add an item', () => result('pass'));
-      step(42, 4, 'No Recent memories or Home vault or keys pills', () => result('pass'));
-      step(42, 5, 'This week tasks', () => result('pass'));
-      step(42, 6, 'See all opens Sync tasks', () => result('pass'));
-      step(42, 7, 'Avatars open Family with keys status', () => result('pass'));
-      step(42, 8, 'No schedule card for admin vs member', () => {
+      await step(42, 2, 'Sync card overline, title and actions', () => result('pass'));
+      await step(42, 3, 'Review agenda and Add an item', () => result('pass'));
+      await step(42, 4, 'No Recent memories or Home vault or keys pills', () => result('pass'));
+      await step(42, 5, 'This week tasks', () => result('pass'));
+      await step(42, 6, 'See all opens Sync tasks', () => result('pass'));
+      await step(42, 7, 'Avatars open Family with keys status', () => result('pass'));
+      await step(42, 8, 'No schedule card for admin vs member', () => {
         const spaceId = e2eFamilySpaceId();
         sqlOnE2eFamily(
           `DELETE FROM public.sync_meetings WHERE family_space_id = '${spaceId}';
@@ -2234,7 +2905,7 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'no_schedule_member' },
         });
       });
-      step(42, 9, 'On this day card', () => {
+      await step(42, 9, 'On this day card', () => {
         const spaceId = e2eFamilySpaceId();
         sqlOnE2eFamily(
           `INSERT INTO public.memory_items (
@@ -2264,13 +2935,13 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'on_this_day', E2E_STAY: '1' },
         });
       });
-      step(42, 10, 'Largest text scrolls on Home', () =>
+      await step(42, 10, 'Largest text scrolls on Home', () =>
         result('skip', 'manual judgement'),
       );
     }
 
     if (test.number === 43) {
-      step(43, 1, 'Five empty Home body cards with CTAs', () => {
+      await step(43, 1, 'Five empty Home body cards with CTAs', () => {
         const spaceId = e2eFamilySpaceId();
         sqlOnE2eFamily(
           `DELETE FROM public.sync_tasks WHERE family_space_id = '${spaceId}';
@@ -2285,34 +2956,34 @@ try {
           env: signInEnv(secrets, 1),
         });
       });
-      step(43, 2, 'Empty cards have overline, headline and no dead buttons', () =>
+      await step(43, 2, 'Empty cards have overline, headline and no dead buttons', () =>
         result('pass'),
       );
     }
 
     if (test.number === 44) {
-      step(44, 1, 'Menu drawer opens from Home', () => {
+      await step(44, 1, 'Menu drawer opens from Home', () => {
         maestro({
           flow: flow('44_home_menu.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'open' },
         });
       });
-      step(44, 2, 'Double-tap Settings opens Appearance once', () => {
+      await step(44, 2, 'Double-tap Settings opens Appearance once', () => {
         maestro({
           flow: flow('44_home_menu.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'settings', E2E_STAY: '1' },
         });
       });
-      step(44, 3, 'Privacy and Security and Sign out cancel', () => {
+      await step(44, 3, 'Privacy and Security and Sign out cancel', () => {
         maestro({
           flow: flow('44_home_menu.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'privacy_cancel', E2E_STAY: '1' },
         });
       });
-      step(44, 4, 'Confirm Sign out lands on Welcome', () => {
+      await step(44, 4, 'Confirm Sign out lands on Welcome', () => {
         maestro({
           flow: flow('44_home_menu.yaml'),
           device: deviceA,
@@ -2322,35 +2993,35 @@ try {
     }
 
     if (test.number === 45) {
-      step(45, 1, 'Sign-in recovery reminder once, dismiss with Remind me later', () => {
+      await step(45, 1, 'Sign-in recovery reminder once, dismiss with Remind me later', () => {
         maestro({
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'reminder', E2E_STAY: '1' },
         });
       });
-      step(45, 2, 'Needs you bell badge and ranked list', () => {
+      await step(45, 2, 'Needs you bell badge and ranked list', () => {
         maestro({
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'bell', E2E_STAY: '1' },
         });
       });
-      step(45, 3, 'Open recovery from Needs you; badge reflects open items', () => {
+      await step(45, 3, 'Open recovery from Needs you; badge reflects open items', () => {
         maestro({
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'recovery', E2E_STAY: '1' },
         });
       });
-      step(45, 4, 'Reminder returns next sign in, not again after Remind me later', () => {
+      await step(45, 4, 'Reminder returns next sign in, not again after Remind me later', () => {
         maestro({
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'again' },
         });
       });
-      step(45, 5, 'Cold reopen keeps reminder away; Needs you still lists recovery', () => {
+      await step(45, 5, 'Cold reopen keeps reminder away; Needs you still lists recovery', () => {
         maestro({
           flow: flow('45_needs_you.yaml'),
           device: deviceA,
@@ -2360,36 +3031,36 @@ try {
     }
 
     if (test.number === 46) {
-      step(46, 1, 'Frequency choices on schedule', () => {
+      await step(46, 1, 'Frequency choices on schedule', () => {
         maestro({
           flow: flow('46_sync_frequency.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'setup' },
         });
       });
-      step(46, 2, 'Weekly save shows next meeting', () => result('pass'));
-      step(46, 3, 'Every two weeks saves', () => {
+      await step(46, 2, 'Weekly save shows next meeting', () => result('pass'));
+      await step(46, 3, 'Every two weeks saves', () => {
         maestro({
           flow: flow('46_sync_frequency.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'biweekly', E2E_STAY: '1' },
         });
       });
-      step(46, 4, 'Monthly same weekday last saves', () => {
+      await step(46, 4, 'Monthly same weekday last saves', () => {
         maestro({
           flow: flow('46_sync_frequency.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'monthly_weekday', E2E_STAY: '1' },
         });
       });
-      step(46, 5, 'Monthly same date 31 shows shorter-months line', () => {
+      await step(46, 5, 'Monthly same date 31 shows shorter-months line', () => {
         maestro({
           flow: flow('46_sync_frequency.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'monthly_date', E2E_STAY: '1' },
         });
       });
-      step(46, 6, 'Non-admin has no Change the schedule', () => {
+      await step(46, 6, 'Non-admin has no Change the schedule', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2409,7 +3080,7 @@ try {
         const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day} 18:00`;
       })();
-      step(47, 1, 'Move this meeting screen', () => {
+      await step(47, 1, 'Move this meeting screen', () => {
         maestro({
           flow: flow('47_move_vs_series.yaml'),
           device: deviceA,
@@ -2421,15 +3092,15 @@ try {
           },
         });
       });
-      step(47, 2, 'Moved time shows on Sync', () => result('pass'));
-      step(47, 3, 'All-future preserves moved meeting', () => {
+      await step(47, 2, 'Moved time shows on Sync', () => result('pass'));
+      await step(47, 3, 'All-future preserves moved meeting', () => {
         maestro({
           flow: flow('47_move_vs_series.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'series', E2E_STAY: '1' },
         });
       });
-      step(47, 4, 'Past finished meeting unchanged', () => {
+      await step(47, 4, 'Past finished meeting unchanged', () => {
         // Must match e2e-setup finished seed + PastMeetingsScreen formatMeetingDay.
         const pastDay = new Intl.DateTimeFormat(undefined, {
           timeZone: 'America/Chicago',
@@ -2451,7 +3122,7 @@ try {
     }
 
     if (test.number === 48) {
-      step(48, 1, 'Member sees Going / Can\'t make it', () => {
+      await step(48, 1, 'Member sees Going / Can\'t make it', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2461,8 +3132,8 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'member_going' },
         });
       });
-      step(48, 2, 'Going shows under Who\'s coming', () => result('pass'));
-      step(48, 3, 'Can\'t make it updates tallies', () => {
+      await step(48, 2, 'Going shows under Who\'s coming', () => result('pass'));
+      await step(48, 3, 'Can\'t make it updates tallies', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2472,27 +3143,27 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'member_cant', E2E_STAY: '1' },
         });
       });
-      step(48, 4, 'Admin sees Not answered yet', () => {
+      await step(48, 4, 'Admin sees Not answered yet', () => {
         maestro({
           flow: flow('48_sync_rsvp.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'admin_tallies' },
         });
       });
-      step(48, 5, 'Reply controls gone after start', () =>
+      await step(48, 5, 'Reply controls gone after start', () =>
         result('skip', 'manual: start the Sync or wait until the start time'),
       );
     }
 
     if (test.number === 49) {
-      step(49, 1, 'Extended-only member cannot see Household RSVP', () => {
+      await step(49, 1, 'Extended-only member cannot see Household RSVP', () => {
         maestro({
           flow: flow('49_outside_circle.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 3), PHASE: 'extended' },
         });
       });
-      step(49, 2, 'Household member can still reply', () => {
+      await step(49, 2, 'Household member can still reply', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2505,7 +3176,7 @@ try {
     }
 
     if (test.number === 50) {
-      step(50, 1, 'Needs you lists unanswered Sync invite', () => {
+      await step(50, 1, 'Needs you lists unanswered Sync invite', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2515,7 +3186,7 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'listed' },
         });
       });
-      step(50, 2, 'Going clears the Needs you invite', () => {
+      await step(50, 2, 'Going clears the Needs you invite', () => {
         if (args.devices < 2 || !deviceB) {
           return result('skip', 'needs 2 simulators for Test 2');
         }
@@ -2528,66 +3199,66 @@ try {
     }
 
     if (test.number === 51) {
-      step(51, 1, 'Add to my calendar permission sheet', () =>
+      await step(51, 1, 'Add to my calendar permission sheet', () =>
         result('skip', 'manual: system calendar permission sheet'),
       );
-      step(51, 2, 'Family Sync event with link only', () =>
+      await step(51, 2, 'Family Sync event with link only', () =>
         result('skip', 'manual: inspect device calendar for Family Sync, no agenda'),
       );
-      step(51, 3, 'Series change offers calendar update', () =>
+      await step(51, 3, 'Series change offers calendar update', () =>
         result('skip', 'manual: after schedule change, offer to update the stored event'),
       );
     }
 
     if (test.number === 52) {
-      step(52, 1, 'Privacy statement opens and scrolls to the contact line', () => {
+      await step(52, 1, 'Privacy statement opens and scrolls to the contact line', () => {
         maestro({
           flow: flow('52_trust_docs.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'privacy_policy' },
         });
       });
-      step(52, 2, 'How Patria opens, scrolls to Questions, then back', () => {
+      await step(52, 2, 'How Patria opens, scrolls to Questions, then back', () => {
         maestro({
           flow: flow('52_trust_docs.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'how_patria', E2E_STAY: '1' },
         });
       });
-      step(52, 3, 'Back returns to Privacy and Security', () => result('pass'));
+      await step(52, 3, 'Back returns to Privacy and Security', () => result('pass'));
     }
 
     if (test.number === 59) {
-      step(59, 1, 'Open Letters and write form', () => {
+      await step(59, 1, 'Open Letters and write form', () => {
         maestro({
           flow: flow('59_write_seal_letter.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
         });
       });
-      step(59, 2, 'Seal shows fingerprint', () => result('pass'));
-      step(59, 3, 'Sealed letter listed', () => result('pass'));
+      await step(59, 2, 'Seal shows fingerprint', () => result('pass'));
+      await step(59, 3, 'Sealed letter listed', () => result('pass'));
     }
 
     if (test.number === 60) {
       if (args.devices < 2 || !deviceB) {
         throw new Error('Test 60 needs 2 simulators (E2E_DEVICES=2) for Test 2 recipient steps.');
       }
-      step(60, 1, 'Announced letter listed for author', () => {
+      await step(60, 1, 'Announced letter listed for author', () => {
         maestro({
           flow: flow('60_announced_vs_surprise.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'author', E2E_STAY: '1' },
         });
       });
-      step(60, 2, 'Recipient sees announced only', () => {
+      await step(60, 2, 'Recipient sees announced only', () => {
         maestro({
           flow: flow('60_announced_vs_surprise.yaml'),
           device: deviceB,
           env: { ...signInEnv(secrets, 2), PHASE: 'recipient_list', E2E_STAY: '1' },
         });
       });
-      step(60, 3, 'Announced stub hides body', () => {
+      await step(60, 3, 'Announced stub hides body', () => {
         maestro({
           flow: flow('60_announced_vs_surprise.yaml'),
           device: deviceB,
@@ -2600,7 +3271,7 @@ try {
       if (args.devices < 2 || !deviceB) {
         throw new Error('Test 61 needs 2 simulators (E2E_DEVICES=2) for recipient after withdraw.');
       }
-      step(61, 1, 'Edit reseals with new code', () => {
+      await step(61, 1, 'Edit reseals with new code', () => {
         // Flow copies the code from "Your seal code changed" and asserts the
         // same code on letter detail before Done returns to the list.
         maestro({
@@ -2613,7 +3284,7 @@ try {
           throw new Error(fingerprint.error || 'letter-fingerprint missing after edit');
         }
       });
-      step(61, 2, 'Withdraw removes letter', () => {
+      await step(61, 2, 'Withdraw removes letter', () => {
         maestro({
           flow: flow('61_edit_withdraw_letter.yaml'),
           device: deviceA,
@@ -2636,7 +3307,7 @@ try {
         throw new Error('Test 62 needs 2 simulators (E2E_DEVICES=2) for recipient open.');
       }
       await ensureLetterReleaseServe();
-      step(62, 1, 'Due letter appears for recipient', () => {
+      await step(62, 1, 'Due letter appears for recipient', () => {
         maestro({
           flow: flow('62_date_release_automatic.yaml'),
           device: deviceA,
@@ -2649,7 +3320,7 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'recipient_ready', E2E_STAY: '1' },
         });
       });
-      step(62, 2, 'Open with fake release key', () => {
+      await step(62, 2, 'Open with fake release key', () => {
         const fingerprint = dbCheck(['letter-fingerprint', '--family', E2E_FAMILY_NAME]);
         if (!fingerprint.ok || !fingerprint.stdout) {
           throw new Error(fingerprint.error || 'letter-fingerprint missing');
@@ -2669,7 +3340,7 @@ try {
     }
 
     if (test.number === 63) {
-      step(63, 1, 'Seal code matches on open', () => {
+      await step(63, 1, 'Seal code matches on open', () => {
         maestro({
           flow: flow('63_fingerprint_match.yaml'),
           device: deviceA,
@@ -2682,14 +3353,14 @@ try {
       if (args.devices < 2 || !deviceB) {
         throw new Error('Test 64 needs 2 simulators (E2E_DEVICES=2) for recipient step.');
       }
-      step(64, 1, 'Author changes open day while sealed', () => {
+      await step(64, 1, 'Author changes open day while sealed', () => {
         maestro({
           flow: flow('64_change_open_date.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'author', E2E_STAY: '1' },
         });
       });
-      step(64, 2, 'Recipient has no Change open day control', () => {
+      await step(64, 2, 'Recipient has no Change open day control', () => {
         maestro({
           flow: flow('64_change_open_date.yaml'),
           device: deviceB,
@@ -2702,7 +3373,7 @@ try {
       if (args.devices < 2 || !deviceB) {
         throw new Error('Test 65 needs 2 simulators (E2E_DEVICES=2) for Test 2 Profile.');
       }
-      step(65, 1, 'Add birthday in Profile', () => {
+      await step(65, 1, 'Add birthday in Profile', () => {
         maestro({
           flow: flow('65_add_birthday.yaml'),
           device: deviceB,
@@ -2715,7 +3386,7 @@ try {
       if (args.devices < 2 || !deviceB) {
         throw new Error('Test 66 needs 2 simulators (E2E_DEVICES=2) for Test 2 birthday.');
       }
-      step(66, 1, 'Recipient birthday then age form shows no date', () => {
+      await step(66, 1, 'Recipient birthday then age form shows no date', () => {
         maestro({
           flow: flow('66_seal_age_letter.yaml'),
           device: deviceB,
@@ -2732,21 +3403,21 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'author_seal', E2E_STAY: '1' },
         });
       });
-      step(66, 2, 'Confirm and list show birthday copy only', () => result('pass'));
+      await step(66, 2, 'Confirm and list show birthday copy only', () => result('pass'));
     }
 
     if (test.number === 67) {
       if (args.devices < 2 || !deviceB) {
         throw new Error('Test 67 needs 2 simulators (E2E_DEVICES=2) for refusal steps.');
       }
-      step(67, 1, 'Refuse age seal with no birthday', () => {
+      await step(67, 1, 'Refuse age seal with no birthday', () => {
         maestro({
           flow: flow('67_age_seal_refusals.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'no_dob', E2E_STAY: '1' },
         });
       });
-      step(67, 2, 'Refuse age seal when already that age', () => {
+      await step(67, 2, 'Refuse age seal when already that age', () => {
         maestro({
           flow: flow('67_age_seal_refusals.yaml'),
           device: deviceB,
@@ -2761,6 +3432,228 @@ try {
           flow: flow('67_age_seal_refusals.yaml'),
           device: deviceA,
           env: { ...signInEnv(secrets, 1), PHASE: 'already', E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 68) {
+      await step(68, 1, 'Seal surprise letter with three keepers', () => {
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 69) {
+      await step(69, 1, 'Keeper sees assignment without date or body', async () => {
+        // Ensure a sealed letter with keepers exists.
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceB;
+        if (!keeperDevice) {
+          throw new Error('Test 69 needs a second Simulator for the keeper.');
+        }
+        maestro({
+          flow: flow('69_keeper_view.yaml'),
+          device: keeperDevice,
+          env: { ...signInEnv(secrets, 3) },
+        });
+      });
+    }
+
+    if (test.number === 70) {
+      await step(70, 1, 'Nothing before due', () => {
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceB;
+        if (!keeperDevice) {
+          throw new Error('Test 70 needs a second Simulator for the keeper.');
+        }
+        maestro({
+          flow: flow('70_before_due.yaml'),
+          device: keeperDevice,
+          env: { ...signInEnv(secrets, 3) },
+        });
+      });
+    }
+
+    if (test.number === 71) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 71 needs 2 simulators (author + recipient/keepers).');
+      }
+      // Seed: with 2 Sims, Tests 2–5 wraps live on B; with 3, Test 3(+5) on C and
+      // Test 2(+4) on B. Never put a keeper on A. Omit E2E_STAY when switching users.
+      const keeper3Device = args.devices >= 3 && deviceC ? deviceC : deviceB;
+      await step(71, 1, 'Ask keepers when automatic path fails', async () => {
+        await ensureLetterReleaseServe();
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const keepers = dbCheck([
+          'assert-letter-keepers',
+          '--family',
+          E2E_FAMILY_NAME,
+          '--min',
+          '3',
+        ]);
+        if (!keepers.ok) {
+          throw new Error(
+            `seal did not store three keepers: ${keepers.error ?? 'assert-letter-keepers failed'}`,
+          );
+        }
+        // Stop release before marking due so nothing claims shareP and flips status
+        // to released (keepers only see Help when due && sealed|pending).
+        stopLetterReleaseServe();
+        markDueLettersPastTrigger();
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient' },
+        });
+      });
+      await step(71, 2, 'Two keepers help; recipient opens with same seal code', () => {
+        // With 3 sims Test 3 stays on C from seed — E2E_STAY avoids remint.
+        // With 2 sims step 1 left B as Test 2; sign Test 3 in explicitly.
+        const stayOnKeeper3 = args.devices >= 3 && deviceC ? '1' : undefined;
+        maestro({
+          flow: flow('71_keeper_help.yaml'),
+          device: keeper3Device,
+          env: {
+            ...signInEnv(secrets, 3),
+            ...(stayOnKeeper3 ? { E2E_STAY: stayOnKeeper3 } : {}),
+          },
+        });
+        // Test 4 shares B with the recipient — must sign in (launchApp). Dual-write
+        // SecureStore + personal-wrap asserts in seed keep this device eligible.
+        maestro({
+          flow: flow('71_keeper_help.yaml'),
+          device: deviceB,
+          env: signInEnv(secrets, 4),
+        });
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'open_with_keepers' },
+        });
+      });
+    }
+
+    if (test.number === 72) {
+      if (args.devices < 2 || !deviceB) {
+        throw new Error('Test 72 needs 2 simulators.');
+      }
+      await step(72, 1, 'One keeper help is not enough', async () => {
+        await ensureLetterReleaseServe();
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        stopLetterReleaseServe();
+        markDueLettersPastTrigger();
+        maestro({
+          flow: flow('71_two_keepers_after_due.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'recipient' },
+        });
+        // Test 3 wrap is on B with 2 sims, or on C with 3 — never on A.
+        // With 2 sims, recipient just used B as Test 2 — do not E2E_STAY as Test 3.
+        const keeperDevice = args.devices >= 3 && deviceC ? deviceC : deviceB;
+        const stayOnKeeperPhone = args.devices >= 3 && deviceC ? '1' : undefined;
+        maestro({
+          flow: flow('71_keeper_help.yaml'),
+          device: keeperDevice,
+          env: {
+            ...signInEnv(secrets, 3),
+            ...(stayOnKeeperPhone ? { E2E_STAY: stayOnKeeperPhone } : {}),
+          },
+        });
+
+        maestro({
+          flow: flow('72_one_keeper_insufficient.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2) },
+        });
+      });
+    }
+
+    if (test.number === 73) {
+      await step(73, 1, 'Keeper leaves → Needs you to replace', () => {
+        maestro({
+          flow: flow('68_seal_keepers.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+        const spaceId = e2eFamilySpaceId();
+        sqlOnE2eFamily(
+          `DELETE FROM public.space_members
+             WHERE family_space_id = '${spaceId}'
+               AND user_id = (
+                 SELECT id FROM auth.users WHERE email = '${TEST_EMAILS[5]}' LIMIT 1
+               );`,
+        );
+        maestro({
+          flow: flow('73_keeper_leaves.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), E2E_STAY: '1' },
+        });
+      });
+    }
+
+    if (test.number === 75) {
+      await step(75, 1, 'Family shows family and personal keys ready', () => {
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'ready' },
+        });
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'older_sign_in', E2E_STAY: '1' },
+        });
+      });
+      await step(75, 2, 'Needs-recovery personal key copy after real let-in', () => {
+        if (args.devices < 2 || !deviceB) {
+          return result(
+            'skip',
+            'needs 2 simulators (E2E_DEVICES=2) for personal-key status captures',
+          );
+        }
+        // Real path: Test 2 (elder, no recovery seeded for test 75) is let in by
+        // Test 1 → family wrap only → calm needs-recovery. needsOtherPhone cannot
+        // be produced honestly on two Sims (admin cannot wrap another member’s
+        // extra phone; own-approve also wraps personal) — unit tests cover it.
+        // enrollError needs a fault switch — unit tests only.
+        maestro({
+          flow: flow('subflows/clear_state.yaml'),
+          device: deviceB,
+          env: {},
+        });
+        maestro({
+          flow: flow('09_let_in.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'waiting' },
+        });
+        maestro({
+          flow: flow('09_let_in.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
+        });
+        maestro({
+          flow: flow('75_personal_key_status.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'needs_recovery' },
         });
       });
     }
@@ -2847,6 +3740,10 @@ summaryLines.push('', headline);
 for (const line of summaryLines) {
   progress(line);
 }
+writeReviewCapturesIndex();
+progress(`Batch log: ${BATCH_LOG}`);
+progress(`Batch log (copy): ${BATCH_LOG_ARTIFACT}`);
+progress(`Review captures: ${REVIEW_CAPTURES}`);
 notifyMac(headline);
 
 if (failed > 0) {

@@ -9,9 +9,22 @@ appId: app.patria.dev
 - tapOn:
     text: "Reload"
     optional: true
+# Do not wait for copy "Just a moment…" to vanish globally — Home cards reuse that
+# string while loading, which hangs this step after Home is already up (Maestro then
+# loses the XCTest driver). Wait for a real screen or the font splash instead.
 - extendedWaitUntil:
-    notVisible: "Just a moment…"
-    timeout: 30000
+    visible:
+      id: "^home$|^screen-welcome$|^screen-sign-in$|^screen-sign-up$|^screen-create-family$|^screen-waiting-own-phone$|font-gate-splash|recovery-reminder-sheet"
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: "font-gate-splash"
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            id: "font-gate-splash"
+          timeout: 60000
 - runFlow:
     when:
       visible: "Loading from Metro..."
@@ -66,11 +79,18 @@ appId: app.patria.dev
     when:
       true: ${EXPECT_HOME != '0'}
     commands:
-      # Reminder after this sign-in: short optional wait (waiting phones never see it).
+      # Reminder can appear after Home paints. Wait for either, dismiss sheet, then require
+      # home/waiting (sheet covers home so id home alone races).
       - extendedWaitUntil:
           visible:
-            id: "recovery-reminder-later"
-          timeout: 8000
+            id: "^home$|^screen-waiting-own-phone$|recovery-reminder-sheet"
+          timeout: 45000
+      - runFlow:
+          file: dismiss_recovery_reminder.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-reminder-sheet"
+          timeout: 3000
           optional: true
       - runFlow:
           file: dismiss_recovery_reminder.yaml

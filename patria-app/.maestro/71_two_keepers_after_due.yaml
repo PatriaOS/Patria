@@ -1,0 +1,138 @@
+# PHONE_TESTS: 71
+# AREAS: letters, keys
+# PHASE=recipient | keeper_help | open_with_keepers
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == "recipient"}
+    file: subflows/sign_in.yaml
+- runFlow:
+    when:
+      true: ${PHASE == "recipient"}
+    commands:
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: ".*letter-recv-.*"
+          timeout: 30000
+      - tapOn:
+          id: ".*letter-recv-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "open-letter"
+          timeout: 15000
+      - tapOn:
+          id: "open-letter"
+      - extendedWaitUntil:
+          visible:
+            id: "ask-keepers"
+          timeout: 30000
+      - assertVisible: "Ask your keepers"
+      - takeScreenshot: 71-step1-ask-your-keepers
+- runFlow:
+    when:
+      true: ${PHASE == "keeper_help"}
+    file: subflows/sign_in.yaml
+- runFlow:
+    when:
+      true: ${PHASE == "keeper_help"}
+    commands:
+      - tapOn:
+          id: "vault"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-vault"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letters"
+          timeout: 30000
+      - extendedWaitUntil:
+          visible:
+            id: "letters-keeping-title"
+          timeout: 30000
+      - extendedWaitUntil:
+          visible:
+            id: ".*letter-keep-.*"
+          timeout: 30000
+      - tapOn:
+          id: ".*letter-keep-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "screen-letter-keeper"
+          timeout: 15000
+      - extendedWaitUntil:
+          visible:
+            id: "keeper-help"
+          timeout: 20000
+      - tapOn:
+          id: "keeper-help"
+      - extendedWaitUntil:
+          visible:
+            id: "keeper-helped"
+          timeout: 30000
+- runFlow:
+    when:
+      true: ${PHASE == "open_with_keepers"}
+    file: subflows/sign_in.yaml
+- runFlow:
+    when:
+      true: ${PHASE == "open_with_keepers"}
+    commands:
+      - tapOn:
+          id: "vault"
+      - scrollUntilVisible:
+          element:
+            id: "letters-entry"
+          direction: DOWN
+          timeout: 15000
+      - tapOn:
+          id: "letters-entry"
+      - tapOn:
+          id: ".*letter-recv-.*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "open-with-keepers"
+          timeout: 20000
+      - assertVisible:
+          id: "keepers-progress"
+      - takeScreenshot: 71-step2-open-with-keepers
+      - tapOn:
+          id: "open-with-keepers"
+      - extendedWaitUntil:
+          visible:
+            id: "letter-opened-body"
+          timeout: 30000
+      - assertVisible: "Kept for when Patria cannot open it."
+      # Seal code caption sits below the body — scroll before asserting.
+      - scrollUntilVisible:
+          element:
+            id: "fingerprint-.*"
+          direction: DOWN
+          timeout: 10000
+      - assertVisible:
+          id: "fingerprint-.*"
+      - assertVisible: "Seal code.*"

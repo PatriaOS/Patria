@@ -1,0 +1,44 @@
+# PHONE_TESTS: 69
+# AREAS: letters
+# Keeper sees assignment without date or body.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- extendedWaitUntil:
+    visible:
+      id: "letters-keeping-title"
+    timeout: 30000
+- assertVisible: "Letters you keep"
+# Row merges title + body into one accessibility string — match the prefix.
+- scrollUntilVisible:
+    element:
+      id: ".*letter-keep-.*"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "You are a keeper.*"
+- tapOn:
+    id: ".*letter-keep-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-keeper"
+    timeout: 15000
+- assertVisible:
+    id: "keeper-assignment-body"
+- takeScreenshot: 69-step1-keeper-assignment-view
+- assertNotVisible: "Opens on"
+- assertNotVisible: "Kept for when Patria cannot open it."

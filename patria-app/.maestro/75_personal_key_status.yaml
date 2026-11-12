@@ -1,0 +1,116 @@
+# PHONE_TESTS: 75
+# AREAS: keys
+# PHASE=ready | needs_recovery | older_sign_in
+# needsOtherPhone + enrollError: unit tests only (see PHONE_TESTS 75).
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'ready'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "Family keys: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
+      - scrollUntilVisible:
+          element: "Personal key: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "family-personal-keys-status"
+          text: "Personal key: set up on this phone"
+      - takeScreenshot: 75-step1-family-personal-key-ready
+- runFlow:
+    when:
+      true: ${PHASE == 'needs_recovery'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$|personal-keys-needs-recovery|recovery-reminder-sheet"
+          timeout: 45000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - scrollUntilVisible:
+          element:
+            id: "personal-keys-needs-recovery"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "personal-keys-needs-recovery"
+      - assertVisible: "Set up recovery to finish your personal key"
+      - assertVisible:
+          id: "personal-keys-set-up-recovery"
+      - takeScreenshot: 75-step2-home-needs-recovery-set-up
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "personal-keys-needs-recovery"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "personal-keys-needs-recovery"
+      - takeScreenshot: 75-step2-family-needs-recovery-set-up
+- runFlow:
+    when:
+      true: ${PHASE == 'older_sign_in'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "^home$|^screen-family$|recovery-reminder-sheet"
+          timeout: 20000
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      # Keep "Your phones" fully above the tab bar (same pattern as test 10).
+      - swipe:
+          start: 50%, 80%
+          end: 50%, 20%
+      - scrollUntilVisible:
+          element:
+            id: "^your-phones$"
+          direction: DOWN
+          timeout: 30000
+          centerElement: true
+      - tapOn:
+          id: "^your-phones$"
+      # One retry if the first tap did not open the screen.
+      - runFlow:
+          when:
+            notVisible:
+              id: "screen-your-phones"
+          commands:
+            - swipe:
+                start: 50%, 80%
+                end: 50%, 20%
+            - scrollUntilVisible:
+                element:
+                  id: "^your-phones$"
+                direction: DOWN
+                timeout: 20000
+                centerElement: true
+            - tapOn:
+                text: "Your phones"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-your-phones"
+          timeout: 30000
+      - assertVisible:
+          id: "screen-your-phones"
+      - takeScreenshot: 75-step1-your-phones-device-list
+      - runFlow:
+          when:
+            visible:
+              id: "older-sign-in-phone"
+          commands:
+            - takeScreenshot: 75-step1-older-sign-in-in-device-list

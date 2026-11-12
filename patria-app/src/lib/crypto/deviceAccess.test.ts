@@ -4,10 +4,12 @@ import { secretsEqual, wipe } from './bytes';
 import {
   approveFirstDevice,
   approveOwnExtraDevice,
+  sortOwnPhonesForDisplay,
   assertOwnExtraDevice,
   declineFirstDevice,
   extraDeviceWrapAad,
   firstDeviceWrapAad,
+  listOwnPhones,
   rejectOwnExtraDevice,
   removeOwnPhone,
   requestFirstDeviceAccess,
@@ -15,7 +17,7 @@ import {
   type FirstDeviceNotice,
   type OwnPhone,
 } from './deviceAccess';
-import { ensureDeviceIdentity } from './deviceIdentity';
+import { ensureDeviceIdentity, resetDeviceIdentityMemory } from './deviceIdentity';
 import { createFoundingMaterial } from './familyCeremony';
 import {
   cacheFamilySecrets,
@@ -151,6 +153,7 @@ function serverGateway(state: ServerState): DeviceAccessGateway {
           createdAt: '2026-10-12T12:00:00.000Z',
           rejectedAt: row.rejectedAt,
           hasWrap: state.wraps.some((wrap) => wrap.deviceId === row.deviceId),
+          olderSignInOnThisPhone: false,
         });
       }
       return phones;
@@ -180,6 +183,11 @@ async function foundOnInstall(
 }
 
 describe('first-device approval', () => {
+  beforeEach(() => {
+    resetDeviceIdentityMemory();
+    resetFamilyKeyMemory();
+  });
+
   it('approves by wrapping the family key to the member device with KEYS AAD', async () => {
     const adminPhone = new Map<string, string>();
     const memberPhone = new Map<string, string>();
@@ -435,6 +443,10 @@ describe('first-device approval', () => {
 });
 
 describe('extra-device self approval', () => {
+  beforeEach(() => {
+    resetDeviceIdentityMemory();
+    resetFamilyKeyMemory();
+  });
   it('throws if the caller is not the device owner', () => {
     expect(() => assertOwnExtraDevice(ELENA, MARCO)).toThrow('extra device wrap is self-only');
   });
@@ -468,6 +480,7 @@ describe('extra-device self approval', () => {
       });
 
       installMemoryStore(newPhone);
+      resetDeviceIdentityMemory();
       const extra = await ensureDeviceIdentity(ELENA);
       await requestFirstDeviceAccess(
         { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
@@ -545,6 +558,7 @@ describe('extra-device self approval', () => {
       approvedBy: ELENA,
     });
     installMemoryStore(newPhone);
+    resetDeviceIdentityMemory();
     const extra = await ensureDeviceIdentity(ELENA);
     await requestFirstDeviceAccess(
       { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
@@ -591,6 +605,7 @@ describe('extra-device self approval', () => {
       approvedBy: ELENA,
     });
     installMemoryStore(newPhone);
+    resetDeviceIdentityMemory();
     const extra = await ensureDeviceIdentity(ELENA);
     await requestFirstDeviceAccess(
       { spaceId: SPACE, userId: ELENA, role: 'family_admin', device: extra },
@@ -646,6 +661,7 @@ describe('extra-device self approval', () => {
       approvedBy: ELENA,
     });
     installMemoryStore(memberNew);
+    resetDeviceIdentityMemory();
     const extra = await ensureDeviceIdentity(MARCO);
     await requestFirstDeviceAccess(
       { spaceId: SPACE, userId: MARCO, role: 'co_admin', device: extra },
@@ -667,5 +683,95 @@ describe('extra-device self approval', () => {
       ),
     ).rejects.toThrow('first-device wrap only');
     expect(() => assertOwnExtraDevice(ELENA, MARCO)).toThrow('extra device wrap is self-only');
+  });
+
+  it('marks a prior device id from this install as older sign-in on Your phones', async () => {
+    const store = new Map<string, string>();
+    const server = emptyServer();
+    const gateway = serverGateway(server);
+    installMemoryStore(store);
+    resetDeviceIdentityMemory();
+    const first = await ensureDeviceIdentity(ELENA);
+    server.deviceKeys.set(`${ELENA}:${first.deviceId}`, {
+      userId: ELENA,
+      deviceId: first.deviceId,
+      publicKey: first.publicKey,
+      rejectedAt: null,
+    });
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: first.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+
+    // Second identity on the same install (real remint path records history).
+    store.delete(`patria.u.${ELENA}.device.id`);
+    store.delete(`patria.u.${ELENA}.device.private`);
+    resetDeviceIdentityMemory();
+    const second = await ensureDeviceIdentity(ELENA);
+    expect(second.deviceId).not.toBe(first.deviceId);
+    server.deviceKeys.set(`${ELENA}:${second.deviceId}`, {
+      userId: ELENA,
+      deviceId: second.deviceId,
+      publicKey: second.publicKey,
+      rejectedAt: null,
+    });
+    server.wraps.push({
+      userId: ELENA,
+      deviceId: second.deviceId,
+      wrappedKey: new Uint8Array(64),
+      keyEpoch: 1,
+      approvedBy: ELENA,
+    });
+
+    const phones = await listOwnPhones(SPACE, ELENA, gateway);
+    const older = phones.find((row) => row.deviceId === first.deviceId);
+    expect(older?.olderSignInOnThisPhone).toBe(true);
+    expect(phones.map((row) => row.deviceId).sort()).toEqual(
+      [first.deviceId, second.deviceId].sort(),
+    );
+
+    // Another member's devices are never returned for this userId.
+    server.deviceKeys.set(`${MARCO}:d-marco`, {
+      userId: MARCO,
+      deviceId: 'd-marco',
+      publicKey: new Uint8Array(32).fill(9),
+      rejectedAt: null,
+    });
+    const again = await listOwnPhones(SPACE, ELENA, gateway);
+    expect(again.some((row) => row.deviceId === 'd-marco')).toBe(false);
+  });
+
+  it('sorts this phone first then newest first for display', () => {
+    const rows: OwnPhone[] = [
+      {
+        deviceId: 'old',
+        createdAt: '2026-10-01T00:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: false,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'this',
+        createdAt: '2026-10-05T00:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: true,
+        olderSignInOnThisPhone: false,
+      },
+      {
+        deviceId: 'new',
+        createdAt: '2026-10-20T00:00:00.000Z',
+        rejectedAt: null,
+        hasWrap: false,
+        olderSignInOnThisPhone: false,
+      },
+    ];
+    expect(sortOwnPhonesForDisplay(rows, 'this').map((row) => row.deviceId)).toEqual([
+      'this',
+      'new',
+      'old',
+    ]);
   });
 });

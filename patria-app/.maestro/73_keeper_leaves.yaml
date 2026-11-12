@@ -1,0 +1,19 @@
+# PHONE_TESTS: 73
+# AREAS: letters, membership
+# Author sees Replace a keeper after a keeper leaves.
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- extendedWaitUntil:
+    visible:
+      id: "home-needs-you-bell"
+    timeout: 20000
+- tapOn:
+    id: "home-needs-you-bell"
+- extendedWaitUntil:
+    visible:
+      id: "needs-you-letter-keeper-left"
+    timeout: 20000
+- assertVisible: "Replace a keeper"
+- takeScreenshot: 73-step1-needs-you-replace-a-keeper

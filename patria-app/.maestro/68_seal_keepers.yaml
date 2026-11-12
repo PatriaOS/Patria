@@ -1,0 +1,107 @@
+# PHONE_TESTS: 68
+# AREAS: letters
+# Seal a surprise letter with three keepers (Tests 3–5).
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- tapOn:
+    id: "vault"
+- extendedWaitUntil:
+    visible:
+      id: "screen-vault"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "letters-entry"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "letters-entry"
+- extendedWaitUntil:
+    visible:
+      id: "write-letter"
+    timeout: 30000
+- tapOn:
+    id: "write-letter"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-new"
+    timeout: 15000
+# Spec: letter to Test 2. Do not rely on readyMembers[0] — with five adults the
+# default recipient can be Test 5, which then disappears from the keeper list.
+- extendedWaitUntil:
+    visible: "Test 2"
+    timeout: 30000
+- tapOn: "Test 2"
+- tapOn:
+    id: "letter-body"
+- inputText: "Kept for when Patria cannot open it."
+- scrollUntilVisible:
+    element:
+      id: "letter-keepers"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Keepers (optional)"
+- tapOn:
+    id: "letter-keeper-a"
+- extendedWaitUntil:
+    visible:
+      id: "letter-keeper-a-sheet"
+    timeout: 10000
+- takeScreenshot: 68-step1-keeper-picker
+- tapOn: "Test 3"
+- tapOn:
+    id: "letter-keeper-b"
+- extendedWaitUntil:
+    visible:
+      id: "letter-keeper-b-sheet"
+    timeout: 10000
+- assertVisible: "Test 4"
+- tapOn: "Test 4"
+- tapOn:
+    id: "letter-keeper-c"
+- extendedWaitUntil:
+    visible:
+      id: "letter-keeper-c-sheet"
+    timeout: 10000
+- assertVisible: "Test 5"
+- tapOn: "Test 5"
+- assertVisible: "Because this is a Surprise letter, your keepers will know that a letter exists."
+- takeScreenshot: 68-step1-surprise-note
+- scrollUntilVisible:
+    element:
+      id: "letter-date-1y"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "letter-date-1y"
+- scrollUntilVisible:
+    element:
+      id: "seal-letter"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "seal-letter"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letter-sealed"
+    timeout: 45000
+- assertVisible: "Your letter is sealed"
+- takeScreenshot: 68-step1-seal-confirm-with-keepers
+- tapOn:
+    id: "letter-sealed-done"
+- extendedWaitUntil:
+    visible:
+      id: "screen-letters"
+    timeout: 15000
+- tapOn:
+    id: ".*letter-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "letter-keepers-author"
+    timeout: 15000
+- assertVisible: "Keepers"
+# Author detail shows one keepers line (joined names), not three separate nodes.
+- assertVisible: "Test 3, Test 4, Test 5"

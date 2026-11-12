@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import {
   Banner,
@@ -37,13 +37,21 @@ import {
 import {
   fetchFamilyTimezone,
   fetchLetter,
+  fetchLetterKeeperHelp,
+  fetchLetterKeepersForAuthor,
+  fetchLettersForKeepers,
   setLetterAge,
   setLetterOpenDate,
   withdrawLetter,
 } from './letterApi';
+import { helpRecipientOpenLetter } from './letterKeeperRelease';
 import { letterOpensOnLine } from './letterOpenLabel';
 import { LetterVoicePlayback } from './LetterVoicePlayback';
-import { openLetterAsAuthor, openLetterAsRecipient } from './letterOpen';
+import {
+  openLetterAsAuthor,
+  openLetterAsRecipient,
+  openLetterAsRecipientWithKeepers,
+} from './letterOpen';
 
 function parseAgeInput(raw: string): number | null {
   const trimmed = raw.trim();
@@ -77,6 +85,10 @@ export function LetterDetailScreen() {
   const [changeAgeOpen, setChangeAgeOpen] = useState(false);
   const [changeAgeRaw, setChangeAgeRaw] = useState('18');
   const [changeAgeError, setChangeAgeError] = useState<string | null>(null);
+  const [askKeepers, setAskKeepers] = useState(false);
+  const [keeperHelpBusy, setKeeperHelpBusy] = useState(false);
+  const [keeperHelpDone, setKeeperHelpDone] = useState(false);
+  const [keeperHelpError, setKeeperHelpError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -100,6 +112,27 @@ export function LetterDetailScreen() {
     queryKey: ['familyTimezone', spaceId],
     enabled: Boolean(spaceId),
     queryFn: () => fetchFamilyTimezone(spaceId!),
+  });
+  const authorKeepersQuery = useQuery({
+    queryKey: ['letterKeepersAuthor', letterId],
+    enabled: Boolean(letterId && userId && letterQuery.data?.authorId === userId),
+    queryFn: () => fetchLetterKeepersForAuthor(letterId),
+  });
+  const keeperHelpQuery = useQuery({
+    queryKey: ['letterKeeperHelp', letterId],
+    enabled: Boolean(
+      letterId &&
+        userId &&
+        letterQuery.data?.recipientId === userId &&
+        (letterQuery.data?.status === 'pending' || letterQuery.data?.status === 'released'),
+    ),
+    queryFn: () => fetchLetterKeeperHelp(letterId),
+    refetchInterval: askKeepers ? 4000 : false,
+  });
+  const keepingQuery = useQuery({
+    queryKey: ['lettersForKeepers', spaceId, userId],
+    enabled: Boolean(spaceId && userId),
+    queryFn: () => fetchLettersForKeepers(spaceId!),
   });
 
   const letter = letterQuery.data;
@@ -239,6 +272,30 @@ export function LetterDetailScreen() {
     }
   };
 
+  const applyOpened = async (result: {
+    content: { body: string; audio?: { durationSeconds: number } };
+    fingerprint: string;
+    voicePlain?: Uint8Array;
+    letter: { fromLabel: string };
+    matches: boolean;
+  }) => {
+    if (!result.matches) {
+      setOpenError(copy.letters.sealMismatch.replace('{name}', result.letter.fromLabel));
+      setMatches(false);
+      return;
+    }
+    if (voicePlain) {
+      wipe(voicePlain);
+    }
+    setOpenedBody(result.content.body);
+    setVoicePlain(result.voicePlain ?? null);
+    setVoiceDuration(result.content.audio?.durationSeconds ?? null);
+    setFingerprint(result.fingerprint);
+    setMatches(true);
+    setAskKeepers(false);
+    await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+  };
+
   const onOpenAsRecipient = async () => {
     if (!spaceId || !userId) {
       return;
@@ -248,26 +305,17 @@ export function LetterDetailScreen() {
     try {
       const result = await openLetterAsRecipient({ letterId, spaceId, userId });
       if (!result.ok) {
+        if (result.reason === 'need_keepers') {
+          setAskKeepers(true);
+          setOpenError(null);
+          return;
+        }
         setOpenError(
           result.reason === 'not_ready' ? copy.letters.notYet : copy.letters.openFailed,
         );
         return;
       }
-      if (!result.matches) {
-        setOpenError(
-          copy.letters.sealMismatch.replace('{name}', result.letter.fromLabel),
-        );
-        return;
-      }
-      if (voicePlain) {
-        wipe(voicePlain);
-      }
-      setOpenedBody(result.content.body);
-      setVoicePlain(result.voicePlain ?? null);
-      setVoiceDuration(result.content.audio?.durationSeconds ?? null);
-      setFingerprint(result.fingerprint);
-      setMatches(true);
-      await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+      await applyOpened(result);
     } catch (error) {
       logFailedAction(error);
       setOpenError(copy.letters.openFailed);
@@ -276,10 +324,103 @@ export function LetterDetailScreen() {
     }
   };
 
+  const onOpenWithKeepers = async () => {
+    if (!spaceId || !userId) {
+      return;
+    }
+    setBusy(true);
+    setOpenError(null);
+    try {
+      const result = await openLetterAsRecipientWithKeepers({ letterId, spaceId, userId });
+      if (!result.ok) {
+        const base =
+          result.reason === 'need_keepers'
+            ? copy.letters.keepersWaiting
+            : result.reason === 'not_ready'
+              ? copy.letters.notYet
+              : copy.letters.openFailed;
+        setOpenError(result.detail ? `${base} (${result.detail})` : base);
+        return;
+      }
+      await applyOpened(result);
+    } catch (error) {
+      logFailedAction(error);
+      setOpenError(copy.letters.openFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onKeeperHelp = async () => {
+    const keeping =
+      (keepingQuery.data ?? []).find((row) => row.letterId === letterId) ?? null;
+    if (!spaceId || !userId || !keeping) {
+      return;
+    }
+    setKeeperHelpBusy(true);
+    setKeeperHelpError(null);
+    try {
+      const result = await helpRecipientOpenLetter({
+        letterId,
+        version: keeping.version,
+        // Use the letter's space from the keeper row (not a stale current-family id).
+        spaceId: keeping.familySpaceId || spaceId,
+        keeperUserId: userId,
+        recipientId: keeping.recipientId,
+      });
+      if (!result.ok) {
+        const suffix = result.detail
+          ? `${result.reason}:${result.detail}`
+          : result.reason;
+        setKeeperHelpError(`${copy.letters.keepersHelpFailed} (${suffix})`);
+        return;
+      }
+      setKeeperHelpDone(true);
+      await queryClient.invalidateQueries({ queryKey: ['lettersForKeepers', spaceId, userId] });
+      await queryClient.invalidateQueries({ queryKey: ['letters', spaceId] });
+    } catch (error) {
+      logFailedAction(error);
+      const detail =
+        error instanceof Error && error.message
+          ? error.message.slice(0, 48)
+          : 'exception';
+      setKeeperHelpError(`${copy.letters.keepersHelpFailed} (${detail})`);
+    } finally {
+      setKeeperHelpBusy(false);
+    }
+  };
+
   if (letterQuery.isLoading) {
     return (
       <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <LoadingState message={copy.common.loading} />
+      </Screen>
+    );
+  }
+
+  const keepingRowEarly = (keepingQuery.data ?? []).find((row) => row.letterId === letterId);
+  if (!letter && keepingRowEarly) {
+    return (
+      <Screen withHeader testID="screen-letter-keeper" accessibilityLabel={copy.letters.keepersYouAreTitle}>
+        <Title>{copy.letters.keepersYouAreTitle}</Title>
+        <Body testID="keeper-assignment-body">
+          {copy.letters.keepersYouAreBody
+            .replace('{author}', keepingRowEarly.authorName)
+            .replace('{recipient}', keepingRowEarly.recipientName)}
+        </Body>
+        {keeperHelpDone ? (
+          <Caption testID="keeper-helped">{copy.letters.keepersHelped}</Caption>
+        ) : keepingRowEarly.status === 'sealed' ||
+          keepingRowEarly.status === 'pending' ? (
+          // RPC refuses before due (test 70). After due, Help must be tappable (71).
+          <Button
+            label={copy.letters.keepersHelp}
+            onPress={() => void onKeeperHelp()}
+            busy={keeperHelpBusy}
+            testID="keeper-help"
+          />
+        ) : null}
+        {keeperHelpError ? <ErrorState message={keeperHelpError} /> : null}
       </Screen>
     );
   }
@@ -310,6 +451,8 @@ export function LetterDetailScreen() {
   }
 
   if (isRecipient && (letter.status === 'pending' || letter.status === 'released')) {
+    const helpedCount = (keeperHelpQuery.data ?? []).filter((row) => row.hasHelped).length;
+    const hasKeepers = (keeperHelpQuery.data ?? []).length === 3;
     return (
       <Screen withHeader testID="screen-letter-detail" accessibilityLabel={copy.letters.detailTitle}>
         <Title>
@@ -335,12 +478,51 @@ export function LetterDetailScreen() {
             ) : null}
           </>
         ) : (
-          <Button
-            label={copy.letters.openLetter}
-            onPress={() => void onOpenAsRecipient()}
-            busy={busy}
-            testID="open-letter"
-          />
+          <ButtonStack>
+            <Button
+              label={copy.letters.openLetter}
+              onPress={() => void onOpenAsRecipient()}
+              busy={busy}
+              testID="open-letter"
+            />
+            {/* Keeper progress must survive leaving the screen — askKeepers is only
+                local UI after a failed automatic open. Spec 71: returning recipient
+                sees 2 of 2 and Open with keepers without tapping Open again. */}
+            {askKeepers ? (
+              <>
+                <Banner message={copy.letters.keepersAskHint} tone="info" />
+                <Button
+                  label={copy.letters.keepersAsk}
+                  variant="secondary"
+                  onPress={() => setAskKeepers(true)}
+                  testID="ask-keepers"
+                />
+              </>
+            ) : null}
+            {hasKeepers ? (
+              <>
+                <Caption testID="keepers-progress">
+                  {copy.letters.keepersProgress.replace(
+                    '{n}',
+                    String(Math.min(helpedCount, 2)),
+                  )}
+                </Caption>
+                {(keeperHelpQuery.data ?? []).map((row) => (
+                  <Caption key={row.keeperId} testID={`keeper-help-${row.slot}`}>
+                    {row.keeperName}
+                    {row.hasHelped ? ' · helped' : ''}
+                  </Caption>
+                ))}
+                <Button
+                  label={copy.letters.keepersOpenWith}
+                  onPress={() => void onOpenWithKeepers()}
+                  busy={busy}
+                  disabled={helpedCount < 2}
+                  testID="open-with-keepers"
+                />
+              </>
+            ) : null}
+          </ButtonStack>
         )}
         {openError ? <ErrorState message={openError} /> : null}
         {matches === false ? (
@@ -349,6 +531,31 @@ export function LetterDetailScreen() {
             message={copy.letters.sealMismatch.replace('{name}', letter.fromLabel)}
           />
         ) : null}
+      </Screen>
+    );
+  }
+
+  const keepingRow = (keepingQuery.data ?? []).find((row) => row.letterId === letterId);
+  if (keepingRow && !isAuthor && !isRecipient) {
+    return (
+      <Screen withHeader testID="screen-letter-keeper" accessibilityLabel={copy.letters.keepersYouAreTitle}>
+        <Title>{copy.letters.keepersYouAreTitle}</Title>
+        <Body testID="keeper-assignment-body">
+          {copy.letters.keepersYouAreBody
+            .replace('{author}', keepingRow.authorName)
+            .replace('{recipient}', keepingRow.recipientName)}
+        </Body>
+        {keeperHelpDone ? (
+          <Caption testID="keeper-helped">{copy.letters.keepersHelped}</Caption>
+        ) : keepingRow.status === 'sealed' || keepingRow.status === 'pending' ? (
+          <Button
+            label={copy.letters.keepersHelp}
+            onPress={() => void onKeeperHelp()}
+            busy={keeperHelpBusy}
+            testID="keeper-help"
+          />
+        ) : null}
+        {keeperHelpError ? <ErrorState message={keeperHelpError} /> : null}
       </Screen>
     );
   }
@@ -380,6 +587,21 @@ export function LetterDetailScreen() {
         <Caption testID={`fingerprint-${letter.fingerprint}`}>
           {copy.letters.fingerprintLabel}: {letter.fingerprint}
         </Caption>
+      ) : null}
+
+      {(authorKeepersQuery.data ?? []).length > 0 ? (
+        <View testID="letter-keepers-author">
+          <Caption>{copy.letters.keepersSectionTitle}</Caption>
+          <Caption>
+            {copy.letters.keepersListLine.replace(
+              '{names}',
+              (authorKeepersQuery.data ?? []).map((k) => k.keeperName).join(', '),
+            )}
+          </Caption>
+          {(authorKeepersQuery.data ?? []).some((k) => !k.stillMember) ? (
+            <Banner tone="warning" message={copy.letters.keepersReplaceNeeded} />
+          ) : null}
+        </View>
       ) : null}
 
       {openedBody ? (

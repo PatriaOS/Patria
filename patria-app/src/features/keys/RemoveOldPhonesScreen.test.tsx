@@ -34,18 +34,21 @@ describe('RemoveOldPhonesScreen', () => {
         createdAt: '2026-10-12T12:00:00.000Z',
         rejectedAt: null,
         hasWrap: true,
+        olderSignInOnThisPhone: false,
       },
       {
         deviceId: 'd-old-1',
         createdAt: '2026-10-01T12:00:00.000Z',
         rejectedAt: null,
         hasWrap: true,
+        olderSignInOnThisPhone: false,
       },
       {
         deviceId: 'd-old-2',
         createdAt: '2026-10-02T12:00:00.000Z',
         rejectedAt: null,
         hasWrap: true,
+        olderSignInOnThisPhone: false,
       },
     ]);
     const { findByText } = await renderScreen(<RemoveOldPhonesScreen />);

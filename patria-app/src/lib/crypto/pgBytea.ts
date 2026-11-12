@@ -56,13 +56,11 @@ export function toPgBytea(bytes: Uint8Array): string {
 
 export function fromPgBytea(value: unknown): Uint8Array {
   if (value instanceof Uint8Array) {
+    // Only re-decode when the bytes are clearly a Postgres hex text dump
+    // ("\x" + hex). Do not treat raw key material that happens to be
+    // printable hex charset as hex text — that false positive flips keys.
     const ascii = asciiFromBytes(value);
-    if (
-      ascii &&
-      (ascii.startsWith('\\x') ||
-        ascii.startsWith('\\X') ||
-        (/^[0-9a-fA-F]+$/.test(ascii) && ascii.length % 2 === 0))
-    ) {
+    if (ascii && (ascii.startsWith('\\x') || ascii.startsWith('\\X'))) {
       return decodeHex(ascii);
     }
     return value;

@@ -11,6 +11,8 @@ export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
 export const TEST_11_TIMEOUT_MS = 15 * 60 * 1000;
 export const TEST_12_TIMEOUT_MS = 20 * 60 * 1000;
+/** B2: four let-ins (Tests 2–5) plus seal/keeper steps on shared Sims. */
+export const TEST_B2_TIMEOUT_MS = 50 * 60 * 1000;
 
 export function timeoutMsForTest(testNumber) {
   if (testNumber === 11) {
@@ -20,6 +22,9 @@ export function timeoutMsForTest(testNumber) {
   }
   if (testNumber === 12) {
     return TEST_12_TIMEOUT_MS;
+  }
+  if ([68, 69, 70, 71, 72, 73].includes(testNumber)) {
+    return TEST_B2_TIMEOUT_MS;
   }
   return TEST_TIMEOUT_MS;
 }
@@ -31,6 +36,76 @@ export function runnerNumbersFromSource(source) {
     numbers.add(Number(match[1]));
   }
   return numbers;
+}
+
+/** Parse `1, 2, 3` style lists from e2e.mjs source. */
+export function parseCommaNumberList(raw) {
+  return String(raw ?? '')
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/**
+ * Numbers listed inside seedBeforeYouStart's opening allow-list
+ * (`if (![...].includes(testNumber)) return`).
+ */
+export function seedBeforeYouStartAllowListFromSource(source) {
+  const match = source.match(
+    /function\s+seedBeforeYouStart\s*\(\s*testNumber\s*\)\s*\{[\s\S]*?if\s*\(\s*!\s*\[([^\]]+)\]\s*\.includes\(\s*testNumber\s*\)\s*\)/,
+  );
+  return new Set(match ? parseCommaNumberList(match[1]) : []);
+}
+
+/**
+ * Numbers that actually call seedBeforeYouStart in the main loop
+ * (`if ([...].includes(test.number)) { seedBeforeYouStart(...) }`).
+ */
+export function seedInvocationListFromSource(source) {
+  const match = source.match(
+    /if\s*\(\s*\[([^\]]+)\]\s*\.includes\(\s*test\.number\s*\)\s*\)\s*\{\s*try\s*\{\s*seedBeforeYouStart\s*\(\s*test\.number\s*\)/,
+  );
+  return new Set(match ? parseCommaNumberList(match[1]) : []);
+}
+
+/** Parse `--test 65,68,71` into numbers. Empty / non-numeric parts are dropped. */
+export function parseE2eTestFlag(raw) {
+  return String(raw ?? '')
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
+/**
+ * Choose which phone tests to run.
+ * `testNumbers === null` means no `--test` flag (smoke / affected / full).
+ * A non-null array means `--test` was passed — never fall through to the full suite
+ * even when the list is empty or matches nothing.
+ */
+export function selectPhoneTestsForRun({
+  allTests,
+  testNumbers,
+  mode,
+  smokeNumbers,
+  affectedNumbers,
+}) {
+  if (testNumbers !== null) {
+    if (testNumbers.length === 0) {
+      throw new Error('e2e: --test needs one or more positive numbers (e.g. --test 65,68,71).');
+    }
+    const selected = allTests.filter((test) => testNumbers.includes(test.number));
+    if (selected.length === 0) {
+      throw new Error(`e2e: no matching test for --test ${testNumbers.join(',')}.`);
+    }
+    return selected;
+  }
+  if (mode === 'smoke') {
+    return allTests.filter((test) => smokeNumbers.includes(test.number));
+  }
+  if (mode === 'affected') {
+    return allTests.filter((test) => affectedNumbers.includes(test.number));
+  }
+  return allTests;
 }
 
 /**
@@ -149,6 +224,20 @@ export function scenarioForTest(testNumber) {
   ) {
     return 'admin-elders';
   }
+  // B2 keepers: Test 1 author, Test 2 recipient, Tests 3–5 keepers (elders).
+  if (
+    testNumber === 68 ||
+    testNumber === 69 ||
+    testNumber === 70 ||
+    testNumber === 71 ||
+    testNumber === 72 ||
+    testNumber === 73
+  ) {
+    return 'admin-elders-keepers';
+  }
+  if (testNumber === 75) {
+    return 'admin-elders';
+  }
   return 'admin';
 }
 
@@ -160,34 +249,125 @@ export function e2eDeviceCount(raw = process.env.E2E_DEVICES || '2') {
   return count;
 }
 
+/** Exact Pro — never Pro Max. Device B/C are additional Pros when needed. */
+const IPHONE_17_PRO_TYPE = 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro';
+const PATRIA_E2E_PRO_NAME = /^Patria e2e iPhone 17 Pro /;
+
 export function listIphones() {
   const raw = execFileSync('xcrun', ['simctl', 'list', 'devices', 'available', '-j'], {
     encoding: 'utf8',
   });
   const json = JSON.parse(raw);
   const devices = [];
-  for (const runtime of Object.values(json.devices ?? {})) {
-    for (const device of runtime) {
+  for (const [runtimeId, runtimeDevices] of Object.entries(json.devices ?? {})) {
+    for (const device of runtimeDevices) {
       if (device.isAvailable && /iPhone/i.test(device.name)) {
-        devices.push(device);
+        devices.push({ ...device, runtimeId });
       }
     }
   }
   return devices;
 }
 
-export function bootDevices(count) {
-  const available = listIphones();
-  const use = Math.min(count, available.length);
-  if (use === 0) {
-    throw new Error('No iPhone simulators available. Install an iOS runtime in Xcode.');
+export function isIphone17Pro(device) {
+  if (device.deviceTypeIdentifier === IPHONE_17_PRO_TYPE) {
+    return true;
   }
-  const picked = available.slice(0, use);
+  // Name fallback: "iPhone 17 Pro" / "Patria e2e iPhone 17 Pro B", never Pro Max.
+  return /iPhone 17 Pro(?! Max)/i.test(device.name ?? '');
+}
+
+function sortIphone17Pros(devices) {
+  return [...devices].sort((a, b) => {
+    const rank = (device) => {
+      if (device.name === 'iPhone 17 Pro') {
+        return 0;
+      }
+      if (PATRIA_E2E_PRO_NAME.test(device.name ?? '')) {
+        return 1;
+      }
+      return 2;
+    };
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) {
+      return byRank;
+    }
+    return (a.name ?? '').localeCompare(b.name ?? '') || a.udid.localeCompare(b.udid);
+  });
+}
+
+function resolveIphone17ProRuntime(existingPros) {
+  if (existingPros[0]?.runtimeId) {
+    return existingPros[0].runtimeId;
+  }
+  const raw = execFileSync('xcrun', ['simctl', 'list', 'runtimes', '-j'], {
+    encoding: 'utf8',
+  });
+  const json = JSON.parse(raw);
+  const runtimes = (json.runtimes ?? []).filter(
+    (runtime) => runtime.isAvailable !== false && /iOS/i.test(runtime.name ?? ''),
+  );
+  runtimes.sort((a, b) =>
+    String(b.version ?? '').localeCompare(String(a.version ?? ''), undefined, { numeric: true }),
+  );
+  const pick = runtimes[0];
+  if (!pick?.identifier) {
+    throw new Error('No iOS Simulator runtime available to create an iPhone 17 Pro.');
+  }
+  return pick.identifier;
+}
+
+function createIphone17Pro(slotLabel, runtimeId) {
+  const name = `Patria e2e iPhone 17 Pro ${slotLabel}`;
+  const existing = listIphones().find((device) => device.name === name && isIphone17Pro(device));
+  if (existing) {
+    return existing.udid;
+  }
+  return execFileSync(
+    'xcrun',
+    ['simctl', 'create', name, IPHONE_17_PRO_TYPE, runtimeId],
+    { encoding: 'utf8' },
+  ).trim();
+}
+
+/**
+ * Boot `count` iPhone 17 Pro simulators (A/B/C). Never picks Pro Max.
+ * Creates `Patria e2e iPhone 17 Pro B` (and C) when fewer Pros exist than needed.
+ */
+export function bootDevices(count) {
+  let available = listIphones();
+  let pros = sortIphone17Pros(available.filter(isIphone17Pro));
+  const runtimeId = resolveIphone17ProRuntime(pros);
+  const slotLabels = ['A', 'B', 'C'];
+
+  while (pros.length < count) {
+    const label = slotLabels[pros.length] ?? String(pros.length + 1);
+    console.log(
+      `bootDevices: creating iPhone 17 Pro (${label}) for e2e — not using Pro Max.`,
+    );
+    createIphone17Pro(label, runtimeId);
+    available = listIphones();
+    pros = sortIphone17Pros(available.filter(isIphone17Pro));
+  }
+
+  if (pros.length === 0) {
+    throw new Error(
+      'No iPhone 17 Pro simulators available. Install an iOS runtime in Xcode that supports iPhone 17 Pro.',
+    );
+  }
+
+  const picked = pros.slice(0, count);
   for (const device of picked) {
     if (device.state !== 'Booted') {
       execFileSync('xcrun', ['simctl', 'boot', device.udid], { stdio: 'ignore' });
     }
   }
+  const slots = ['A', 'B', 'C'];
+  console.log(
+    `bootDevices: using ${picked
+      .map((device, index) => `${slots[index]}=${device.name} (${device.udid})`)
+      .join(', ')}`,
+  );
   return picked.map((device) => device.udid);
 }
 
@@ -222,6 +402,33 @@ export function assertAppInstalledOn(udids, scriptName) {
   throw new Error(
     `${scriptName}: ${APP_BUNDLE_ID} is not installed on simulator(s) ${missing.join(', ')}. Run npm run e2e:build with the same E2E_DEVICES.`,
   );
+}
+
+/**
+ * If any e2e simulator already has the app, copy that build onto the others
+ * (e.g. newly created Pro B). Throws only when none have it — then e2e:build.
+ */
+export function ensureAppInstalledOn(udids, scriptName) {
+  if (udids.length === 0) {
+    return;
+  }
+  const withApp = udids.filter((udid) => appInstalled(udid));
+  if (withApp.length === 0) {
+    throw new Error(
+      `${scriptName}: ${APP_BUNDLE_ID} is not installed on any e2e simulator. Run npm run e2e:build with the same E2E_DEVICES.`,
+    );
+  }
+  const source = withApp[0];
+  const appPath = appContainerPath(source);
+  for (const udid of udids) {
+    if (!appInstalled(udid)) {
+      console.log(
+        `${scriptName}: installing ${APP_BUNDLE_ID} on ${udid} (same build as ${source})`,
+      );
+      installApp(udid, appPath);
+    }
+  }
+  assertAppInstalledOn(udids, scriptName);
 }
 
 export function setPreferredContentSize(udid, category) {
@@ -364,6 +571,8 @@ export const TEST_EMAILS = {
   1: 'femipaul7535+test1@gmail.com',
   2: 'femipaul7535+test2@gmail.com',
   3: 'femipaul7535+test3@gmail.com',
+  4: 'femipaul7535+test4@gmail.com',
+  5: 'femipaul7535+test5@gmail.com',
 };
 
 export function passwordFor(secrets, n) {
@@ -417,17 +626,13 @@ export function redact(value) {
   return `${value.slice(0, 4)}…`;
 }
 
-export function supabaseStatusEnv() {
-  const raw = execFileSync('npx', ['supabase', 'status', '-o', 'env'], {
-    cwd: APP_ROOT,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim();
-  if (raw.startsWith('{')) {
-    return JSON.parse(raw);
+function parseSupabaseStatusEnv(raw) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    return JSON.parse(trimmed);
   }
   const env = {};
-  for (const line of raw.split('\n')) {
+  for (const line of trimmed.split('\n')) {
     const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
     if (!match) {
       continue;
@@ -435,6 +640,79 @@ export function supabaseStatusEnv() {
     env[match[1]] = match[2].replace(/^"|"$/g, '');
   }
   return env;
+}
+
+/** Prefer a real supabase binary — bare `npx supabase` can hang on npm fetch. */
+export function resolveSupabaseCli() {
+  const fromEnv = process.env.SUPABASE_CLI?.trim();
+  if (fromEnv && existsSync(fromEnv)) {
+    return fromEnv;
+  }
+  for (const candidate of ['supabase', join(APP_ROOT, 'node_modules', '.bin', 'supabase')]) {
+    try {
+      execFileSync(candidate, ['--version'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 5000,
+      });
+      return candidate;
+    } catch {
+      // try next
+    }
+  }
+  try {
+    const npxRoot = join(process.env.HOME ?? '', '.npm', '_npx');
+    if (existsSync(npxRoot)) {
+      for (const entry of readdirSync(npxRoot)) {
+        const bin = join(
+          npxRoot,
+          entry,
+          'node_modules',
+          '@supabase',
+          'cli-darwin-arm64',
+          'bin',
+          'supabase',
+        );
+        if (existsSync(bin)) {
+          return bin;
+        }
+      }
+    }
+  } catch {
+    // Fall through to npx.
+  }
+  return null;
+}
+
+export function supabaseStatusEnv() {
+  const cli = resolveSupabaseCli();
+  const attempts = cli
+    ? [{ command: cli, args: ['status', '-o', 'env'] }]
+    : [{ command: 'npx', args: ['--yes', 'supabase', 'status', '-o', 'env'] }];
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const raw = execFileSync(attempt.command, attempt.args, {
+        cwd: APP_ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 25_000,
+      });
+      return parseSupabaseStatusEnv(raw);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  // CLI hung or missing, but the local Docker DB is enough for SQL asserts.
+  if (findSupabaseDbContainer()) {
+    return {
+      API_URL: 'http://127.0.0.1:54321',
+      DB_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
+    };
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('npx supabase status failed and no supabase_db container is running');
 }
 
 export function findSupabaseDbContainer() {
@@ -665,7 +943,7 @@ export function mapFileToAreas(file) {
     areas.add('keys');
   }
   if (
-    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint|65_add_birthday|66_seal_age|67_age_seal/.test(
+    /patria-app\/src\/features\/letters|letterEnvelope|letterSplit|letterReleaseKey|letterKeeper|letter-release|leg02|59_write|60_announced|61_edit|62_date|63_fingerprint|65_add_birthday|66_seal_age|67_age_seal|68_seal_keepers|69_keeper|70_before_due|71_two_keepers|72_one_keeper|73_keeper_leaves/.test(
       n,
     )
   ) {

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
@@ -18,6 +18,7 @@ import {
 import { signOutAndGoWelcome } from '../../lib/authSession';
 import { copy } from '../../lib/copy';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
+import { ensurePersonalKeyAfterFamilyReady } from '../../lib/crypto/personalKey';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchChildren, fetchMembers, fetchPendingInvites } from '../../lib/family';
@@ -27,6 +28,7 @@ import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
+import { ensureLetterboxKey } from '../letters/letterboxEnsure';
 import { FamilyDeviceNotices } from './FamilyDeviceNotices';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
@@ -73,17 +75,39 @@ export function FamilyScreen() {
     queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, current?.role),
   });
 
+  const personalKeyQuery = useQuery({
+    queryKey: ['personalKeyStatus', spaceId, userId],
+    enabled: keyStatusQuery.data === 'ready' && Boolean(spaceId && userId),
+    queryFn: () =>
+      ensurePersonalKeyAfterFamilyReady({
+        spaceId: spaceId as string,
+        userId: userId as string,
+      }),
+    retry: false,
+  });
+
+  // After family keys are ready, finish personal wrap then letterbox (keeper Help).
+  useEffect(() => {
+    if (personalKeyQuery.data?.status !== 'ready' || !spaceId || !userId) {
+      return;
+    }
+    void ensureLetterboxKey({ spaceId, userId }).catch(() => {
+      // Recovery may still be missing — Vault / Letters banners cover that.
+    });
+  }, [personalKeyQuery.data?.status, spaceId, userId]);
+
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
     setPullRefreshing(true);
     if (userId) {
       void queryClient.invalidateQueries({ queryKey: ['memberships', userId] });
     }
-    if (spaceId) {
+      if (spaceId) {
       void queryClient.invalidateQueries({ queryKey: ['members', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['children', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['invites', spaceId] });
       void queryClient.invalidateQueries({ queryKey: ['familyKeyStatus'] });
+      void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
       void queryClient.invalidateQueries({ queryKey: ['recoverySnapshot', spaceId, userId] });
     }
     requestAnimationFrame(() => setPullRefreshing(false));
@@ -342,12 +366,20 @@ export function FamilyScreen() {
       />
       <SecurityStatusCard
         keyStatus={keyStatusQuery.data}
+        personalStatus={personalKeyQuery.data?.status}
         recoveryStatus={recoveryQuery.data?.status}
         keyHolder={keyHolder}
         admin={admin}
         familyName={current.space.name}
         keysTestID="family-keys-status"
+        personalKeysTestID="family-personal-keys-status"
         recoveryTestID="family-recovery-status"
+        onRetryPersonalEnroll={() => {
+          void queryClient.invalidateQueries({ queryKey: ['personalKeyStatus', spaceId, userId] });
+        }}
+        onSetUpRecoveryForPersonal={() => {
+          router.push(routes.recoverySetup);
+        }}
       />
       <Button
         label={copy.appearance.title}

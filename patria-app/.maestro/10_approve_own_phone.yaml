@@ -18,6 +18,13 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      # Device notices live on Family (Needs you only navigates there).
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "Is this your new phone?"
+          direction: DOWN
+          timeout: 30000
       - assertVisible: "Is this your new phone?"
 - runFlow:
     when:
@@ -25,6 +32,12 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "added a new phone"
+          direction: DOWN
+          timeout: 30000
       - assertVisible: "added a new phone"
       - assertNotVisible:
           id: "yes-this-is-my-phone"
@@ -34,6 +47,13 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "yes-this-is-my-phone"
+          direction: DOWN
+          timeout: 30000
       - tapOn:
           id: "yes-this-is-my-phone"
 - runFlow:
@@ -42,6 +62,13 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "this-wasnt-me"
+          direction: DOWN
+          timeout: 30000
       - tapOn:
           id: "this-wasnt-me"
 - runFlow:
@@ -66,25 +93,67 @@ appId: app.patria.dev
           visible:
             id: "screen-family"
           timeout: 20000
-      - swipe:
-          start: 50%, 80%
-          end: 50%, 20%
+      # Start from the top so "Your phones" is not tucked under the header.
+      - scrollUntilVisible:
+          element:
+            id: "family-name"
+          direction: UP
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "^your-phones$"
           direction: DOWN
-          timeout: 20000
+          timeout: 30000
+          centerElement: true
       - tapOn:
           id: "^your-phones$"
       - extendedWaitUntil:
           visible:
             id: "screen-your-phones"
+          timeout: 30000
+      - assertVisible:
+          id: "screen-your-phones"
+      - assertVisible:
+          id: "this-phone"
+      - assertVisible: "This phone"
+      # Device B (other approved phone): Set up {when} + Remove (This phone is first).
+      - scrollUntilVisible:
+          element:
+            id: "^other-phone$"
+          direction: DOWN
           timeout: 20000
+          centerElement: true
+      - assertVisible:
+          id: "^other-phone$"
+      - assertVisible:
+          text: "Set up .*"
       - scrollUntilVisible:
           element:
             id: "^remove-phone$"
           direction: DOWN
-          timeout: 10000
+          timeout: 20000
+          centerElement: true
+      - assertVisible:
+          id: "^remove-phone$"
       - tapOn:
           id: "^remove-phone$"
-      - tapOn: "Remove"
+      - extendedWaitUntil:
+          visible:
+            id: "remove-phone-confirm"
+          timeout: 15000
+      - assertVisible:
+          id: "remove-phone-confirm"
+      - takeScreenshot: your-phones-remove-confirm
+      - tapOn:
+          id: "remove-phone-confirm-yes"
+      - extendedWaitUntil:
+          notVisible:
+            id: "^other-phone$"
+          timeout: 30000
+      - assertNotVisible:
+          id: "^remove-phone$"
+      - assertNotVisible:
+          id: "^other-phone$"
+      - assertVisible:
+          id: "this-phone"
+      - takeScreenshot: your-phones-after-remove

@@ -7,6 +7,7 @@ import {
   LEGACY_DEVICE_PRIVATE_STORE_KEY,
   deviceIdStoreKey,
   devicePrivateStoreKey,
+  resetDeviceIdentityMemory,
 } from './deviceIdentity';
 import type { DeviceAccessGateway } from './deviceAccess';
 import {
@@ -79,6 +80,8 @@ function memoryAccess(insertNotice = jest.fn(async () => undefined)): DeviceAcce
 
 describe('founding family key ceremony', () => {
   beforeEach(() => {
+    resetDeviceIdentityMemory();
+    resetFamilyKeyMemory();
     (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
     (SecureStore.setItemAsync as jest.Mock).mockResolvedValue(undefined);
     (SecureStore.deleteItemAsync as jest.Mock).mockResolvedValue(undefined);
@@ -133,6 +136,35 @@ describe('founding family key ceremony', () => {
     expect(commit).not.toHaveBeenCalled();
     expect(insertNotice).toHaveBeenCalled();
     expect(status).toBe('waiting');
+  });
+
+  it('shows waiting again with a fresh request after a pending request expired', async () => {
+    const stored = new Map<string, string>();
+    installMemoryStore(stored);
+    const upsert = jest.fn(async () => undefined);
+    const insertNotice = jest.fn(async () => undefined);
+    const access = memoryAccess(insertNotice);
+    access.upsertDevicePublicKey = upsert;
+
+    const first = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'teen' },
+      memoryGateway({ meta: { keyEpoch: 1 } }),
+      access,
+    );
+    expect(first).toBe('waiting');
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(insertNotice).toHaveBeenCalledTimes(1);
+
+    // Server expired the never-approved device_keys + notice; local identity remains.
+    const again = await ensureKeysForOpenFamily(
+      { spaceId: SPACE, userId: USER, role: 'teen' },
+      memoryGateway({ meta: { keyEpoch: 1 } }),
+      access,
+    );
+    expect(again).toBe('waiting');
+    expect(upsert).toHaveBeenCalledTimes(2);
+    expect(insertNotice).toHaveBeenCalledTimes(2);
+    await expect(getSecretBytes(familyKeyStoreKey(USER, SPACE))).resolves.toBeNull();
   });
 
   it('discards the local key when this phone loses the race', async () => {
@@ -223,6 +255,12 @@ describe('founding family key ceremony', () => {
       deviceId: device.deviceId,
       publicKey: device.publicKey,
     });
+    const wrapped = wrapKeyToDevice(material.familyKey, device.publicKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: USER,
+      deviceId: device.deviceId,
+    });
     stored.set(LEGACY_DEVICE_ID_STORE_KEY, device.deviceId);
     stored.set(LEGACY_DEVICE_PRIVATE_STORE_KEY, bytesToHex(device.privateKey));
     stored.set(legacyFamilyKeyStoreKey(SPACE), bytesToHex(material.familyKey));
@@ -233,9 +271,14 @@ describe('founding family key ceremony', () => {
     stored.delete(recoveryKeyStoreKey(USER, SPACE));
     resetFamilyKeyMemory();
 
+    // Ready requires a live wrap for this device — legacy cache alone is not enough
+    // (stale cache after device-id rotation caused keeper Help approve-other-phone).
     const status = await ensureKeysForOpenFamily(
       { spaceId: SPACE, userId: USER, role: 'family_admin' },
-      memoryGateway({ meta: { keyEpoch: 1 } }),
+      memoryGateway({
+        meta: { keyEpoch: 1 },
+        wraps: async () => [{ deviceId: device.deviceId, wrappedKey: wrapped, keyEpoch: 1 }],
+      }),
       memoryAccess(),
     );
     expect(status).toBe('ready');
@@ -266,17 +309,18 @@ describe('founding family key ceremony', () => {
     stored.delete(devicePrivateStoreKey(USER));
     stored.delete(familyKeyStoreKey(USER, SPACE));
     resetFamilyKeyMemory();
-    const insertNotice = jest.fn(async () => undefined);
-    const status = await ensureKeysForOpenFamily(
-      { spaceId: SPACE, userId: USER, role: 'family_admin' },
-      memoryGateway({
-        meta: { keyEpoch: 1 },
-        wraps: async () => [{ deviceId: device.deviceId, wrappedKey: wrapped, keyEpoch: 1 }],
-      }),
-      memoryAccess(insertNotice),
-    );
-    expect(status).toBe('waitingOwnPhone');
-    expect(insertNotice).toHaveBeenCalled();
+    // Simulate a cold process (memory gone) with id left on disk and no private.
+    resetDeviceIdentityMemory();
+    await expect(
+      ensureKeysForOpenFamily(
+        { spaceId: SPACE, userId: USER, role: 'family_admin' },
+        memoryGateway({
+          meta: { keyEpoch: 1 },
+          wraps: async () => [{ deviceId: device.deviceId, wrappedKey: wrapped, keyEpoch: 1 }],
+        }),
+        memoryAccess(),
+      ),
+    ).rejects.toThrow('device-private-unavailable');
     wipe(material.familyKey);
   });
 
@@ -298,6 +342,7 @@ describe('founding family key ceremony', () => {
     });
     stored.clear();
     resetFamilyKeyMemory();
+    resetDeviceIdentityMemory();
     installMemoryStore(stored);
     const insertNotice = jest.fn(async () => undefined);
     const status = await ensureKeysForOpenFamily(

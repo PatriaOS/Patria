@@ -18,7 +18,7 @@ appId: app.patria.dev
       visible:
         id: "recovery-reminder-sheet"
     commands:
-      - takeScreenshot: ../../docs/design/HOME-v2-reminder-light
+      - takeScreenshot: HOME-v2-reminder-light
       - tapOn:
           id: "recovery-reminder-later"
       - extendedWaitUntil:
@@ -29,17 +29,17 @@ appId: app.patria.dev
     visible:
       id: "^home$"
     timeout: 15000
-- takeScreenshot: ../../docs/design/HOME-v2-filled-light
+- takeScreenshot: HOME-v2-filled-light
 - assertVisible:
     id: "home-needs-you-badge"
-- takeScreenshot: ../../docs/design/HOME-v2-bell-badge-light
+- takeScreenshot: HOME-v2-bell-badge-light
 - tapOn:
     id: "home-needs-you-bell"
 - extendedWaitUntil:
     visible:
       id: "screen-needs-you"
     timeout: 15000
-- takeScreenshot: ../../docs/design/HOME-v2-needs-you-light
+- takeScreenshot: HOME-v2-needs-you-light
 - tapOn:
     point: 8%, 12%
 - extendedWaitUntil:
@@ -52,11 +52,11 @@ appId: app.patria.dev
     visible:
       id: "home-menu-drawer"
     timeout: 10000
-- takeScreenshot: ../../docs/design/HOME-v2-drawer-light
+- takeScreenshot: HOME-v2-drawer-light
 - tapOn:
     id: "menu-privacy-security"
 - extendedWaitUntil:
     visible:
       id: "screen-privacy-security"
     timeout: 15000
-- takeScreenshot: ../../docs/design/HOME-v2-privacy-light
+- takeScreenshot: HOME-v2-privacy-light

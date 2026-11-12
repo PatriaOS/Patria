@@ -4,6 +4,7 @@ import { isKeyEligibleRole } from '../roles';
 import { supabase } from '../supabase';
 import { wipe } from './bytes';
 import type { DeviceIdentity } from './deviceIdentity';
+import { loadLocalDeviceIdHistory } from './deviceIdentity';
 import { obtainFamilyKey } from './keyStore';
 import { fromPgBytea, requireX25519PublicKey, toPgBytea } from './pgBytea';
 import { wrapPersonalKeyForApprovedDeviceIfPresent } from './personalKey';
@@ -26,6 +27,8 @@ export type OwnPhone = {
   createdAt: string;
   rejectedAt: string | null;
   hasWrap: boolean;
+  /** Prior device id from this installation (remint orphan) — label for remove. */
+  olderSignInOnThisPhone: boolean;
 };
 
 export type DeviceAccessGateway = {
@@ -285,6 +288,7 @@ export const supabaseDeviceAccessGateway: DeviceAccessGateway = {
       createdAt: row.created_at as string,
       rejectedAt: (row.rejected_at as string | null) ?? null,
       hasWrap: withWrap.has(row.device_id as string),
+      olderSignInOnThisPhone: false,
     }));
   },
 };
@@ -347,6 +351,7 @@ export async function approveFirstDevice(
     deviceId: input.adminDeviceId,
     privateKey: input.adminPrivateKey,
     fetchOwnWrap: gateway.fetchOwnWrap,
+    allowCachedWithoutWrap: true,
   });
   if (!familyKey) {
     throw new Error('missing family key');
@@ -401,6 +406,7 @@ export async function approveOwnExtraDevice(
     deviceId: input.approverDeviceId,
     privateKey: input.approverPrivateKey,
     fetchOwnWrap: gateway.fetchOwnWrap,
+    allowCachedWithoutWrap: true,
   });
   if (!familyKey) {
     throw new Error('missing family key');
@@ -464,5 +470,25 @@ export async function listOwnPhones(
   userId: string,
   gateway: DeviceAccessGateway = supabaseDeviceAccessGateway,
 ): Promise<OwnPhone[]> {
-  return gateway.listOwnPhones(spaceId, userId);
+  const phones = await gateway.listOwnPhones(spaceId, userId);
+  const history = new Set(await loadLocalDeviceIdHistory(userId));
+  return phones.map((phone) => ({
+    ...phone,
+    olderSignInOnThisPhone: history.has(phone.deviceId),
+  }));
+}
+
+/** This phone first, then newest registration first. */
+export function sortOwnPhonesForDisplay(
+  phones: OwnPhone[],
+  thisDeviceId: string | null,
+): OwnPhone[] {
+  return [...phones].sort((a, b) => {
+    const aThis = Boolean(thisDeviceId) && a.deviceId === thisDeviceId;
+    const bThis = Boolean(thisDeviceId) && b.deviceId === thisDeviceId;
+    if (aThis !== bThis) {
+      return aThis ? -1 : 1;
+    }
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }

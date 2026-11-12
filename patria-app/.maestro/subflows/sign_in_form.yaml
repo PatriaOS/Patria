@@ -65,11 +65,13 @@ appId: app.patria.dev
           timeout: 30000
       - tapOn:
           id: "^email$"
-      - eraseText: 80
+      - waitForAnimationToEnd
+      - eraseText
       - inputText: ${E2E_EMAIL}
       - tapOn:
           id: "^password$"
-      - eraseText: 80
+      - waitForAnimationToEnd
+      - eraseText
       - inputText: ${E2E_PASSWORD}
       - pressKey: Enter
       - tapOn:
@@ -122,11 +124,13 @@ appId: app.patria.dev
                 timeout: 30000
             - tapOn:
                 id: "^email$"
-            - eraseText: 80
+            - waitForAnimationToEnd
+            - eraseText
             - inputText: ${E2E_EMAIL}
             - tapOn:
                 id: "^password$"
-            - eraseText: 80
+            - waitForAnimationToEnd
+            - eraseText
             - inputText: ${E2E_PASSWORD}
             - pressKey: Enter
             - tapOn:

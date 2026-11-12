@@ -31,6 +31,8 @@ export type NeedsYouLetter = {
   triggerAt: string | null;
   authorName: string | null;
   recipientName: string | null;
+  /** Author: a current keeper left the family — reseal keepers. */
+  keeperReplaceNeeded?: boolean;
 };
 
 export type NeedsYouInput = {
@@ -77,6 +79,21 @@ function letterNeedsYouItem(
       actionLabel: action,
       href: routes.letters,
       testID: 'needs-you-letter-left',
+    };
+  }
+  if (
+    letter.authorId === userId &&
+    letter.keeperReplaceNeeded &&
+    (letter.status === 'sealed' || letter.status === 'pending')
+  ) {
+    return {
+      id: `letter-keeper-left-${letter.id}`,
+      kind: 'letter_recipient_left',
+      title: copy.letters.needsYouKeeperLeftTitle,
+      body: copy.letters.needsYouKeeperLeftBody,
+      actionLabel: action,
+      href: routes.letterDetail(letter.id),
+      testID: 'needs-you-letter-keeper-left',
     };
   }
   if (letter.recipientId !== userId || letter.recipientLeftAt != null) {

@@ -4,6 +4,7 @@ import { unwrapKeyFromDevice } from './wrap';
 import { deleteSecret, getSecretBytes, setSecretBytes } from './secureKeys';
 
 const memoryFamilyKeys = new Map<string, Uint8Array>();
+const memoryPersonalKeys = new Map<string, Uint8Array>();
 
 export function familyKeyStoreKey(userId: string, spaceId: string): string {
   return `patria.u.${userId}.familyKey.${spaceId}`;
@@ -65,6 +66,10 @@ export function resetFamilyKeyMemory(): void {
     wipe(value);
   }
   memoryFamilyKeys.clear();
+  for (const value of memoryPersonalKeys.values()) {
+    wipe(value);
+  }
+  memoryPersonalKeys.clear();
 }
 
 export async function discardLocalFamilySecrets(userId: string, spaceId: string): Promise<void> {
@@ -73,6 +78,11 @@ export async function discardLocalFamilySecrets(userId: string, spaceId: string)
   if (mem) {
     wipe(mem);
     memoryFamilyKeys.delete(slot);
+  }
+  const personalMem = memoryPersonalKeys.get(slot);
+  if (personalMem) {
+    wipe(personalMem);
+    memoryPersonalKeys.delete(slot);
   }
   await deleteSecret(familyKeyStoreKey(userId, spaceId));
   await deleteSecret(recoveryKeyStoreKey(userId, spaceId));
@@ -86,6 +96,12 @@ export async function cachePersonalKey(
   spaceId: string,
   personalKey: Uint8Array,
 ): Promise<void> {
+  const slot = memorySlot(userId, spaceId);
+  const previous = memoryPersonalKeys.get(slot);
+  if (previous) {
+    wipe(previous);
+  }
+  memoryPersonalKeys.set(slot, cloneKey(personalKey));
   await setSecretBytes(personalKeyStoreKey(userId, spaceId), personalKey);
 }
 
@@ -93,7 +109,16 @@ export async function loadCachedPersonalKey(
   userId: string,
   spaceId: string,
 ): Promise<Uint8Array | null> {
-  return getSecretBytes(personalKeyStoreKey(userId, spaceId));
+  const slot = memorySlot(userId, spaceId);
+  const mem = memoryPersonalKeys.get(slot);
+  if (mem) {
+    return cloneKey(mem);
+  }
+  const stored = await getSecretBytes(personalKeyStoreKey(userId, spaceId));
+  if (stored) {
+    memoryPersonalKeys.set(slot, cloneKey(stored));
+  }
+  return stored;
 }
 
 export async function unwrapCachedPersonalKey(
@@ -190,11 +215,32 @@ export async function obtainFamilyKey(input: {
     userId: string,
     deviceId: string,
   ) => Promise<{ wrappedKey: Uint8Array; keyEpoch: number } | null>;
+  /**
+   * When false (default), a missing live wrap clears cache and returns null so
+   * Family keys status cannot show ready after a remint (keeper Help).
+   * When true, a phone that already holds the family key may still use cache
+   * to wrap it to another device (admin let-in / approve own extra phone).
+   */
+  allowCachedWithoutWrap?: boolean;
 }): Promise<Uint8Array | null> {
   await migrateLegacyFamilySecrets(input.userId, input.spaceId);
   if (input.privateKey && input.privateKey.length > 0) {
     const own = await input.fetchOwnWrap(input.spaceId, input.userId, input.deviceId);
-    if (own) {
+    if (!own) {
+      if (!input.allowCachedWithoutWrap) {
+        // No live wrap for this device id — do not report ready from a stale
+        // family-key cache (that masked approve-other-phone on keeper Help).
+        // Keep personal-key cache; discarding it would make letterbox unwrap worse.
+        const slot = memorySlot(input.userId, input.spaceId);
+        const mem = memoryFamilyKeys.get(slot);
+        if (mem) {
+          wipe(mem);
+          memoryFamilyKeys.delete(slot);
+        }
+        await deleteSecret(familyKeyStoreKey(input.userId, input.spaceId));
+        return null;
+      }
+    } else {
       try {
         const opened = unwrapKeyFromDevice(own.wrappedKey, input.privateKey, {
           familySpaceId: input.spaceId,
@@ -205,7 +251,7 @@ export async function obtainFamilyKey(input: {
         await cacheFamilySecrets(input.userId, input.spaceId, opened);
         return opened;
       } catch {
-        // Fall back to a cached copy from this phone.
+        // Fall back to a cached copy from this phone (same device, unwrap glitch).
       }
     }
   }

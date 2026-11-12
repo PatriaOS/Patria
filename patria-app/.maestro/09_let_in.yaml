@@ -55,11 +55,18 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
+      # Notices sit near the top; start from family-name so we do not miss them.
+      - scrollUntilVisible:
+          element:
+            id: "family-name"
+          direction: UP
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "let-in-notice"
           direction: DOWN
-          timeout: 15000
+          timeout: 30000
+          centerElement: true
       - assertVisible:
           id: "let-in-notice"
           text: ".*added a new phone.*"
@@ -93,9 +100,18 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
-      - extendedWaitUntil:
-          visible: "Family keys: set up on this phone"
-          timeout: 20000
+      # Five members push the keys line below the fold — scroll before asserting.
+      - scrollUntilVisible:
+          element: "Family keys: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
+      # Let-in must finish with a personal wrap on this phone too (Family status).
+      - scrollUntilVisible:
+          element: "Personal key: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Personal key: set up on this phone"
 - runFlow:
     when:
       true: ${PHASE == 'no_notice'}

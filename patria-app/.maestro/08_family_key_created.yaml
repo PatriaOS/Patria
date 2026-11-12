@@ -74,6 +74,25 @@ appId: app.patria.dev
       - assertVisible: "Family keys: set up on this phone"
 - runFlow:
     when:
+      true: ${PHASE == 'home_keys_and_personal'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "family-keys-status"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
+      - scrollUntilVisible:
+          element: "Personal key: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Personal key: set up on this phone"
+- runFlow:
+    when:
       true: ${PHASE == 'reopen'}
     commands:
       - stopApp

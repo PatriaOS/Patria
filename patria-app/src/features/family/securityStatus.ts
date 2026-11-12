@@ -1,5 +1,6 @@
 import { copy } from '../../lib/copy';
 import type { FamilyKeyStatus } from '../../lib/crypto/familyCeremony';
+import type { PersonalKeyDeviceStatus } from '../../lib/crypto/personalKey';
 import type { RecoveryHomeStatus } from '../../lib/crypto/recoverySetup';
 import type { PillTone } from '../../ui';
 
@@ -14,6 +15,29 @@ export function keyStatusLabel(status: FamilyKeyStatus): string {
     return copy.home.keysWaitingOwnPhone;
   }
   return copy.home.keysWaiting;
+}
+
+export function personalKeyStatusLabel(status: PersonalKeyDeviceStatus): string {
+  if (status === 'ready') {
+    return copy.home.personalKeysReady;
+  }
+  if (status === 'needsOtherPhone') {
+    return copy.home.personalKeysNeedOtherPhone;
+  }
+  if (status === 'needsRecovery') {
+    return copy.home.personalKeysNeedRecoveryPill;
+  }
+  return copy.home.personalKeysEnrollFailedPill;
+}
+
+export function personalKeyStatusTone(status: PersonalKeyDeviceStatus): PillTone {
+  if (status === 'ready') {
+    return 'success';
+  }
+  if (status === 'needsOtherPhone' || status === 'needsRecovery') {
+    return 'wait';
+  }
+  return 'danger';
 }
 
 export type RecoveryPill = { label: string; tone: PillTone };
