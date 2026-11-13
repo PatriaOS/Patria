@@ -506,6 +506,15 @@ if (selected.length === 0) {
   process.exit(1);
 }
 
+// Test 12 needs a third iPhone 17 Pro (never Pro Max). Bump before boot so
+// bootDevices creates Patria e2e iPhone 17 Pro C and ensureAppInstalledOn copies the build.
+if (selected.some((test) => test.number === 12) && args.devices < 3) {
+  console.log(
+    `${SCRIPT}: Test 12 needs 3 iPhone 17 Pro simulators; using E2E_DEVICES=3 (was ${args.devices}).`,
+  );
+  args.devices = 3;
+}
+
 const record = await askRecord(args.record);
 if (record) {
   console.log('Recordings go in patria-app/e2e-recordings/ (gitignored). Tests 11–12 stay on this computer only.');
@@ -909,10 +918,47 @@ function clearMemberDevicesAndPendingNotices(memberN) {
   );
 }
 
-/** Local e2e only: clear stale devices/notices for Tests 1–5 before seeding. */
+/**
+ * Local e2e only: wipe every device registration and wrap for Test N.
+ * Used for Tests 2–5 at seed start so a wrap on a retired Simulator (e.g. Pro Max)
+ * cannot look like "already let in" on a new Pro. Never used against hosted.
+ */
+function clearAllDevicesAndWrapsForMember(memberN) {
+  const email = TEST_EMAILS[memberN];
+  if (!email) {
+    return;
+  }
+  const userSql = `(SELECT id FROM auth.users WHERE email = '${email}' LIMIT 1)`;
+  const spaceSql = `(SELECT id FROM public.family_spaces WHERE name = '${E2E_FAMILY_NAME}' LIMIT 1)`;
+  sqlOnE2eFamily(
+    `DELETE FROM public.device_approval_notices
+       WHERE family_space_id = ${spaceSql}
+         AND user_id = ${userSql};
+     DELETE FROM public.family_key_wraps
+       WHERE family_space_id = ${spaceSql}
+         AND user_id = ${userSql};
+     DELETE FROM public.personal_key_wraps
+       WHERE family_space_id = ${spaceSql}
+         AND user_id = ${userSql};
+     DELETE FROM public.recovery_contact_secrets
+       WHERE user_id = ${userSql};
+     DELETE FROM public.recovery_requests
+       WHERE user_id = ${userSql}
+         AND completed_at IS NULL;
+     DELETE FROM public.device_keys
+       WHERE user_id = ${userSql};`,
+  );
+}
+
+/**
+ * Local e2e only: before seeding, drop orphan registrations from Simulators that
+ * are no longer in this run. Test 1 keeps its newest approved wrap (admin on A).
+ * Tests 2–5 are wiped so let-in must run again on the current Pros.
+ */
 function clearStaleDevicesForAllTestMembers() {
-  for (const n of [1, 2, 3, 4, 5]) {
-    clearMemberDevicesAndPendingNotices(n);
+  clearMemberDevicesAndPendingNotices(1);
+  for (const n of [2, 3, 4, 5]) {
+    clearAllDevicesAndWrapsForMember(n);
   }
 }
 
@@ -936,30 +982,68 @@ function memberHasWrap(memberN) {
   ]).ok;
 }
 
+/** True only when a family wrap exists for this member's latest device_keys row. */
+function memberHasWrapOnLatestDevice(memberN) {
+  return dbCheck([
+    'assert-wrap-for-latest-device',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+  ]).ok;
+}
+
+function memberHasRecoveryPublic(memberN) {
+  return dbCheck([
+    'has-recovery-public',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+  ]).ok;
+}
+
+function assertPersonalWrapsIfRecovery(memberN) {
+  if (!memberHasRecoveryPublic(memberN)) {
+    // Elders without recovery correctly show "Personal key: waiting on recovery".
+    return;
+  }
+  const personalOk = dbCheck([
+    'assert-personal-wraps',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+  ]);
+  if (!personalOk.ok) {
+    throw new Error(
+      `Test ${memberN} has recovery but no personal wrap for family devices: ${
+        personalOk.error ?? 'assert-personal-wraps failed'
+      }`,
+    );
+  }
+}
+
 function seedLetIn(memberN, device) {
-  // Probe only: soft keys_ready is allowed here because failure continues into a
-  // full hard waiting → let_in → keys_ready path (never leaves the member half set up).
+  // Already let in = family wrap for THIS Simulator's device id only.
+  // Soft family_keys_ready (not full keys_ready): elders without recovery never
+  // show "Personal key: set up" — that is correct product behaviour, not a seed miss.
   const alreadyReady = tryMaestro({
     flow: flow('09_let_in.yaml'),
     device,
-    env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+    env: { ...signInEnv(secrets, memberN), PHASE: 'family_keys_ready' },
   });
   if (alreadyReady.ok) {
-    const personalOk = dbCheck([
-      'assert-personal-wraps',
-      '--family',
-      E2E_FAMILY_NAME,
-      '--email',
-      TEST_EMAILS[memberN],
-    ]);
-    if (!personalOk.ok) {
-      throw new Error(
-        `Test ${memberN} shows family keys ready but has no personal wrap: ${
-          personalOk.error ?? 'assert-personal-wraps failed'
-        }`,
-      );
+    if (!memberHasWrapOnLatestDevice(memberN)) {
+      // UI said ready but wrap is for another device id — treat as not ready.
+      clearAllDevicesAndWrapsForMember(memberN);
+    } else {
+      assertPersonalWrapsIfRecovery(memberN);
+      return;
     }
-    return;
+  } else if (memberHasWrap(memberN) && !memberHasWrapOnLatestDevice(memberN)) {
+    // Orphan wrap on a retired Simulator — wipe so waiting/let-in targets this phone.
+    clearAllDevicesAndWrapsForMember(memberN);
   }
 
   const waitingOpts = {
@@ -973,11 +1057,11 @@ function seedLetIn(memberN, device) {
       device: deviceA,
       env: { ...signInEnv(secrets, 1), PHASE: 'let_in' },
     });
-  const runKeysReady = () =>
+  const runFamilyKeysReady = () =>
     maestro({
       flow: flow('09_let_in.yaml'),
       device,
-      env: { ...signInEnv(secrets, memberN), PHASE: 'keys_ready' },
+      env: { ...signInEnv(secrets, memberN), PHASE: 'family_keys_ready' },
     });
 
   // One waiting attempt; on DeviceUnreachable / driver death, one infra retry
@@ -996,6 +1080,9 @@ function seedLetIn(memberN, device) {
   if (waitingAttempt.ok) {
     collectReviewCapturesFromMaestro();
     waitingDone = true;
+  } else if (memberHasWrapOnLatestDevice(memberN)) {
+    // This phone already has a wrap (notice race) — skip waiting.
+    waitingDone = true;
   } else if (!memberHasWrap(memberN)) {
     throw new Error(
       `Test ${memberN} never reached waiting for let-in (and has no family wrap): ${
@@ -1005,7 +1092,8 @@ function seedLetIn(memberN, device) {
       }`,
     );
   } else {
-    // Reminted device id: wrap exists for an older id — enroll this phone hard.
+    // Wrap exists only for another device id — clear orphans and enroll this phone.
+    clearAllDevicesAndWrapsForMember(memberN);
     const reset = dbCheck([
       'reset-letterbox-personal',
       '--family',
@@ -1024,7 +1112,9 @@ function seedLetIn(memberN, device) {
       );
     }
     signInOnDevice(memberN, device);
-    waitForLetterbox(memberN);
+    if (memberHasRecoveryPublic(memberN)) {
+      waitForLetterbox(memberN);
+    }
     maestro(waitingOpts);
     waitingDone = true;
   }
@@ -1033,32 +1123,29 @@ function seedLetIn(memberN, device) {
     throw new Error(`Test ${memberN} seedLetIn internal error: waiting not completed`);
   }
 
-  runLetIn();
+  if (!memberHasWrapOnLatestDevice(memberN)) {
+    runLetIn();
+  }
   try {
-    runKeysReady();
+    runFamilyKeysReady();
   } catch (keysError) {
+    const orphanWrap = memberHasWrap(memberN) && !memberHasWrapOnLatestDevice(memberN);
     throw new Error(
       `Test ${memberN} has no family keys on this phone after let-in` +
-        (memberHasWrap(memberN) ? ' (wrap exists for another device id)' : '') +
+        (orphanWrap ? ' (wrap exists for another device id)' : '') +
         `: ${keysError instanceof Error ? keysError.message : String(keysError)}`,
     );
   }
 
-  // Do not reset letterbox here — after seal, pinned keeper letterbox keys must stay.
-  const personalOk = dbCheck([
-    'assert-personal-wraps',
-    '--family',
-    E2E_FAMILY_NAME,
-    '--email',
-    TEST_EMAILS[memberN],
-  ]);
-  if (!personalOk.ok) {
+  if (!memberHasWrapOnLatestDevice(memberN)) {
     throw new Error(
-      `Test ${memberN} family wrap has no personal wrap (keeper Help would fail): ${
-        personalOk.error ?? 'assert-personal-wraps failed'
-      }`,
+      `Test ${memberN} Family shows keys ready but no wrap for this phone's device id` +
+        (memberHasWrap(memberN) ? ' (wrap exists for another device id)' : ''),
     );
   }
+
+  // Personal wraps only when recovery is set up (keepers / letter recipients).
+  assertPersonalWrapsIfRecovery(memberN);
 }
 
 function seedLettersReady() {

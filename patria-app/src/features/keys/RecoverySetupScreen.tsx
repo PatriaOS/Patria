@@ -323,7 +323,7 @@ export function RecoverySetupScreen() {
           onPress={() => void onPaperLost()}
         />
       ) : null}
-      {snapshot?.hasRecoveryPublic && snapshot.accepted < 2 ? (
+      {snapshot?.hasRecoveryPublic && snapshot.accepted === 0 ? (
         <Button
           label={copy.recovery.redoSetup}
           variant="secondary"

@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-13 — Seed let-in: this-device wrap only; wipe orphan Pros
+
+Tests 11/13 failed on new Simulator B when seed treated any `family_key_wraps` row as “already let in” — the wrap belonged to a retired Pro Max device id, so soft `keys_ready` failed and the final error said “wrap exists for another device id”. After remint, Family keys were on B but Personal correctly waited on recovery (Test 2 has no recovery public in tests 11/13), and full `keys_ready` still demanded personal. Fix (local e2e only): at seed start wipe all device registrations and wraps for Tests 2–5 (Test 1 keeps newest approved wrap); soft/hard let-in ready uses Maestro `family_keys_ready` plus DB `assert-wrap-for-latest-device`; personal wraps asserted only when that member has `recovery_public_keys`. Test 12 auto-bumps to three iPhone 17 Pros (creates C, copies the app build). Also: first contact accept uploads recovery public before `ab`, so status must stay **one of two** (not Finish-setup needs attention); Maestro pick_contact also taps `needs-you-recovery-attention`. No hosted migrate.
+
 ## 2026-11-13 — Recovery needs-attention copy and printed-code gate copy
 
 Needs-attention card (Family, Privacy and Security, Recovery setup) adds one calm line above **Finish setup**. Printed-code screen with no `ab` shows only the finish-setup line (no post-repair “older words” banner); that banner appears only when new words are shown after a repair.

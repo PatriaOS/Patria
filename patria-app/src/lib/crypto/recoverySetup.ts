@@ -104,11 +104,14 @@ export function recoveryStatusCopyKey(
     }
     return 'setup';
   }
-  if (snapshot.hasRecoveryPublic && snapshot.accepted < 2) {
-    return 'needs_attention';
-  }
+  // First accept uploads the recovery public key before ab exists — that is
+  // normal mid-setup (one_of_two), not a broken Finish-setup state.
   if (snapshot.accepted === 1) {
     return 'one_of_two';
+  }
+  // Orphan public key with no accepted contacts: setup started then contacts gone.
+  if (snapshot.hasRecoveryPublic && snapshot.accepted === 0) {
+    return 'needs_attention';
   }
   const asContact = snapshot.contacts.find(
     (row) => row.userId === userId && row.status === 'accepted' && row.memberId !== userId,

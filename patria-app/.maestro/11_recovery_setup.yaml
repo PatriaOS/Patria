@@ -40,8 +40,12 @@ appId: app.patria.dev
             - tapOn:
                 id: "home-needs-you-bell"
                 optional: true
+            # Mid-setup (one contact) uses recovery-setup; broken Finish-setup uses attention.
             - tapOn:
                 id: "needs-you-recovery-setup"
+                optional: true
+            - tapOn:
+                id: "needs-you-recovery-attention"
                 optional: true
             - tapOn:
                 id: "privacy-recovery-contacts"
@@ -86,6 +90,14 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
+      # Member list can push the status card above the fold after two accepts.
+      - swipe:
+          start: 50%, 30%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element: "Almost done: write down your printed code"
+          direction: DOWN
+          timeout: 30000
       - assertVisible: "Almost done: write down your printed code"
       - takeScreenshot: recovery-almost-done
 - runFlow:

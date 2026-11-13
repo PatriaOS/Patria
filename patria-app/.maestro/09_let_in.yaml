@@ -92,6 +92,21 @@ appId: app.patria.dev
       - assertVisible:
           id: ${MEMBER_ID}
       - assertNotVisible: "added a new phone"
+# Family wrap on THIS phone only (seed let-in for elders without recovery).
+- runFlow:
+    when:
+      true: ${PHASE == 'family_keys_ready'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "Family keys: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
+# Family + personal wraps on this phone (keepers / anyone with recovery set up).
 - runFlow:
     when:
       true: ${PHASE == 'keys_ready'}

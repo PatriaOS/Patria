@@ -124,6 +124,45 @@ function makeHarness(contacts: RecoveryContactRow[]): Harness {
 }
 
 describe('recovery pair boxes status', () => {
+  it('marks one accepted contact as one_of_two even when recovery public exists', () => {
+    const snapshot: Omit<RecoverySnapshot, 'status'> = {
+      contacts: [],
+      ownContacts: [
+        {
+          id: '1',
+          spaceId: SPACE,
+          memberId: MEMBER,
+          userId: CONTACT_A,
+          slot: 'a',
+          status: 'accepted',
+        },
+      ],
+      accepted: 1,
+      pending: [],
+      hasAb: false,
+      hasPaper: false,
+      hasRecoveryPublic: true,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+    };
+    expect(recoveryStatusCopyKey(snapshot, MEMBER, 'family_admin')).toBe('one_of_two');
+  });
+
+  it('marks orphan recovery public with no contacts as needs_attention', () => {
+    const snapshot: Omit<RecoverySnapshot, 'status'> = {
+      contacts: [],
+      ownContacts: [],
+      accepted: 0,
+      pending: [],
+      hasAb: false,
+      hasPaper: false,
+      hasRecoveryPublic: true,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+    };
+    expect(recoveryStatusCopyKey(snapshot, MEMBER, 'family_admin')).toBe('needs_attention');
+  });
+
   it('marks two contacts with no ab as needs_attention, never setup', () => {
     const snapshot: Omit<RecoverySnapshot, 'status'> = {
       contacts: [],
