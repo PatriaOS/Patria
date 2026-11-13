@@ -82,6 +82,24 @@ appId: app.patria.dev
       - assertVisible: "Will you help with recovery?"
       - tapOn:
           id: "accept"
+# After first contact accepts — Family shows Recovery: 1 of 2 contacts.
+- runFlow:
+    when:
+      true: ${PHASE == 'one_of_two'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 30%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element: "Recovery: 1 of 2 contacts"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Recovery: 1 of 2 contacts"
+      - takeScreenshot: recovery-one-of-two
 - runFlow:
     when:
       true: ${PHASE == 'almost_done'}
@@ -160,12 +178,49 @@ appId: app.patria.dev
           visible:
             id: "printed-code-words"
           timeout: 20000
-      # Never screenshot the words themselves (see file header). Banner-only shot is design-recovery.
+      - extendedWaitUntil:
+          visible:
+            id: "printed-code-continue"
+          timeout: 10000
+      # Capture the green continue button; crop words out of the file after (never log words).
+      - takeScreenshot: recovery-printed-continue
       - copyTextFrom:
           id: "printed-code-words"
       # E2E skip saves ap/bp without typing confirm words (never logs the code).
       - tapOn:
           id: "printed-code-skip"
+# Review capture only: open printed words via "I lost the printed code" and shot the continue button.
+- runFlow:
+    when:
+      true: ${PHASE == 'printed_continue_shot'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+      - extendedWaitUntil:
+          visible:
+            id: "menu-privacy-security"
+          timeout: 10000
+      - tapOn:
+          id: "menu-privacy-security"
+      - extendedWaitUntil:
+          visible:
+            id: "screen-privacy-security"
+          timeout: 15000
+      - tapOn:
+          id: "privacy-recovery-contacts"
+          optional: true
+      - scrollUntilVisible:
+          element: "I lost the printed code"
+          direction: DOWN
+          timeout: 20000
+      - tapOn: "I lost the printed code"
+      - extendedWaitUntil:
+          visible:
+            id: "printed-code-continue"
+          timeout: 20000
+      - takeScreenshot: recovery-printed-continue
 - runFlow:
     when:
       true: ${PHASE == 'remove_contact'}

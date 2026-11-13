@@ -2139,6 +2139,12 @@ try {
           device: args.devices >= 2 ? deviceB : deviceA,
           env: { ...signInEnv(secrets, 2), PHASE: 'accept_contact' },
         });
+        // Review capture: Family shows Recovery: 1 of 2 contacts.
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'one_of_two', E2E_STAY: '1' },
+        });
       });
       await step(11, 4, 'Second contact Test 3; almost done with ab', () => {
         maestro({
