@@ -7,18 +7,12 @@ appId: app.patria.dev
       id: "design-recovery-needs-attention"
     timeout: 20000
 - takeScreenshot: recovery-needs-attention
-- openLink: patria://design-recovery?shot=finish_setup
+- openLink: patria://design-recovery?shot=printed_need_ab
 - extendedWaitUntil:
     visible:
-      id: "design-recovery-finish-setup"
+      id: "design-recovery-printed-need-ab"
     timeout: 20000
-- takeScreenshot: recovery-finish-setup
-- openLink: patria://design-recovery?shot=almost_done
-- extendedWaitUntil:
-    visible:
-      id: "design-recovery-almost-done"
-    timeout: 20000
-- takeScreenshot: recovery-almost-done
+- takeScreenshot: recovery-printed-need-ab
 - openLink: patria://design-recovery?shot=printed_after_repair
 - extendedWaitUntil:
     visible:

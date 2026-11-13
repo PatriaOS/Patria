@@ -5,6 +5,7 @@ import { Body, Button, ButtonStack, Card, LoadingState, Muted, Screen, Title } f
 import { copy } from '../../lib/copy';
 import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
 import { routes } from '../../lib/navigation';
+import { RecoveryNeedsAttentionCard } from '../keys/RecoveryNeedsAttentionCard';
 import { useCurrentFamily } from './useCurrentFamily';
 
 export function PrivacySecurityScreen() {
@@ -30,6 +31,9 @@ export function PrivacySecurityScreen() {
 
   const accepted = recoveryQuery.data?.accepted ?? 0;
   const hasPaper = Boolean(recoveryQuery.data?.hasPaper);
+  const hasAb = Boolean(recoveryQuery.data?.hasAb);
+  const needsFinishSetup =
+    recoveryQuery.data?.status === 'needs_attention' && accepted >= 2 && !hasAb;
 
   return (
     <Screen
@@ -39,6 +43,9 @@ export function PrivacySecurityScreen() {
     >
       <Title>{copy.home.privacySecurityTitle}</Title>
       <Body>{copy.home.privacySecurityBody}</Body>
+      {keyHolder && needsFinishSetup ? (
+        <RecoveryNeedsAttentionCard onFinishSetup={() => router.push(routes.recoverySetup)} />
+      ) : null}
       <Card testID="privacy-security-recovery">
         <Title>{copy.home.privacySecurityRecovery}</Title>
         <Muted>{copy.home.privacySecurityRecoveryBody}</Muted>
@@ -49,7 +56,7 @@ export function PrivacySecurityScreen() {
               testID="privacy-recovery-contacts"
               onPress={() => router.push(routes.recoverySetup)}
             />
-            {accepted >= 2 ? (
+            {accepted >= 2 && hasAb ? (
               <Button
                 label={
                   hasPaper ? copy.home.privacySecurityPrinted : copy.home.recoveryPrintedAction

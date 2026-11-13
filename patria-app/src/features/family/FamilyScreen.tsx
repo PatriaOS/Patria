@@ -30,6 +30,7 @@ import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
 import { ensureLetterboxKey } from '../letters/letterboxEnsure';
 import { FamilyDeviceNotices } from './FamilyDeviceNotices';
+import { RecoveryNeedsAttentionCard } from '../keys/RecoveryNeedsAttentionCard';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
 
@@ -382,6 +383,14 @@ export function FamilyScreen() {
           router.push(routes.recoverySetup);
         }}
       />
+      {keyHolder &&
+      recoveryQuery.data?.status === 'needs_attention' &&
+      (recoveryQuery.data.accepted ?? 0) >= 2 &&
+      !recoveryQuery.data.hasAb ? (
+        <RecoveryNeedsAttentionCard
+          onFinishSetup={() => router.push(routes.recoverySetup)}
+        />
+      ) : null}
       <Button
         label={copy.appearance.title}
         variant="secondary"

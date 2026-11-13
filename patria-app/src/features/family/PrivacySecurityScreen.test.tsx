@@ -25,6 +25,7 @@ jest.mock('../../lib/crypto/recoverySetup', () => ({
     ownContacts: [],
     accepted: 0,
     pending: [],
+    hasAb: false,
     hasPaper: false,
     hasRecoveryPublic: false,
     recoveryKeyEpoch: 1,
@@ -57,6 +58,7 @@ describe('PrivacySecurityScreen', () => {
       ownContacts: [],
       accepted: 0,
       pending: [],
+      hasAb: false,
       hasPaper: false,
       hasRecoveryPublic: false,
       recoveryKeyEpoch: 1,
@@ -81,17 +83,39 @@ describe('PrivacySecurityScreen', () => {
     expect(mockedRouter().push).toHaveBeenCalledWith('/(signed-in)/privacy-statement');
   });
 
-  it('offers a printed-code step after two contacts accept', async () => {
+  it('shows Finish setup when helpers accepted but ab is missing', async () => {
     (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
       contacts: [],
       ownContacts: [],
       accepted: 2,
       pending: [],
+      hasAb: false,
       hasPaper: false,
       hasRecoveryPublic: true,
       recoveryKeyEpoch: 1,
       keyEpoch: 1,
-      status: 'setup',
+      status: 'needs_attention',
+    });
+    const { findByTestId, findByText, queryByTestId } = await renderScreen(
+      <PrivacySecurityScreen />,
+    );
+    expect(await findByText(copy.home.recoveryFinishSetupBody)).toBeTruthy();
+    expect(await findByTestId('finish-recovery-setup')).toBeTruthy();
+    expect(queryByTestId('create-printed-code')).toBeNull();
+  });
+
+  it('offers a printed-code step after ab exists', async () => {
+    (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
+      contacts: [],
+      ownContacts: [],
+      accepted: 2,
+      pending: [],
+      hasAb: true,
+      hasPaper: false,
+      hasRecoveryPublic: true,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+      status: 'almost_done',
     });
     const { findByTestId, findByText } = await renderScreen(<PrivacySecurityScreen />);
     expect(await findByText(copy.home.recoveryPrintedAction)).toBeTruthy();

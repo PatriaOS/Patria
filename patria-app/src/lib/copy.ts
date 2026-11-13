@@ -238,6 +238,8 @@ export const copy = {
     recoverySetup: 'Recovery: set up',
     recoveryYouAreContact: 'You are a recovery contact for {family}',
     recoveryFinishSetup: 'Finish setup',
+    recoveryFinishSetupBody:
+      'Your recovery helpers said yes, but setup didn’t finish. Tap Finish setup to complete it.',
     recoveryFinishSetupFailed: 'We couldn’t finish recovery setup. Please try again.',
     recoveryFinishNeedsKeys:
       'This phone needs family keys before recovery can finish. Get let in first, then try again.',

@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-13 — Recovery needs-attention copy and printed-code gate copy
+
+Needs-attention card (Family, Privacy and Security, Recovery setup) adds one calm line above **Finish setup**. Printed-code screen with no `ab` shows only the finish-setup line (no post-repair “older words” banner); that banner appears only when new words are shown after a repair.
+
 ## 2026-11-12 — Recovery pair boxes: always write ab; atomic repair (D46)
 
 Staggered contact accepts left some members with a recovery public key and two contacts but no `ab`, so Family could show **set up** while recovery was unusable. `fulfillAcceptedContacts` now keeps the recovery private in SecureStore (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`) until `ab` uploads, then deletes it (also on repair and sign-out); never logged or uploaded. Status is **needs attention** / **almost done** / **set up** only from real pair rows. Printed code is gated on `ab`; Skip does not pretend success. Repair/rotate uses `commit_recovery_repair` (new holders + `ab` + family-under-recovery first, then switch public key and drop the old epoch), refuses an open recovery request, writes a recovery event, and shows contacts a short helper-refreshed notice. Local holder secrets update only after commit succeeds. Design previews (including design-recovery) require a local Supabase URL — never hosted. Phone test 11 and Maestro cover the real flow; design-recovery is review shots only. Migration local-only — no hosted migrate in this slice.

@@ -54,6 +54,9 @@ describe('copy', () => {
     expect(copy.home.stopThisRecovery).toBe('Stop this recovery');
     expect(copy.home.recoveryCancelledByYou).toBe('Cancelled by you');
     expect(copy.home.recoveryNeedsAttention).toBe('Recovery needs attention');
+    expect(copy.home.recoveryFinishSetupBody).toMatch(/helpers said yes/i);
+    expect(copy.recovery.printedAfterRepairBody).toMatch(/older printed words no longer work/i);
+    expect(copy.recovery.printedNeedAb).toMatch(/Finish recovery setup/i);
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');

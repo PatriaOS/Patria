@@ -2,12 +2,18 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { SecurityStatusCard } from '../family/SecurityStatusCard';
+import { RecoveryNeedsAttentionCard } from '../keys/RecoveryNeedsAttentionCard';
 import { copy } from '../../lib/copy';
 import { isDesignPreviewRuntime } from '../../lib/localOrE2eRuntime';
 import { space } from '../../theme/tokens';
 import { Banner, Body, Button, Card, Muted, Screen, Title } from '../../ui';
 
-type Shot = 'needs_attention' | 'finish_setup' | 'almost_done' | 'printed_after_repair';
+type Shot =
+  | 'needs_attention'
+  | 'finish_setup'
+  | 'almost_done'
+  | 'printed_need_ab'
+  | 'printed_after_repair';
 
 /**
  * Local Supabase URL only (same gate as other design previews). Real D32
@@ -34,27 +40,13 @@ export function DesignRecoveryScreen() {
             keysTestID="design-keys-status-attention"
             recoveryTestID="design-recovery-status-attention"
           />
-          <Card testID="recovery-needs-attention-card">
-            <Title>{copy.home.recoveryNeedsAttention}</Title>
-            <Button
-              label={copy.home.recoveryFinishSetup}
-              testID="finish-recovery-setup"
-              onPress={() => undefined}
-            />
-          </Card>
+          <RecoveryNeedsAttentionCard onFinishSetup={() => undefined} />
         </View>
       ) : null}
 
       {shot === 'finish_setup' ? (
         <View testID="design-recovery-finish-setup" style={styles.block}>
-          <Card testID="recovery-needs-attention-card">
-            <Title>{copy.home.recoveryNeedsAttention}</Title>
-            <Button
-              label={copy.home.recoveryFinishSetup}
-              testID="finish-recovery-setup"
-              onPress={() => undefined}
-            />
-          </Card>
+          <RecoveryNeedsAttentionCard onFinishSetup={() => undefined} />
           <Muted>{copy.home.recoveryFinishNeedsKeys}</Muted>
         </View>
       ) : null}
@@ -82,11 +74,17 @@ export function DesignRecoveryScreen() {
         </View>
       ) : null}
 
+      {shot === 'printed_need_ab' ? (
+        <View testID="design-recovery-printed-need-ab" style={styles.block}>
+          <Body testID="printed-need-ab-message">{copy.recovery.printedNeedAb}</Body>
+        </View>
+      ) : null}
+
       {shot === 'printed_after_repair' ? (
         <View testID="design-recovery-printed-after-repair" style={styles.block}>
           <Title>{copy.recovery.printedTitle}</Title>
           <Banner tone="warning" message={copy.recovery.printedAfterRepairBody} />
-          <Muted>{copy.recovery.printedNeedAb}</Muted>
+          <Muted>{copy.recovery.printedContinue}</Muted>
         </View>
       ) : null}
     </Screen>

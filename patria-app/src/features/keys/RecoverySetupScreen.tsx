@@ -14,6 +14,7 @@ import {
   Screen,
   Title,
 } from '../../ui';
+import { RecoveryNeedsAttentionCard } from './RecoveryNeedsAttentionCard';
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
@@ -245,15 +246,7 @@ export function RecoverySetupScreen() {
       <Body>{copy.recovery.pickBody}</Body>
       {error ? <ErrorState message={error} /> : null}
       {snapshot?.status === 'needs_attention' && snapshot.accepted >= 2 && !snapshot.hasAb ? (
-        <Card testID="recovery-needs-attention-card">
-          <Title>{copy.home.recoveryNeedsAttention}</Title>
-          <Button
-            label={copy.home.recoveryFinishSetup}
-            testID="finish-recovery-setup"
-            busy={busy}
-            onPress={() => void onFinishSetup()}
-          />
-        </Card>
+        <RecoveryNeedsAttentionCard busy={busy} onFinishSetup={() => void onFinishSetup()} />
       ) : null}
       {snapshot?.status === 'almost_done' ? (
         <Card testID="recovery-almost-done-card">

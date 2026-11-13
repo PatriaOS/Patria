@@ -75,11 +75,11 @@ export function PrintedCodeScreen() {
 
   if (!snapshotQuery.data?.hasAb) {
     return (
-      <Screen withHeader accessibilityLabel={copy.recovery.printedTitle}>
-        <Title>{copy.recovery.printedTitle}</Title>
-        <ErrorState message={copy.recovery.printedNeedAb} />
+      <Screen withHeader accessibilityLabel={copy.recovery.printedNeedAb}>
+        <Body testID="printed-need-ab-message">{copy.recovery.printedNeedAb}</Body>
         <Button
           label={copy.home.recoveryFinishSetup}
+          testID="finish-recovery-setup"
           onPress={() => router.replace(routes.recoverySetup)}
         />
       </Screen>

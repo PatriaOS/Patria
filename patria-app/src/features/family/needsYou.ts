@@ -141,8 +141,8 @@ export function buildNeedsYouItems(input: NeedsYouInput): NeedsYouItem[] {
       id: 'recovery-attention',
       kind: 'recovery_setup',
       title: copy.home.recoveryNeedsAttention,
-      body: copy.home.recoveryCardBody,
-      actionLabel: copy.home.needsYouOpenRecovery,
+      body: copy.home.recoveryFinishSetupBody,
+      actionLabel: copy.home.recoveryFinishSetup,
       href: routes.privacySecurity,
       testID: 'needs-you-recovery-attention',
     });
