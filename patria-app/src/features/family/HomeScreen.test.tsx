@@ -137,6 +137,7 @@ jest.mock('../../lib/crypto/recoverySetup', () => ({
   })),
   fulfillAcceptedContacts: jest.fn(async () => undefined),
   respondRecoveryInvite: jest.fn(async () => undefined),
+  clearRecoveryPrivateSecret: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../lib/crypto/deviceIdentity', () => ({
