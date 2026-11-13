@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { copy } from '../../lib/copy';
-import { isLocalOrE2eRuntime } from '../../lib/localOrE2eRuntime';
+import { isDesignPreviewRuntime } from '../../lib/localOrE2eRuntime';
 import { AddAgendaForm } from '../sync/AddAgendaForm';
 import { SyncHubView, type SyncHubViewProps } from '../sync/SyncHubView';
 import type { SyncAgendaKind } from '../sync/syncSchedule';
@@ -102,7 +102,7 @@ function parseView(value: string | string[] | undefined): PreviewView {
 }
 
 export function DesignSyncScreen() {
-  if (!isLocalOrE2eRuntime()) {
+  if (!isDesignPreviewRuntime()) {
     return <Redirect href="/" />;
   }
   return <PreviewBody />;

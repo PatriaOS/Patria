@@ -300,6 +300,15 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 * **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
 * Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.
 
+## D46. Recovery pair boxes must include ab before “set up”; repair is atomic (12 November 2026)
+
+Recovery status for a key-holding member:
+* two accepted contacts and no `ab` pair box → **Recovery needs attention** (Finish setup); never **Recovery: set up**
+* `ab` without `ap`/`bp` → **Almost done: write down your printed code**
+* `ab`+`ap`+`bp` → **Recovery: set up**
+
+Printed words appear only after `ab` exists. Skip must not look like success. When the recovery private is gone from the phone, Finish setup / paper-lost rebuilds a new epoch: client builds new holders + `ab` first, then `commit_recovery_repair` switches the public key and drops the old epoch in one transaction. Refuse repair or rotate while a recovery request is open. Record a recovery event; notify contacts that their helper role was refreshed (no action). This phone must hold the family key. Old printed words die after a repair.
+
 ## D45. Pending device requests expire after 7 days (11 November 2026)
 
 Never-approved “Waiting to be let in” device rows (`device_keys` with no `family_key_wraps` and no `personal_key_wraps`) older than 7 days are removed by `expire_pending_devices`, run daily by pg_cron job `patria-expire-pending-devices`. Approved phones and their wraps are never touched. Each expiry writes a `device_events` row (`pending request expired`) and clears matching let-in notices; when a notice existed, `detail` is `let-in notice cleared`. The waiting phone re-requests on next open and shows the normal waiting screen again. Migration fails loudly if pg_cron is missing (same pattern as `patria-mark-due-letters`).

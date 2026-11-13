@@ -1,5 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import {
   Banner,
@@ -21,11 +22,14 @@ import {
   pickPrintedCodeChecks,
   printedCodeWordList,
 } from '../../lib/crypto/printedCode';
-import { savePrintedCode } from '../../lib/crypto/recoverySetup';
+import { loadRecoverySnapshot, savePrintedCode } from '../../lib/crypto/recoverySetup';
+import { fetchMemberships } from '../../lib/family';
 import { routes } from '../../lib/navigation';
 
 export function PrintedCodeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ refreshed?: string }>();
+  const refreshed = params.refreshed === '1';
   const { session } = useAuth();
   const userId = session?.user.id;
   const [spaceId, setSpaceId] = useState<string | null>(null);
@@ -40,10 +44,44 @@ export function PrintedCodeScreen() {
     void readCurrentFamilyId().then(setSpaceId);
   }, []);
 
-  if (!spaceId) {
+  const membershipsQuery = useQuery({
+    queryKey: ['memberships', userId],
+    enabled: Boolean(userId),
+    queryFn: () => fetchMemberships(userId as string),
+  });
+  const role = membershipsQuery.data?.find((item) => item.space.id === spaceId)?.role;
+  const snapshotQuery = useQuery({
+    queryKey: ['recoverySnapshot', spaceId, userId],
+    enabled: Boolean(spaceId && userId),
+    queryFn: () => loadRecoverySnapshot(spaceId as string, userId as string, role),
+  });
+  const wordsAllowed = Boolean(snapshotQuery.data?.hasAb);
+
+  if (!spaceId || snapshotQuery.isLoading || membershipsQuery.isLoading) {
     return (
       <Screen withHeader>
         <LoadingState message={copy.common.loading} />
+      </Screen>
+    );
+  }
+
+  if (snapshotQuery.error || membershipsQuery.error) {
+    return (
+      <Screen withHeader>
+        <ErrorState message={copy.common.error} />
+      </Screen>
+    );
+  }
+
+  if (!snapshotQuery.data?.hasAb) {
+    return (
+      <Screen withHeader accessibilityLabel={copy.recovery.printedTitle}>
+        <Title>{copy.recovery.printedTitle}</Title>
+        <ErrorState message={copy.recovery.printedNeedAb} />
+        <Button
+          label={copy.home.recoveryFinishSetup}
+          onPress={() => router.replace(routes.recoverySetup)}
+        />
       </Screen>
     );
   }
@@ -77,12 +115,22 @@ export function PrintedCodeScreen() {
     return (
       <Screen withHeader accessibilityLabel={copy.recovery.printedTitle}>
         <Title>{copy.recovery.printedTitle}</Title>
-        <Banner tone="warning" message={copy.recovery.printedBody} />
-        <Muted testID="printed-code-words">{printed.words}</Muted>
-        <Button label={copy.recovery.printedContinue} onPress={() => setPhase('confirm')} />
+        <Banner
+          tone="warning"
+          message={refreshed ? copy.recovery.printedAfterRepairBody : copy.recovery.printedBody}
+        />
+        {wordsAllowed ? (
+          <Muted testID="printed-code-words">{printed.words}</Muted>
+        ) : null}
+        <Button
+          label={copy.recovery.printedContinue}
+          testID="printed-code-continue"
+          onPress={() => setPhase('confirm')}
+        />
         <Button
           label={copy.recovery.printedSkip}
           variant="secondary"
+          testID="printed-code-skip"
           busy={busy}
           onPress={() => {
             if (process.env.EXPO_PUBLIC_E2E === '1' && userId) {
@@ -107,9 +155,13 @@ export function PrintedCodeScreen() {
                 .finally(() => setBusy(false));
               return;
             }
-            router.replace(routes.home);
+            setError(copy.recovery.printedSkipHint);
           }}
         />
+        {error ? <ErrorState message={error} /> : null}
+        {!process.env.EXPO_PUBLIC_E2E && error === copy.recovery.printedSkipHint ? (
+          <Muted>{copy.recovery.printedSkipHint}</Muted>
+        ) : null}
       </Screen>
     );
   }
@@ -131,11 +183,7 @@ export function PrintedCodeScreen() {
           }
         />
       ))}
-      <Button
-        label={copy.common.save}
-        busy={busy}
-        onPress={() => void onSave()}
-      />
+      <Button label={copy.common.save} busy={busy} onPress={() => void onSave()} />
     </Screen>
   );
 }

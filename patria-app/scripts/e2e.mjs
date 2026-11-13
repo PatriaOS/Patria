@@ -2053,7 +2053,7 @@ try {
           env: { ...signInEnv(secrets, 2), PHASE: 'accept_contact' },
         });
       });
-      await step(11, 4, 'Second contact Test 3', () => {
+      await step(11, 4, 'Second contact Test 3; almost done with ab', () => {
         maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
@@ -2068,6 +2068,11 @@ try {
           flow: flow('11_recovery_setup.yaml'),
           device: args.devices >= 2 ? deviceB : deviceA,
           env: { ...signInEnv(secrets, 3), PHASE: 'accept_contact' },
+        });
+        maestro({
+          flow: flow('11_recovery_setup.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'almost_done', E2E_STAY: '1' },
         });
       });
       await step(11, 5, 'Printed code on screen, words kept in clipboard', () => {

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { copy } from '../../lib/copy';
-import { isLocalOrE2eRuntime } from '../../lib/localOrE2eRuntime';
+import { isDesignPreviewRuntime } from '../../lib/localOrE2eRuntime';
 import { homeDateOverline, homeFamilyLine, homeGreeting } from '../family/homeGreeting';
 import { HomeSyncCard } from '../family/HomeSyncCard';
 import { OnThisDayCard } from '../family/OnThisDayCard';
@@ -124,7 +124,7 @@ const previewTasks: SyncTaskRow[] = [
 ];
 
 export function DesignHomeScreen() {
-  if (!isLocalOrE2eRuntime()) {
+  if (!isDesignPreviewRuntime()) {
     return <Redirect href="/" />;
   }
   return <PreviewBody />;

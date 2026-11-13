@@ -136,7 +136,17 @@ export function buildNeedsYouItems(input: NeedsYouInput): NeedsYouItem[] {
   const today = calendarDayInZone(now, input.timeZone);
   const raw: Omit<NeedsYouItem, 'rank'>[] = [];
 
-  if (input.keyHolder && input.recoveryAccepted < 2) {
+  if (input.keyHolder && input.recoveryStatus === 'needs_attention') {
+    raw.push({
+      id: 'recovery-attention',
+      kind: 'recovery_setup',
+      title: copy.home.recoveryNeedsAttention,
+      body: copy.home.recoveryCardBody,
+      actionLabel: copy.home.needsYouOpenRecovery,
+      href: routes.privacySecurity,
+      testID: 'needs-you-recovery-attention',
+    });
+  } else if (input.keyHolder && input.recoveryAccepted < 2) {
     raw.push({
       id: 'recovery-setup',
       kind: 'recovery_setup',
@@ -146,11 +156,15 @@ export function buildNeedsYouItems(input: NeedsYouInput): NeedsYouItem[] {
       href: routes.privacySecurity,
       testID: 'needs-you-recovery-setup',
     });
-  } else if (input.keyHolder && input.recoveryAccepted >= 2 && !input.hasPaper) {
+  } else if (
+    input.keyHolder &&
+    (input.recoveryStatus === 'almost_done' ||
+      (input.recoveryAccepted >= 2 && !input.hasPaper))
+  ) {
     raw.push({
       id: 'recovery-paper',
       kind: 'recovery_setup',
-      title: copy.home.recoveryPrintedAction,
+      title: copy.home.recoveryAlmostDone,
       body: copy.home.needsYouPrintedBody,
       actionLabel: copy.home.needsYouOpenRecovery,
       href: routes.privacySecurity,

@@ -57,6 +57,10 @@ function memoryGateway(contacts: RecoveryContactRow[] = []): RecoveryAccessGatew
     listPairIds: async () => [],
     fetchPairWraps: async () => [],
     purgeCiphertext: async () => undefined,
+    hasOpenRecoveryRequest: async () => false,
+    commitRecoveryRepair: async () => undefined,
+    listHelperRefreshNotices: async () => [],
+    dismissHelperRefreshNotice: async () => undefined,
   };
 }
 

@@ -5,8 +5,11 @@ import { DesignGalleryScreen } from './DesignGalleryScreen';
 describe('Design gallery', () => {
   const previousE2e = process.env.EXPO_PUBLIC_E2E;
 
+  const previousUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+
   beforeEach(() => {
     process.env.EXPO_PUBLIC_E2E = '1';
+    process.env.EXPO_PUBLIC_SUPABASE_URL = 'http://127.0.0.1:54321';
   });
 
   afterEach(() => {
@@ -14,6 +17,11 @@ describe('Design gallery', () => {
       delete process.env.EXPO_PUBLIC_E2E;
     } else {
       process.env.EXPO_PUBLIC_E2E = previousE2e;
+    }
+    if (previousUrl === undefined) {
+      delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    } else {
+      process.env.EXPO_PUBLIC_SUPABASE_URL = previousUrl;
     }
   });
 

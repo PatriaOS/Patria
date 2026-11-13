@@ -233,9 +233,20 @@ export const copy = {
     yourPhones: 'Your phones',
     recoveryNotSetup: 'Recovery: not set up',
     recoveryNeedsAttention: 'Recovery needs attention',
+    recoveryAlmostDone: 'Almost done: write down your printed code',
     recoveryOneOfTwo: 'Recovery: 1 of 2 contacts',
     recoverySetup: 'Recovery: set up',
     recoveryYouAreContact: 'You are a recovery contact for {family}',
+    recoveryFinishSetup: 'Finish setup',
+    recoveryFinishSetupFailed: 'We couldn’t finish recovery setup. Please try again.',
+    recoveryFinishNeedsKeys:
+      'This phone needs family keys before recovery can finish. Get let in first, then try again.',
+    recoveryFinishRequestOpen:
+      'Finish the open recovery request on your new phone first, or cancel it, then try again.',
+    recoveryHelperRefreshedTitle: 'Your helper role was refreshed',
+    recoveryHelperRefreshedBody:
+      '{name} updated recovery. You do not need to do anything. Help still works after a wait, with another helper.',
+    recoveryHelperRefreshedDismiss: 'Got it',
     recoveryCardTitle: 'Set up recovery',
     recoveryCardBody:
       'Choose two people who can help if you lose every phone. Recovery never starts from Home.',
@@ -270,13 +281,18 @@ export const copy = {
     printedTitle: 'Write this down',
     printedBody:
       'Write these 24 words on paper. We cannot show them again. Do not take a screenshot.',
+    printedAfterRepairBody:
+      'Any older printed words no longer work. Write these new 24 words on paper. We cannot show them again. Do not take a screenshot.',
     printedContinue: 'I have written them down',
     printedConfirmTitle: 'Check three words',
     printedConfirmBody: 'Type the words you wrote for these positions so we know the paper is right.',
     printedWord: 'Word {n}',
     printedSkip: 'Skip for now',
+    printedSkipHint: 'Recovery is not finished until you write down a printed code.',
     printedFailed: 'Those words did not match. Check your paper and try again.',
     printedSaved: 'Your printed code is ready. Keep the paper somewhere safe.',
+    printedNeedAb: 'Finish recovery setup on this phone before writing a printed code.',
+    printedNeedKeys: 'This phone needs family keys before you can write a printed code.',
     removeContact: 'Remove as recovery contact',
     paperLost: 'I lost the printed code',
     rotateFailed: 'We couldn’t update recovery. Please try again.',

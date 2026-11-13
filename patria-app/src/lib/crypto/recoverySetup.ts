@@ -32,6 +32,7 @@ import { generateDeviceKeyPair } from './x25519';
 export type RecoveryHomeStatus =
   | 'not_setup'
   | 'one_of_two'
+  | 'almost_done'
   | 'setup'
   | 'needs_attention'
   | 'contact';
@@ -41,6 +42,8 @@ export type RecoverySnapshot = {
   ownContacts: RecoveryContactRow[];
   accepted: number;
   pending: RecoveryContactRow[];
+  /** Server has the ab pair box for this recovery epoch. */
+  hasAb: boolean;
   hasPaper: boolean;
   hasRecoveryPublic: boolean;
   recoveryKeyEpoch: number;
@@ -50,6 +53,19 @@ export type RecoverySnapshot = {
 
 function holderStoreKey(userId: string, spaceId: string, slot: RecoverySlot): string {
   return `patria.u.${userId}.holder.${spaceId}.${slot}`;
+}
+
+/** Kept until ab is on the server so a later second-contact accept can build ab. */
+export function recoveryPrivateStoreKey(userId: string, spaceId: string): string {
+  return `patria.u.${userId}.recovery.private.${spaceId}`;
+}
+
+/** Wipe the temporary recovery private (after ab, repair, or sign-out). Never log it. */
+export async function clearRecoveryPrivateSecret(
+  userId: string,
+  spaceId: string,
+): Promise<void> {
+  await deleteSecret(recoveryPrivateStoreKey(userId, spaceId));
 }
 
 function wrapAad(input: {
@@ -80,6 +96,12 @@ export function recoveryStatusCopyKey(
     }
   }
   if (snapshot.accepted >= 2) {
+    if (!snapshot.hasAb) {
+      return 'needs_attention';
+    }
+    if (!snapshot.hasPaper) {
+      return 'almost_done';
+    }
     return 'setup';
   }
   if (snapshot.hasRecoveryPublic && snapshot.accepted < 2) {
@@ -117,6 +139,7 @@ export async function loadRecoverySnapshot(
     ownContacts,
     accepted,
     pending: contacts.filter((row) => row.userId === userId && row.status === 'pending'),
+    hasAb: pairIds.includes('ab'),
     hasPaper: pairIds.includes('ap') && pairIds.includes('bp'),
     hasRecoveryPublic: ownPublic !== null,
     recoveryKeyEpoch,
@@ -282,9 +305,10 @@ export async function fulfillAcceptedContacts(
   const pair = published ? null : generateDeviceKeyPair();
   const recoveryKeyEpoch = published?.recoveryKeyEpoch ?? 1;
   const recoveryPublic = published?.publicKey ?? pair!.publicKey;
-  const recoveryPrivate = pair?.privateKey;
+  let recoveryPrivate = pair?.privateKey ?? null;
+  const privateStore = recoveryPrivateStoreKey(input.memberUserId, input.spaceId);
   try {
-    if (pair) {
+    if (pair && recoveryPrivate) {
       await gateway.insertRecoveryPublicKey({
         spaceId: input.spaceId,
         userId: input.memberUserId,
@@ -302,6 +326,9 @@ export async function fulfillAcceptedContacts(
         },
         gateway,
       );
+      await setSecretBytes(privateStore, recoveryPrivate);
+    } else if (!recoveryPrivate) {
+      recoveryPrivate = await getSecretBytes(privateStore);
     }
     const contacts = (await gateway.listContacts(input.spaceId)).filter(
       (row) => row.memberId === input.memberUserId && row.status === 'accepted',
@@ -334,17 +361,41 @@ export async function fulfillAcceptedContacts(
         wipe(secret);
       }
     }
-    if (recoveryPrivate) {
-      await rebuildPairBoxes(
-        {
-          spaceId: input.spaceId,
-          memberUserId: input.memberUserId,
-          recoveryKey: recoveryPrivate,
-          recoveryKeyEpoch,
-          paper: null,
-        },
-        gateway,
+    if (contacts.length >= 2) {
+      const existing = await gateway.listPairIds(
+        input.spaceId,
+        input.memberUserId,
+        recoveryKeyEpoch,
       );
+      if (!existing.includes('ab')) {
+        if (!recoveryPrivate) {
+          throw new Error('recovery-ab-needs-repair');
+        }
+        const boxes = await rebuildPairBoxes(
+          {
+            spaceId: input.spaceId,
+            memberUserId: input.memberUserId,
+            recoveryKey: recoveryPrivate,
+            recoveryKeyEpoch,
+            paper: null,
+          },
+          gateway,
+        );
+        if (!boxes) {
+          throw new Error('recovery-ab-failed');
+        }
+        const after = await gateway.listPairIds(
+          input.spaceId,
+          input.memberUserId,
+          recoveryKeyEpoch,
+        );
+        if (!after.includes('ab')) {
+          throw new Error('recovery-ab-failed');
+        }
+        await clearRecoveryPrivateSecret(input.memberUserId, input.spaceId);
+      } else {
+        await clearRecoveryPrivateSecret(input.memberUserId, input.spaceId);
+      }
     }
   } finally {
     if (recoveryPrivate) {
@@ -522,6 +573,14 @@ export async function savePrintedCode(
       pairId: 'bp',
       wrappedRecoveryKey: boxes.boxBp,
     });
+    const after = await gateway.listPairIds(
+      input.spaceId,
+      input.memberUserId,
+      published.recoveryKeyEpoch,
+    );
+    if (!after.includes('ap') || !after.includes('bp')) {
+      throw new Error('printed boxes missing');
+    }
   } finally {
     wipe(secretA);
     wipe(secretB);
@@ -536,6 +595,166 @@ export async function removeRecoveryContact(
   await gateway.deleteContact(input.spaceId, input.contactUserId);
 }
 
+type HolderUpload = {
+  contactUserId: string;
+  deviceId: string;
+  wrappedSecret: Uint8Array;
+};
+
+async function buildHolderUploads(
+  input: {
+    spaceId: string;
+    memberId: string;
+    contacts: RecoveryContactRow[];
+    recoveryKeyEpoch: number;
+  },
+  gateway: RecoveryAccessGateway,
+): Promise<{ uploads: HolderUpload[]; secretA: Uint8Array; secretB: Uint8Array }> {
+  const secretA = randomKey32();
+  const secretB = randomKey32();
+  const bySlot: Record<RecoverySlot, Uint8Array> = { a: secretA, b: secretB };
+  const uploads: HolderUpload[] = [];
+  try {
+    for (const contact of input.contacts) {
+      const secret = bySlot[contact.slot];
+      const devices = await gateway.listRecoveryContactPublicKeys(input.spaceId, contact.userId);
+      for (const device of devices) {
+        const publicKey = requireX25519PublicKey(device.publicKey);
+        const wrapped = wrapKeyToDevice(
+          secret,
+          publicKey,
+          wrapAad({
+            spaceId: input.spaceId,
+            epoch: input.recoveryKeyEpoch,
+            userId: contact.userId,
+            deviceId: device.deviceId,
+          }),
+        );
+        uploads.push({
+          contactUserId: contact.userId,
+          deviceId: device.deviceId,
+          wrappedSecret: wrapped,
+        });
+      }
+    }
+    if (uploads.length === 0) {
+      throw new Error('recovery-contacts-need-devices');
+    }
+    // Local SecureStore is updated only after commit succeeds (repairRecoverySetup).
+    return { uploads, secretA, secretB };
+  } catch (error) {
+    wipe(secretA);
+    wipe(secretB);
+    throw error;
+  }
+}
+
+/**
+ * Fresh recovery epoch: upload new holders+ab first, then atomic RPC switches the
+ * public key and drops the old epoch. Refuses while a recovery request is open.
+ * Requires this phone to hold the family key.
+ */
+export async function repairRecoverySetup(
+  input: {
+    spaceId: string;
+    memberUserId: string;
+  },
+  gateway: RecoveryAccessGateway = supabaseRecoveryAccessGateway,
+): Promise<void> {
+  if (await gateway.hasOpenRecoveryRequest(input.spaceId, input.memberUserId)) {
+    throw new Error('recovery request open');
+  }
+  const device = await ensureDeviceIdentity(input.memberUserId);
+  const familyKey = await obtainFamilyKey({
+    userId: input.memberUserId,
+    spaceId: input.spaceId,
+    deviceId: device.deviceId,
+    privateKey: device.privateKey,
+    fetchOwnWrap: supabaseDeviceAccessGateway.fetchOwnWrap,
+  });
+  if (!familyKey) {
+    throw new Error('missing family key');
+  }
+  const published = await gateway.fetchOwnRecoveryPublic(input.spaceId, input.memberUserId);
+  const meta = await gateway.fetchMeta(input.spaceId);
+  const oldEpoch = published?.recoveryKeyEpoch ?? 1;
+  const newEpoch = oldEpoch + 1;
+  const pair = generateDeviceKeyPair();
+  const contacts = (await gateway.listContacts(input.spaceId)).filter(
+    (row) => row.memberId === input.memberUserId && row.status === 'accepted',
+  );
+  if (contacts.length < 2) {
+    wipe(familyKey);
+    wipe(pair.privateKey);
+    throw new Error('need two accepted contacts');
+  }
+  let secretA: Uint8Array | null = null;
+  let secretB: Uint8Array | null = null;
+  try {
+    const personalSeal = await personalSealForRecoveryChange({
+      spaceId: input.spaceId,
+      userId: input.memberUserId,
+      recoveryPublicKey: pair.publicKey,
+    });
+    const built = await buildHolderUploads(
+      {
+        spaceId: input.spaceId,
+        memberId: input.memberUserId,
+        contacts,
+        recoveryKeyEpoch: newEpoch,
+      },
+      gateway,
+    );
+    secretA = built.secretA;
+    secretB = built.secretB;
+    const ephemeralPaper = randomKey32();
+    let boxes: RecoveryBoxes;
+    try {
+      boxes = createRecoveryBoxes(pair.privateKey, secretA, secretB, ephemeralPaper, {
+        familySpaceId: input.spaceId,
+        userId: input.memberUserId,
+        recoveryKeyEpoch: newEpoch,
+      });
+    } finally {
+      wipe(ephemeralPaper);
+    }
+    // ab only until the member writes a real printed code (ap/bp).
+    const familyKeyEpoch = meta?.keyEpoch ?? 1;
+    const wrappedFamily = wrapFamilyKeyToRecoveryPublic(familyKey, pair.publicKey, {
+      familySpaceId: input.spaceId,
+      keyEpoch: familyKeyEpoch,
+      userId: input.memberUserId,
+    });
+    await gateway.commitRecoveryRepair({
+      spaceId: input.spaceId,
+      oldEpoch,
+      newEpoch,
+      publicKey: pair.publicKey,
+      familyKeyEpoch,
+      wrappedFamilyKey: wrappedFamily,
+      personalSeal,
+      contactUserIds: built.uploads.map((row) => row.contactUserId),
+      contactDeviceIds: built.uploads.map((row) => row.deviceId),
+      wrappedHolderSecrets: built.uploads.map((row) => row.wrappedSecret),
+      abBox: boxes.boxAb,
+    });
+    await clearRecoveryPrivateSecret(input.memberUserId, input.spaceId);
+    await setSecretBytes(holderStoreKey(input.memberUserId, input.spaceId, 'a'), secretA);
+    await setSecretBytes(holderStoreKey(input.memberUserId, input.spaceId, 'b'), secretB);
+    logKeyStep('repair_recovery_setup', `${input.spaceId} ${newEpoch}`);
+  } finally {
+    wipe(familyKey);
+    wipe(pair.privateKey);
+    if (secretA) {
+      wipe(secretA);
+    }
+    if (secretB) {
+      wipe(secretB);
+    }
+  }
+}
+
+/** Paper lost / redo: same atomic repair path (new epoch, then printed code again). */
 export async function rotateRecoveryKey(
   input: {
     spaceId: string;
@@ -543,76 +762,7 @@ export async function rotateRecoveryKey(
   },
   gateway: RecoveryAccessGateway = supabaseRecoveryAccessGateway,
 ): Promise<void> {
-  const published = await gateway.fetchOwnRecoveryPublic(input.spaceId, input.memberUserId);
-  await gateway.purgeCiphertext(input.spaceId);
-  await deleteSecret(holderStoreKey(input.memberUserId, input.spaceId, 'a'));
-  await deleteSecret(holderStoreKey(input.memberUserId, input.spaceId, 'b'));
-  const nextEpoch = (published?.recoveryKeyEpoch ?? 1) + 1;
-  const pair = generateDeviceKeyPair();
-  const device = await ensureDeviceIdentity(input.memberUserId);
-  const meta = await gateway.fetchMeta(input.spaceId);
-  try {
-    const personalSeal = await personalSealForRecoveryChange({
-      spaceId: input.spaceId,
-      userId: input.memberUserId,
-      recoveryPublicKey: pair.publicKey,
-    });
-    await gateway.insertRecoveryPublicKey({
-      spaceId: input.spaceId,
-      userId: input.memberUserId,
-      publicKey: pair.publicKey,
-      recoveryKeyEpoch: nextEpoch,
-      personalSeal,
-    });
-    await sealFamilyUnderRecovery(
-      {
-        spaceId: input.spaceId,
-        userId: input.memberUserId,
-        deviceId: device.deviceId,
-        privateKey: device.privateKey,
-        recoveryPublicKey: pair.publicKey,
-        keyEpoch: meta?.keyEpoch ?? 1,
-      },
-      gateway,
-    );
-    const contacts = (await gateway.listContacts(input.spaceId)).filter(
-      (row) => row.memberId === input.memberUserId && row.status === 'accepted',
-    );
-    for (const contact of contacts) {
-      const secret = randomKey32();
-      try {
-        await setSecretBytes(
-          holderStoreKey(input.memberUserId, input.spaceId, contact.slot),
-          secret,
-        );
-        await wrapHolderToDevices(
-          {
-            spaceId: input.spaceId,
-            memberId: input.memberUserId,
-            userId: contact.userId,
-            secret,
-            recoveryKeyEpoch: nextEpoch,
-          },
-          gateway,
-        );
-      } finally {
-        wipe(secret);
-      }
-    }
-    await rebuildPairBoxes(
-      {
-        spaceId: input.spaceId,
-        memberUserId: input.memberUserId,
-        recoveryKey: pair.privateKey,
-        recoveryKeyEpoch: nextEpoch,
-        paper: null,
-      },
-      gateway,
-    );
-  } finally {
-    wipe(pair.privateKey);
-  }
-  logKeyStep('rotate_recovery_key', `${input.spaceId} ${nextEpoch}`);
+  await repairRecoverySetup(input, gateway);
 }
 
 export async function loadEligibleRecoveryContacts(

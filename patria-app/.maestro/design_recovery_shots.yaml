@@ -1,0 +1,27 @@
+# Local/e2e design route — recovery status review captures. No printed words.
+appId: app.patria.dev
+---
+- openLink: patria://design-recovery?shot=needs_attention
+- extendedWaitUntil:
+    visible:
+      id: "design-recovery-needs-attention"
+    timeout: 20000
+- takeScreenshot: recovery-needs-attention
+- openLink: patria://design-recovery?shot=finish_setup
+- extendedWaitUntil:
+    visible:
+      id: "design-recovery-finish-setup"
+    timeout: 20000
+- takeScreenshot: recovery-finish-setup
+- openLink: patria://design-recovery?shot=almost_done
+- extendedWaitUntil:
+    visible:
+      id: "design-recovery-almost-done"
+    timeout: 20000
+- takeScreenshot: recovery-almost-done
+- openLink: patria://design-recovery?shot=printed_after_repair
+- extendedWaitUntil:
+    visible:
+      id: "design-recovery-printed-after-repair"
+    timeout: 20000
+- takeScreenshot: recovery-printed-after-repair

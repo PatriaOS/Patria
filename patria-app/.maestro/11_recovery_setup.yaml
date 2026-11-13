@@ -80,6 +80,38 @@ appId: app.patria.dev
           id: "accept"
 - runFlow:
     when:
+      true: ${PHASE == 'almost_done'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - assertVisible: "Almost done: write down your printed code"
+      - takeScreenshot: recovery-almost-done
+- runFlow:
+    when:
+      true: ${PHASE == 'finish_setup_card'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - tapOn:
+          id: "home-menu"
+          optional: true
+      - tapOn:
+          id: "menu-privacy-security"
+          optional: true
+      - tapOn:
+          id: "privacy-recovery-contacts"
+          optional: true
+      - extendedWaitUntil:
+          visible:
+            id: "finish-recovery-setup"
+          timeout: 20000
+      - assertVisible: "Recovery needs attention"
+      - assertVisible: "Finish setup"
+      - takeScreenshot: recovery-finish-setup
+- runFlow:
+    when:
       true: ${PHASE == 'setup_done'}
     commands:
       - runFlow:
@@ -116,13 +148,12 @@ appId: app.patria.dev
           visible:
             id: "printed-code-words"
           timeout: 20000
+      # Never screenshot the words themselves (see file header). Banner-only shot is design-recovery.
       - copyTextFrom:
           id: "printed-code-words"
+      # E2E skip saves ap/bp without typing confirm words (never logs the code).
       - tapOn:
-          id: "i-have-written-them-down"
-      - tapOn:
-          id: "skip-for-now"
-          optional: true
+          id: "printed-code-skip"
 - runFlow:
     when:
       true: ${PHASE == 'remove_contact'}
@@ -164,3 +195,4 @@ appId: app.patria.dev
           start: 50%, 25%
           end: 50%, 80%
       - assertVisible: "Recovery needs attention"
+      - takeScreenshot: recovery-needs-attention

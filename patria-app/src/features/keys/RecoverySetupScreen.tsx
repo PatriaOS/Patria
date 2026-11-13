@@ -17,15 +17,17 @@ import {
 import { useAuth } from '../../lib/auth-context';
 import { copy } from '../../lib/copy';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
-import { logFailedAction } from '../../lib/devLog';
+import { describeCaughtError, logFailedAction } from '../../lib/devLog';
 import { fetchMembers } from '../../lib/family';
 import { isKeyEligibleRole } from '../../lib/roles';
 import {
   approvedIdsFromEligibleContacts,
+  fulfillAcceptedContacts,
   inviteRecoveryContacts,
   loadEligibleRecoveryContacts,
   loadRecoverySnapshot,
   removeRecoveryContact,
+  repairRecoverySetup,
   rotateRecoveryKey,
   selectableRecoveryContacts,
 } from '../../lib/crypto/recoverySetup';
@@ -164,6 +166,61 @@ export function RecoverySetupScreen() {
     }
   };
 
+  const finishErrorMessage = (caught: unknown) => {
+    const info = describeCaughtError(caught);
+    if (info.message.includes('missing family key')) {
+      return copy.home.recoveryFinishNeedsKeys;
+    }
+    if (info.message.includes('recovery request open')) {
+      return copy.home.recoveryFinishRequestOpen;
+    }
+    return copy.home.recoveryFinishSetupFailed;
+  };
+
+  const onFinishSetup = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      try {
+        await fulfillAcceptedContacts({
+          spaceId,
+          memberUserId: userId,
+        });
+      } catch (caught) {
+        const info = describeCaughtError(caught);
+        if (!info.message.includes('recovery-ab-needs-repair')) {
+          throw caught;
+        }
+        await repairRecoverySetup({
+          spaceId,
+          memberUserId: userId,
+        });
+        await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot'] });
+        router.push(`${routes.printedCode}?refreshed=1`);
+        return;
+      }
+      const after = await loadRecoverySnapshot(spaceId, userId, myRole);
+      await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot'] });
+      if (!after.hasAb) {
+        await repairRecoverySetup({
+          spaceId,
+          memberUserId: userId,
+        });
+        await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot'] });
+        router.push(`${routes.printedCode}?refreshed=1`);
+        return;
+      }
+      if (!after.hasPaper) {
+        router.push(routes.printedCode);
+      }
+    } catch (caught) {
+      logFailedAction(caught);
+      setError(finishErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onPaperLost = async () => {
     setError(null);
     setBusy(true);
@@ -173,10 +230,10 @@ export function RecoverySetupScreen() {
         memberUserId: userId,
       });
       await queryClient.invalidateQueries({ queryKey: ['recoverySnapshot'] });
-      router.push(routes.printedCode);
+      router.push(`${routes.printedCode}?refreshed=1`);
     } catch (caught) {
       logFailedAction(caught);
-      setError(copy.recovery.rotateFailed);
+      setError(finishErrorMessage(caught));
     } finally {
       setBusy(false);
     }
@@ -187,6 +244,22 @@ export function RecoverySetupScreen() {
       <Title>{copy.recovery.title}</Title>
       <Body>{copy.recovery.pickBody}</Body>
       {error ? <ErrorState message={error} /> : null}
+      {snapshot?.status === 'needs_attention' && snapshot.accepted >= 2 && !snapshot.hasAb ? (
+        <Card testID="recovery-needs-attention-card">
+          <Title>{copy.home.recoveryNeedsAttention}</Title>
+          <Button
+            label={copy.home.recoveryFinishSetup}
+            testID="finish-recovery-setup"
+            busy={busy}
+            onPress={() => void onFinishSetup()}
+          />
+        </Card>
+      ) : null}
+      {snapshot?.status === 'almost_done' ? (
+        <Card testID="recovery-almost-done-card">
+          <Title>{copy.home.recoveryAlmostDone}</Title>
+        </Card>
+      ) : null}
       {(snapshot?.ownContacts ?? [])
         .filter((row) => row.status !== 'declined')
         .map((contact) => {
@@ -241,7 +314,7 @@ export function RecoverySetupScreen() {
           onPress={() => void onInvite()}
         />
       ) : null}
-      {snapshot && snapshot.accepted >= 2 && !snapshot.hasPaper ? (
+      {snapshot && snapshot.hasAb && !snapshot.hasPaper ? (
         <Button
           label={copy.home.recoveryPrintedAction}
           variant="secondary"

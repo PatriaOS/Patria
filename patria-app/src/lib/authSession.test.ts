@@ -7,12 +7,17 @@ import {
   resetRecoveryReminderMemoryForTests,
   shouldOfferRecoveryReminder,
 } from '../features/family/recoveryReminderSession';
+import { clearRecoveryPrivateSecret } from './crypto/recoverySetup';
 import { signOutAndGoWelcome } from './authSession';
 import { routes } from './navigation';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+
+jest.mock('./crypto/recoverySetup', () => ({
+  clearRecoveryPrivateSecret: jest.fn(async () => undefined),
+}));
 
 describe('signOutAndGoWelcome', () => {
   beforeEach(async () => {
@@ -54,5 +59,16 @@ describe('signOutAndGoWelcome', () => {
         onboarding: false,
       }),
     ).toBe(true);
+  });
+
+  it('deletes the temporary recovery private on sign-out when space is known', async () => {
+    (clearRecoveryPrivateSecret as jest.Mock).mockClear();
+    await signOutAndGoWelcome({
+      userId: 'u1',
+      spaceId: 's1',
+      signOut: jest.fn().mockResolvedValue(undefined),
+      replace: jest.fn(),
+    });
+    expect(clearRecoveryPrivateSecret).toHaveBeenCalledWith('u1', 's1');
   });
 });
