@@ -15,9 +15,14 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
-jest.mock('./crypto/recoverySetup', () => ({
-  clearRecoveryPrivateSecret: jest.fn(async () => undefined),
-}));
+jest.mock('./crypto/recoverySetup', () => {
+  const actual = jest.requireActual('./crypto/recoverySetup') as typeof import('./crypto/recoverySetup');
+  return {
+    __esModule: true,
+    ...actual,
+    clearRecoveryPrivateSecret: jest.fn(async () => undefined),
+  };
+});
 
 describe('signOutAndGoWelcome', () => {
   beforeEach(async () => {
