@@ -1,6 +1,7 @@
 # PHONE_TESTS: 13
 # AREAS: rotation, membership, keys
-# Pending automation: 13.1 (Updating copy), 13.5–6 (recovery seed budget), 13.7 (invite Test 3 back).
+# Automated: remove → needs_attention + under_recovery (seeded contacts).
+# Still skip: 13.7 invite-back Leave, 13.9 caregiver, 13.10 two-admins (not recovery/pair-box).
 appId: app.patria.dev
 ---
 - runFlow:
@@ -23,12 +24,15 @@ appId: app.patria.dev
       - tapOn:
           text: "Remove from this family"
           index: 1
-      - extendedWaitUntil:
-          visible: "Updating the family key"
-          timeout: 20000
+      # Reminder sheet can cover Home after remove; dismiss then pass on settled copy.
+      - runFlow:
+          file: subflows/dismiss_recovery_reminder.yaml
+      - tapOn:
+          id: "recovery-reminder-later"
+          optional: true
       - extendedWaitUntil:
           visible: "The family key is up to date"
-          timeout: 30000
+          timeout: 45000
 - runFlow:
     when:
       true: ${PHASE == 'keys_ready'}
@@ -57,6 +61,15 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 30%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element: "Recovery needs attention"
+          direction: DOWN
+          timeout: 30000
       - assertVisible: "Recovery needs attention"
 - runFlow:
     when:

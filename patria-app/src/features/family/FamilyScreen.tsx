@@ -19,7 +19,11 @@ import { signOutAndGoWelcome } from '../../lib/authSession';
 import { copy } from '../../lib/copy';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { ensurePersonalKeyAfterFamilyReady } from '../../lib/crypto/personalKey';
-import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
+import {
+  fulfillAcceptedContacts,
+  loadRecoverySnapshot,
+} from '../../lib/crypto/recoverySetup';
+import { logFailedAction } from '../../lib/devLog';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchChildren, fetchMembers, fetchPendingInvites } from '../../lib/family';
 import { routes } from '../../lib/navigation';
@@ -96,6 +100,35 @@ export function FamilyScreen() {
       // Recovery may still be missing — Vault / Letters banners cover that.
     });
   }, [personalKeyQuery.data?.status, spaceId, userId]);
+
+  // Same fulfill as Home: Family is where recovery status lives (D35), so opening
+  // Family after a contact accepts must write ab when two contacts are ready.
+  useEffect(() => {
+    if (keyHolder && spaceId && userId && keyStatusQuery.data === 'ready') {
+      if ((recoveryQuery.data?.accepted ?? 0) === 0) {
+        return;
+      }
+      void fulfillAcceptedContacts({
+        spaceId,
+        memberUserId: userId,
+      })
+        .then(() => {
+          void queryClient.invalidateQueries({
+            queryKey: ['recoverySnapshot', spaceId, userId],
+          });
+        })
+        .catch((caught: unknown) => {
+          logFailedAction(caught);
+        });
+    }
+  }, [
+    keyHolder,
+    spaceId,
+    userId,
+    keyStatusQuery.data,
+    recoveryQuery.data?.accepted,
+    queryClient,
+  ]);
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {

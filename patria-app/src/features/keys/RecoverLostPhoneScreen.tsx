@@ -68,7 +68,13 @@ export function RecoverLostPhoneScreen() {
   });
 
   const role = membershipsQuery.data?.find((item) => item.space.id === spaceId)?.role;
-  const mine = (requestsQuery.data ?? []).find((row) => row.userId === userId);
+  // Prefer the open request. listRequests can include older cancelled/completed rows;
+  // finishing against those fails with a vague "check the words" error.
+  const mine =
+    (requestsQuery.data ?? []).find(
+      (row) =>
+        row.userId === userId && row.completedAt == null && row.cancelledAt == null,
+    ) ?? (requestsQuery.data ?? []).find((row) => row.userId === userId);
 
   const onStart = async () => {
     if (!userId || !spaceId) {
@@ -153,7 +159,12 @@ export function RecoverLostPhoneScreen() {
       <Body>{copy.recovery.lostBody}</Body>
       {error ? <ErrorState message={error} /> : null}
       {!mine || mine.completedAt ? (
-        <Button label={copy.recovery.lostStart} busy={busy} onPress={() => void onStart()} />
+        <Button
+          label={copy.recovery.lostStart}
+          testID="start-recovery"
+          busy={busy}
+          onPress={() => void onStart()}
+        />
       ) : null}
       {mine && mine.cancelledAt ? (
         <Muted>
@@ -163,15 +174,18 @@ export function RecoverLostPhoneScreen() {
         </Muted>
       ) : null}
       {mine && requestIsWaiting(mine) ? (
-        <Muted>
+        <Muted testID="recovery-waiting-until">
           {copy.recovery.lostWaiting.replace('{when}', formatDeviceWhen(mine.notBefore))}
         </Muted>
       ) : null}
       {mine && requestCanFinish(mine) ? (
         <>
-          <Muted>{copy.recovery.lostHelpers.replace('{n}', String(helperCount))}</Muted>
+          <Muted testID="recovery-helper-count">
+            {copy.recovery.lostHelpers.replace('{n}', String(helperCount))}
+          </Muted>
           <Field
             label={copy.recovery.lostPaperLabel}
+            testID="printed-code-24-words"
             value={paperWords}
             onChangeText={setPaperWords}
             autoCapitalize="none"
@@ -179,7 +193,12 @@ export function RecoverLostPhoneScreen() {
             accessibilityHint={copy.recovery.lostPaperHint}
           />
           <Muted>{copy.recovery.lostPaperHint}</Muted>
-          <Button label={copy.recovery.lostFinish} busy={busy} onPress={() => void onFinish()} />
+          <Button
+            label={copy.recovery.lostFinish}
+            testID="finish-recovery"
+            busy={busy}
+            onPress={() => void onFinish()}
+          />
         </>
       ) : null}
     </Screen>

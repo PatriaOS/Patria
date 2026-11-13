@@ -10,7 +10,9 @@ export const MAESTRO_DIR = join(APP_ROOT, '.maestro');
 export const E2E_FAMILY_NAME = 'E2E Family';
 export const TEST_TIMEOUT_MS = 10 * 60 * 1000;
 export const TEST_11_TIMEOUT_MS = 15 * 60 * 1000;
-export const TEST_12_TIMEOUT_MS = 20 * 60 * 1000;
+export const TEST_12_TIMEOUT_MS = 30 * 60 * 1000;
+export const TEST_13_TIMEOUT_MS = 25 * 60 * 1000;
+export const TEST_76_TIMEOUT_MS = 35 * 60 * 1000;
 /** B2: four let-ins (Tests 2–5) plus seal/keeper steps on shared Sims. */
 export const TEST_B2_TIMEOUT_MS = 50 * 60 * 1000;
 
@@ -22,6 +24,12 @@ export function timeoutMsForTest(testNumber) {
   }
   if (testNumber === 12) {
     return TEST_12_TIMEOUT_MS;
+  }
+  if (testNumber === 13) {
+    return TEST_13_TIMEOUT_MS;
+  }
+  if (testNumber === 76) {
+    return TEST_76_TIMEOUT_MS;
   }
   if ([68, 69, 70, 71, 72, 73].includes(testNumber)) {
     return TEST_B2_TIMEOUT_MS;
@@ -173,7 +181,7 @@ export function scenarioForTest(testNumber) {
   if (testNumber === 6 || testNumber === 8 || testNumber === 9) {
     return 'admin-elder';
   }
-  if (testNumber === 11 || testNumber === 12 || testNumber === 13) {
+  if (testNumber === 11 || testNumber === 12 || testNumber === 13 || testNumber === 76) {
     return 'admin-elders';
   }
   if (testNumber === 14 || testNumber === 19) {

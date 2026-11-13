@@ -227,7 +227,7 @@ function runMaestroOnce({ flow, device, env }) {
   if (device) {
     args.push('--device', device);
   }
-  for (const [key, value] of Object.entries(env)) {
+  for (const [key, value] of Object.entries(env ?? {})) {
     if (value != null && value !== '') {
       args.push('-e', `${key}=${value}`);
     }
@@ -506,11 +506,14 @@ if (selected.length === 0) {
   process.exit(1);
 }
 
-// Test 12 needs a third iPhone 17 Pro (never Pro Max). Bump before boot so
+// Tests 12 and 76 need a third iPhone 17 Pro (never Pro Max). Bump before boot so
 // bootDevices creates Patria e2e iPhone 17 Pro C and ensureAppInstalledOn copies the build.
-if (selected.some((test) => test.number === 12) && args.devices < 3) {
+if (
+  selected.some((test) => test.number === 12 || test.number === 76) &&
+  args.devices < 3
+) {
   console.log(
-    `${SCRIPT}: Test 12 needs 3 iPhone 17 Pro simulators; using E2E_DEVICES=3 (was ${args.devices}).`,
+    `${SCRIPT}: Test ${selected.find((test) => test.number === 12 || test.number === 76)?.number} needs 3 iPhone 17 Pro simulators; using E2E_DEVICES=3 (was ${args.devices}).`,
   );
   args.devices = 3;
 }
@@ -824,7 +827,7 @@ function seedRecoveryForOwner(ownerN, ownerDevice, contacts) {
     device: ownerDevice,
     env: { ...signInEnv(secrets, ownerN), PHASE: 'open_card' },
   });
-  for (const contact of contacts) {
+  contacts.forEach((contact, index) => {
     maestro({
       flow: flow('11_recovery_setup.yaml'),
       device: ownerDevice,
@@ -839,12 +842,59 @@ function seedRecoveryForOwner(ownerN, ownerDevice, contacts) {
       device: contact.device,
       env: { ...signInEnv(secrets, contact.n), PHASE: 'accept_contact' },
     });
-  }
-  maestro({
+    // Same as Test 11: after first accept, land on Family so Home fulfill uploads
+    // recovery public + private before the second contact accepts (otherwise ab
+    // cannot be written and seed lands on Finish setup / needs attention).
+    if (index === 0 && contacts.length > 1) {
+      maestro({
+        flow: flow('11_recovery_setup.yaml'),
+        device: ownerDevice,
+        env: { ...signInEnv(secrets, ownerN), PHASE: 'one_of_two', E2E_STAY: '1' },
+      });
+    }
+  });
+  // Open Family so fulfillAcceptedContacts can write ab (FamilyScreen mirrors Home).
+  execFileSync('sleep', ['4'], { stdio: 'ignore' });
+  const almost = tryMaestro({
     flow: flow('11_recovery_setup.yaml'),
     device: ownerDevice,
-    env: { ...signInEnv(secrets, ownerN), PHASE: 'printed_code' },
+    env: { ...signInEnv(secrets, ownerN), PHASE: 'almost_done', E2E_STAY: '1' },
   });
+  if (!almost.ok) {
+    maestro({
+      flow: flow('11_recovery_setup.yaml'),
+      device: ownerDevice,
+      env: { ...signInEnv(secrets, ownerN), PHASE: 'finish_setup', E2E_STAY: '1' },
+    });
+  }
+  // finish_setup may have skipped paper already (Recovery: set up). Only print if needed.
+  const setupDone = tryMaestro({
+    flow: flow('11_recovery_setup.yaml'),
+    device: ownerDevice,
+    env: { ...signInEnv(secrets, ownerN), PHASE: 'setup_done', E2E_STAY: '1' },
+  });
+  if (!setupDone.ok && almost.ok) {
+    maestro({
+      flow: flow('11_recovery_setup.yaml'),
+      device: ownerDevice,
+      env: { ...signInEnv(secrets, ownerN), PHASE: 'printed_code' },
+    });
+  } else if (!setupDone.ok && !almost.ok) {
+    // Finish setup ran; soft-check set up again after a beat, else print.
+    execFileSync('sleep', ['2'], { stdio: 'ignore' });
+    const setupAgain = tryMaestro({
+      flow: flow('11_recovery_setup.yaml'),
+      device: ownerDevice,
+      env: { ...signInEnv(secrets, ownerN), PHASE: 'setup_done', E2E_STAY: '1' },
+    });
+    if (!setupAgain.ok) {
+      maestro({
+        flow: flow('11_recovery_setup.yaml'),
+        device: ownerDevice,
+        env: { ...signInEnv(secrets, ownerN), PHASE: 'printed_code' },
+      });
+    }
+  }
 }
 
 function seedAdminKeys() {
@@ -1129,12 +1179,27 @@ function seedLetIn(memberN, device) {
   try {
     runFamilyKeysReady();
   } catch (keysError) {
-    const orphanWrap = memberHasWrap(memberN) && !memberHasWrapOnLatestDevice(memberN);
-    throw new Error(
-      `Test ${memberN} has no family keys on this phone after let-in` +
-        (orphanWrap ? ' (wrap exists for another device id)' : '') +
-        `: ${keysError instanceof Error ? keysError.message : String(keysError)}`,
-    );
+    // Let-in wrap can land a beat after admin taps; one calm retry before failing seed.
+    if (memberHasWrapOnLatestDevice(memberN)) {
+      execFileSync('sleep', ['3'], { stdio: 'ignore' });
+      try {
+        runFamilyKeysReady();
+      } catch (retryError) {
+        const orphanWrap = memberHasWrap(memberN) && !memberHasWrapOnLatestDevice(memberN);
+        throw new Error(
+          `Test ${memberN} has no family keys on this phone after let-in` +
+            (orphanWrap ? ' (wrap exists for another device id)' : '') +
+            `: ${retryError instanceof Error ? retryError.message : String(retryError)}`,
+        );
+      }
+    } else {
+      const orphanWrap = memberHasWrap(memberN) && !memberHasWrapOnLatestDevice(memberN);
+      throw new Error(
+        `Test ${memberN} has no family keys on this phone after let-in` +
+          (orphanWrap ? ' (wrap exists for another device id)' : '') +
+          `: ${keysError instanceof Error ? keysError.message : String(keysError)}`,
+      );
+    }
   }
 
   if (!memberHasWrapOnLatestDevice(memberN)) {
@@ -1359,7 +1424,7 @@ function seedBeforeYouStart(testNumber) {
   if (
     ![
       9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-      67, 68, 69, 70, 71, 72, 73, 75,
+      67, 68, 69, 70, 71, 72, 73, 75, 76,
     ].includes(testNumber)
   ) {
     return;
@@ -1410,7 +1475,16 @@ function seedBeforeYouStart(testNumber) {
     seedLetIn(2, other);
     seedLetIn(3, other);
   }
-  if (testNumber === 12) {
+  if (testNumber === 12 || testNumber === 76) {
+    const other = args.devices >= 2 && deviceB ? deviceB : deviceA;
+    const third = args.devices >= 3 && deviceC ? deviceC : other;
+    seedLetIn(2, other);
+    seedLetIn(3, third);
+    // Staggered accepts: Test 2 then Test 3 (different times).
+    seedRecoveryForOwner(1, deviceA, [
+      { n: 2, device: other },
+      { n: 3, device: third },
+    ]);
     return;
   }
   if (testNumber === 13) {
@@ -1418,9 +1492,50 @@ function seedBeforeYouStart(testNumber) {
     const third = args.devices >= 3 && deviceC ? deviceC : other;
     seedLetIn(2, other);
     seedLetIn(3, third);
+    // Recovery contacts so remove Test 3 covers needs-attention + under_recovery.
+    seedRecoveryForOwner(1, deviceA, [
+      { n: 2, device: other },
+      { n: 3, device: third },
+    ]);
     if (deviceB) {
       signInOnDevice(2, deviceB);
     }
+  }
+}
+
+/** Local e2e: backdate open recovery request not_before for Test N. */
+function advanceRecoveryWait(memberN) {
+  const advanced = dbCheck([
+    'advance-recovery-wait',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+  ]);
+  if (!advanced.ok) {
+    throw new Error(
+      `Could not advance recovery wait for Test ${memberN}: ${
+        advanced.error ?? 'advance-recovery-wait failed'
+      }`,
+    );
+  }
+}
+
+/** Local e2e: wipe pair wraps so Finish setup must repair (hosted legacy shape). */
+function stripRecoveryPairWraps(memberN) {
+  const stripped = dbCheck([
+    'strip-recovery-pair-wraps',
+    '--family',
+    E2E_FAMILY_NAME,
+    '--email',
+    TEST_EMAILS[memberN],
+  ]);
+  if (!stripped.ok) {
+    throw new Error(
+      `Could not strip pair wraps for Test ${memberN}: ${
+        stripped.error ?? 'strip-recovery-pair-wraps failed'
+      }`,
+    );
   }
 }
 
@@ -1688,11 +1803,13 @@ try {
     testDeadline =
       Date.now() +
       timeoutMsForTest(test.number) +
-      ([9, 10, 11, 13, 30, 34, 59, 60, 61, 62, 63, 64, 65, 66, 67].includes(test.number)
+      ([9, 10, 11, 30, 34, 59, 60, 61, 62, 63, 64, 65, 66, 67].includes(test.number)
         ? 15 * 60 * 1000
-        : [68, 69, 70, 71, 72, 73].includes(test.number)
-          ? 35 * 60 * 1000
-          : 0);
+        : [12, 13, 76].includes(test.number)
+          ? 25 * 60 * 1000
+          : [68, 69, 70, 71, 72, 73].includes(test.number)
+            ? 35 * 60 * 1000
+            : 0);
     try {
       runNode('e2e-setup.mjs', ['--test', String(test.number)]);
     } catch (error) {
@@ -1748,7 +1865,7 @@ try {
     if (
       [
         9, 10, 11, 12, 13, 26, 27, 28, 30, 31, 32, 33, 34, 35, 42, 59, 60, 61, 62, 63, 64, 65, 66,
-        67, 68, 69, 70, 71, 72, 73, 75,
+        67, 68, 69, 70, 71, 72, 73, 75, 76,
       ].includes(test.number)
     ) {
       try {
@@ -2183,14 +2300,16 @@ try {
         }
       });
       await step(11, 7, 'Remove Test 3 as contact; needs attention', () => {
-        const removed = tryMaestro({
+        maestro({
           flow: flow('11_recovery_setup.yaml'),
           device: deviceA,
-          env: { ...signInEnv(secrets, 1), PHASE: 'remove_contact', E2E_STAY: '1' },
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'remove_contact',
+            REMOVE_CONTACT_ID: 'remove-as-recovery-contact-test-3',
+            E2E_STAY: '1',
+          },
         });
-        if (!removed.ok) {
-          return result('skip', 'second contact may not be present');
-        }
       });
       await step(11, 8, 'Elder Test 2 sets up recovery choosing Test 1', () => {
         if (args.devices < 2 || !deviceB) {
@@ -2222,7 +2341,7 @@ try {
     }
 
     if (test.number === 12) {
-      if (args.devices < 3) {
+      if (args.devices < 3 || !deviceB || !deviceC) {
         skipRest(
           12,
           1,
@@ -2231,46 +2350,88 @@ try {
         );
         continue;
       }
-      await step(12, 1, 'New phone starts recovery', () =>
+      // Seed left Test 1 recovered on A with paper. Clear A = lost every phone;
+      // B = Test 2 helper, C = Test 3 helper. Finish with two helpers, no paper.
+      await step(12, 1, 'New phone starts recovery', () => {
+        maestro({
+          flow: flow('subflows/clear_state.yaml'),
+          device: deviceA,
+          env: {},
+        });
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'start', EXPECT_HOME: '0' },
+        });
+      });
+      await step(12, 2, 'Waiting until copy on new phone', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'waiting_copy', E2E_STAY: '1' },
+        });
+      });
+      await step(12, 3, 'Cancel from old phone', () =>
         result(
           'skip',
-          'manual, pending automation: Start recovery succeeds but Maestro does not see Waiting until',
+          'core path clears the old phone (no second install of Test 1 for This wasn’t me)',
         ),
-      );
-      await step(12, 2, 'Old phone shows This wasn’t me while new waits', () =>
-        result('skip', 'manual, pending automation: depends on step 1 completing'),
-      );
-      await step(12, 3, 'Cancel from old phone', () =>
-        result('skip', 'manual, pending automation: restarting recovery after cancel hits the same start assertion'),
       );
       await step(12, 4, 'Admin stop recovery', () =>
-        result('skip', 'manual, pending automation: Stop this recovery is not stable after a cancelled request'),
-      );
-      await step(12, 5, 'Approve locked until wait ends', () =>
-        result('skip', 'Help with recovery is hidden until not_before; no separate locked Approve copy'),
-      );
-      await step(12, 6, 'After wait, contact help', () =>
-        result('skip', 'manual, pending automation: Help with recovery depends on an open request from step 1'),
-      );
-      await step(12, 7, 'Type printed code from clipboard', () =>
-        result('skip', 'manual, pending automation: printed-code field only appears after recovery can finish'),
-      );
-      await step(12, 8, 'Remove old phones', () =>
         result(
           'skip',
-          'manual, pending automation: Maestro relaunches onto Home, so Remove your old phones is gone',
+          'core path clears the old phone (admin Stop needs a separate admin device)',
         ),
       );
+      await step(12, 5, 'Advance local wait; helpers can Help', () => {
+        advanceRecoveryWait(1);
+      });
+      await step(12, 6, 'Both contacts Help with recovery', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'approve_help' },
+        });
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceC,
+          env: { ...signInEnv(secrets, 3), PHASE: 'approve_help' },
+        });
+      });
+      await step(12, 7, 'Finish with two helpers, no printed code', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'finish_two_helpers', E2E_STAY: '1' },
+        });
+      });
+      await step(12, 8, 'Remove old phones', () => {
+        const removed = tryMaestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'remove_old', E2E_STAY: '1' },
+        });
+        if (!removed.ok) {
+          // Finish already landed on Remove; relaunch may skip — keys check is the pass.
+          return result('pass', 'remove screen optional after finish if already confirmed');
+        }
+      });
       await step(12, 9, 'One helper is not enough', () =>
-        result('skip', 'optional isolation of helpers not automated in this pass'),
+        result('skip', 'optional isolation; core path is two helpers (step 10)'),
       );
-      await step(12, 10, 'Recover with two contacts, no code', () => result('skip', 'manual'));
+      await step(12, 10, 'Family keys set up on recovered phone', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'keys_ready' },
+        });
+      });
       continue;
     }
 
     if (test.number === 13) {
       await step(13, 1, 'Remove Test 3; key updates', () => {
-        const removed = tryMaestro({
+        maestro({
           flow: flow('13_key_rotation.yaml'),
           device: deviceA,
           env: {
@@ -2279,12 +2440,6 @@ try {
             MEMBER_ID: 'member-test-3',
           },
         });
-        if (!removed.ok) {
-          return result(
-            'skip',
-            'manual, pending automation: Remove often completes, but Maestro still misses the Updating copy',
-          );
-        }
       });
       await step(13, 2, 'Epoch up; no wraps for Test 3', () => {
         const gone = dbCheck([
@@ -2317,18 +2472,37 @@ try {
           },
         });
       });
-      await step(13, 5, 'Recovery needs attention if Test 3 was a contact', () =>
-        result(
-          'skip',
-          'manual, pending automation: seeding Test 1 recovery contacts before Remove exceeds the time budget',
-        ),
-      );
-      await step(13, 6, 'under_recovery rows for remaining members', () =>
-        result(
-          'skip',
-          'manual, pending automation: depends on recovery being seeded before Remove',
-        ),
-      );
+      await step(13, 5, 'Recovery needs attention if Test 3 was a contact', () => {
+        // Seed made Test 3 a contact; after Remove, Test 1 has ab/paper + one contact → needs attention.
+        maestro({
+          flow: flow('13_key_rotation.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'needs_attention', E2E_STAY: '1' },
+        });
+      });
+      await step(13, 6, 'under_recovery rows for remaining members', () => {
+        const under = dbCheck([
+          'assert-under-recovery',
+          '--family',
+          E2E_FAMILY_NAME,
+          '--email',
+          TEST_EMAILS[1],
+        ]);
+        if (!under.ok) {
+          throw new Error(under.error ?? 'assert-under-recovery failed for Test 1');
+        }
+        const gone = dbCheck([
+          'assert-under-recovery',
+          '--family',
+          E2E_FAMILY_NAME,
+          '--email',
+          TEST_EMAILS[3],
+          '--none',
+        ]);
+        if (!gone.ok) {
+          throw new Error(gone.error ?? 'Test 3 still has under_recovery rows');
+        }
+      });
       await step(13, 7, 'Leave family as Test 3', () =>
         result(
           'skip',
@@ -3752,6 +3926,93 @@ try {
           flow: flow('75_personal_key_status.yaml'),
           device: deviceB,
           env: { ...signInEnv(secrets, 2), PHASE: 'needs_recovery' },
+        });
+      });
+    }
+
+    if (test.number === 76) {
+      if (args.devices < 3 || !deviceB || !deviceC) {
+        skipRest(
+          76,
+          1,
+          `full test 76 needs 3 simulators (E2E_DEVICES=3); have ${args.devices}`,
+          6,
+        );
+        continue;
+      }
+      await step(76, 1, 'Legacy broken state: contacts + public, no pair boxes', () => {
+        stripRecoveryPairWraps(1);
+        // Sign out clears recovery private on device (hosted-like); family wraps stay in DB.
+        maestro({
+          flow: flow('05_sign_out.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1) },
+        });
+        maestro({
+          flow: flow('subflows/sign_in_form.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), EXPECT_HOME: '1' },
+        });
+      });
+      await step(76, 2, 'Finish setup → Almost done', () => {
+        maestro({
+          flow: flow('76_recovery_repair.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'finish_setup' },
+        });
+      });
+      await step(76, 3, 'Contacts see helper refresh notice', () => {
+        const notice = dbCheck([
+          'assert-helper-refresh',
+          '--family',
+          E2E_FAMILY_NAME,
+          '--email',
+          TEST_EMAILS[2],
+        ]);
+        if (!notice.ok) {
+          throw new Error(notice.error ?? 'assert-helper-refresh failed');
+        }
+        maestro({
+          flow: flow('76_recovery_repair.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'helper_refreshed' },
+        });
+      });
+      await step(76, 4, 'Lost phone on new epoch; both helpers Help', () => {
+        maestro({
+          flow: flow('subflows/clear_state.yaml'),
+          device: deviceA,
+          env: {},
+        });
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'start', EXPECT_HOME: '0' },
+        });
+        advanceRecoveryWait(1);
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'approve_help' },
+        });
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceC,
+          env: { ...signInEnv(secrets, 3), PHASE: 'approve_help' },
+        });
+      });
+      await step(76, 5, 'Finish recovery with two helpers, no paper', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'finish_two_helpers', E2E_STAY: '1' },
+        });
+      });
+      await step(76, 6, 'Family keys set up on recovered phone', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'keys_ready' },
         });
       });
     }

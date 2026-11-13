@@ -1,38 +1,52 @@
 # PHONE_TESTS: 12
 # AREAS: recovery, devices
 # Do not screenshot the printed-code field. Words stay in clipboard / Maestro memory only.
-# Pending automation: 12.1–4 and 12.6–8 (start wait copy, cancel/restart, printed code, remove-old).
+# Core path: clear old phone → start recovery → wait → two helpers Help → finish with no paper.
 appId: app.patria.dev
 ---
 - runFlow:
     when:
       true: ${PHASE == 'start'}
     commands:
-      - launchApp
       - runFlow:
           file: subflows/sign_in.yaml
-      - extendedWaitUntil:
-          visible:
-            id: "screen-waiting-own-phone"
-          timeout: 30000
+      - runFlow:
+          file: subflows/open_family.yaml
       - scrollUntilVisible:
           element:
             id: "^i-lost-my-phone$"
           direction: DOWN
-          timeout: 20000
+          timeout: 30000
       - tapOn:
           id: "^i-lost-my-phone$"
-      - tapOn:
-          id: "^start-recovery$"
       - extendedWaitUntil:
-          visible: "Waiting until"
+          visible:
+            id: "start-recovery"
           timeout: 20000
+      - tapOn:
+          id: "start-recovery"
+      - extendedWaitUntil:
+          visible:
+            id: "recovery-waiting-until"
+          timeout: 30000
+      - assertVisible:
+          id: "recovery-waiting-until"
+- runFlow:
+    when:
+      true: ${PHASE == 'waiting_copy'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - assertVisible:
+          id: "recovery-waiting-until"
 - runFlow:
     when:
       true: ${PHASE == 'old_phone_alert'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%
@@ -49,6 +63,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - scrollUntilVisible:
           element:
             id: "^this-wasnt-me$"
@@ -69,6 +85,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%
@@ -85,6 +103,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%
@@ -108,6 +128,8 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%
@@ -115,9 +137,43 @@ appId: app.patria.dev
           element:
             id: "^help-with-recovery$"
           direction: DOWN
-          timeout: 20000
+          timeout: 30000
+      - takeScreenshot: recovery-helper-help
       - tapOn:
           id: "^help-with-recovery$"
+- runFlow:
+    when:
+      true: ${PHASE == 'finish_two_helpers'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      # After clear_state, Home may show let-in wait — open lost-phone to resume the request.
+      - runFlow:
+          when:
+            notVisible:
+              id: "finish-recovery"
+          commands:
+            - runFlow:
+                file: subflows/open_family.yaml
+            - scrollUntilVisible:
+                element:
+                  id: "^i-lost-my-phone$"
+                direction: DOWN
+                timeout: 30000
+            - tapOn:
+                id: "^i-lost-my-phone$"
+      - extendedWaitUntil:
+          visible:
+            id: "finish-recovery"
+          timeout: 45000
+      - assertVisible:
+          id: "recovery-helper-count"
+      - takeScreenshot: recovery-finish-two-helpers
+      - tapOn:
+          id: "finish-recovery"
+      - extendedWaitUntil:
+          visible: "Remove your old phones"
+          timeout: 60000
 - runFlow:
     when:
       true: ${PHASE == 'finish_paper'}
@@ -152,3 +208,17 @@ appId: app.patria.dev
           id: "^remove-listed-phones$"
       - assertNotVisible:
           id: "printed-code-words"
+- runFlow:
+    when:
+      true: ${PHASE == 'keys_ready'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element: "Family keys: set up on this phone"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Family keys: set up on this phone"
+      - takeScreenshot: recovery-keys-ready-after-lost-phone

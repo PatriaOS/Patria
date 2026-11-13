@@ -506,12 +506,16 @@ export async function finishLostPhoneRecovery(
     throw new Error('unwrap failed');
   }
   const helpers = await gateway.listHelpers(input.request.id);
+  // Helpers wrap to the request's new device; AAD must use that id (not a reminted one).
   const aad = encodeHelperRewrapAad({
     familySpaceId: input.spaceId,
     requestId: input.request.id,
     userId: input.userId,
-    deviceId: input.deviceId,
+    deviceId: input.request.newDeviceId,
   });
+  if (input.deviceId !== input.request.newDeviceId) {
+    throw new Error('recovery device mismatch');
+  }
   const holders: { a?: Uint8Array; b?: Uint8Array; p?: Uint8Array } = {};
   const opened: Uint8Array[] = [];
   try {

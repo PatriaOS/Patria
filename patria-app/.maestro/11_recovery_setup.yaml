@@ -227,39 +227,110 @@ appId: app.patria.dev
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "recovery-contacts"
+          direction: DOWN
+          timeout: 20000
       - tapOn:
-          id: "choose-recovery-contacts"
-          optional: true
+          id: "recovery-contacts"
+      - extendedWaitUntil:
+          visible:
+            id: ${REMOVE_CONTACT_ID}
+          timeout: 20000
+      - tapOn:
+          id: ${REMOVE_CONTACT_ID}
+      - tapOn:
+          point: 8%, 12%
+      - runFlow:
+          file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 30%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element: "Recovery needs attention"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible: "Recovery needs attention"
+      - takeScreenshot: recovery-needs-attention
+- runFlow:
+    when:
+      true: ${PHASE == 'finish_setup'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "recovery-contacts"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "recovery-contacts"
+      - extendedWaitUntil:
+          visible:
+            id: "finish-recovery-setup"
+          timeout: 20000
+      - assertVisible: "Recovery needs attention"
+      - tapOn:
+          id: "finish-recovery-setup"
+      # Finish setup often pushes Printed code. Skip saves ap/bp (seed already has helpers).
+      - runFlow:
+          when:
+            visible:
+              id: "printed-code-skip"
+          commands:
+            - tapOn:
+                id: "printed-code-skip"
       - runFlow:
           when:
             notVisible:
-              id: "remove-as-recovery-contact"
+              id: "^family$"
           commands:
-            - runFlow:
-                file: subflows/open_family.yaml
-            - scrollUntilVisible:
-                element:
-                  id: "recovery-contacts"
-                direction: DOWN
-                timeout: 10000
             - tapOn:
-                id: "recovery-contacts"
-      - extendedWaitUntil:
-          visible:
-            id: "remove-as-recovery-contact"
-          timeout: 20000
-      - tapOn:
-          id: "remove-as-recovery-contact"
-      - tapOn:
-          point: 8%, 12%
-      - tapOn:
-          id: "home"
-      - extendedWaitUntil:
-          visible:
-            id: "^home$"
-          timeout: 15000
+                point: 8%, 12%
+      - runFlow:
+          file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 30%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element:
+            id: "recovery-contacts"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "recovery-contacts"
+      # Pass if either Almost done (ab only) or set up (skip completed paper).
+      - runFlow:
+          when:
+            visible: "Almost done: write down your printed code"
+          commands:
+            - assertVisible: "Almost done: write down your printed code"
+      - runFlow:
+          when:
+            visible: "Recovery: set up"
+          commands:
+            - assertVisible: "Recovery: set up"
+- runFlow:
+    when:
+      true: ${PHASE == 'helper_refreshed'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
       - swipe:
           start: 50%, 25%
           end: 50%, 80%
-      - assertVisible: "Recovery needs attention"
-      - takeScreenshot: recovery-needs-attention
+      - scrollUntilVisible:
+          element:
+            id: "recovery-helper-refreshed"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "recovery-helper-refreshed"
+      - takeScreenshot: recovery-helper-refreshed

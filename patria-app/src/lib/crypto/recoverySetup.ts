@@ -104,9 +104,12 @@ export function recoveryStatusCopyKey(
     }
     return 'setup';
   }
-  // First accept uploads the recovery public key before ab exists — that is
-  // normal mid-setup (one_of_two), not a broken Finish-setup state.
+  // One contact left after ab/paper existed = contact removed; needs a replacement
+  // (D27). First accept mid-setup (public uploaded, no ab yet) stays one_of_two.
   if (snapshot.accepted === 1) {
+    if (snapshot.hasAb || snapshot.hasPaper) {
+      return 'needs_attention';
+    }
     return 'one_of_two';
   }
   // Orphan public key with no accepted contacts: setup started then contacts gone.

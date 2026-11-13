@@ -269,7 +269,7 @@ export function RecoverySetupScreen() {
                 <Button
                   label={copy.recovery.removeContact}
                   variant="secondary"
-                  testID="remove-as-recovery-contact"
+                  testID={`remove-as-recovery-contact-${testIdFromLabel(memberDisplayName(member?.displayName))}`}
                   busy={busy}
                   onPress={() => void onRemove(contact.userId)}
                 />

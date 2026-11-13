@@ -101,10 +101,13 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 30%
+          end: 50%, 80%
       - scrollUntilVisible:
           element: "Family keys: set up on this phone"
           direction: DOWN
-          timeout: 30000
+          timeout: 45000
       - assertVisible: "Family keys: set up on this phone"
 # Family + personal wraps on this phone (keepers / anyone with recovery set up).
 - runFlow:

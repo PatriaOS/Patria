@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-13 — Automate lost-phone recovery + repair (tests 12, 76, 11.7, 13.5–6)
+
+Wired Test 12 core path and new Test 76 (repair → Almost done → helper refresh → lost-phone) on three iPhone 17 Pros with local SQL `advance-recovery-wait` / `strip-recovery-pair-wraps` only. Test 11 step 7 hard-asserts remove → needs attention (PASS). App: FamilyScreen also runs `fulfillAcceptedContacts` (D35 status lives on Family; seed no longer depends on briefly landing on Home). Seed mirrors Test 11’s one_of_two between accepts. Maestro finish_two_helpers re-opens **I lost my phone** when Home shows let-in wait. Test 13: dismiss recovery reminder before asserting key up to date; 13.7/9/10 still skip (not recovery). Shots: helper Help / helper refreshed.
+
 ## 2026-11-13 — Phone tests 11–13 after seed/status fix; review shots
 
 Re-ran 11→12→13 with sim reset. Test 11 and 13 pass; Test 12 boots Pro C then skips (manual pending automation, not missing devices). Maestro adds `one_of_two` and printed-continue review shots (crop words out of the printed file). No hosted migrate.

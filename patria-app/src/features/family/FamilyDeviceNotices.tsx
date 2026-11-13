@@ -314,6 +314,7 @@ export function FamilyDeviceNotices() {
               <ButtonStack>
                 <Button
                   label={copy.home.notMyPhone}
+                  testID="this-wasnt-me"
                   variant="secondary"
                   busy={busyNoticeId === request.id}
                   disabled={busyNoticeId !== null && busyNoticeId !== request.id}
@@ -350,6 +351,7 @@ export function FamilyDeviceNotices() {
                 {myContact && requestCanFinish(request) ? (
                   <Button
                     label={copy.home.recoveryApproveHelp}
+                    testID="help-with-recovery"
                     busy={busyNoticeId === request.id}
                     disabled={busyNoticeId !== null && busyNoticeId !== request.id}
                     onPress={() => void onApproveRecoveryHelp(request)}
@@ -358,6 +360,7 @@ export function FamilyDeviceNotices() {
                 {admin ? (
                   <Button
                     label={copy.home.stopThisRecovery}
+                    testID="stop-this-recovery"
                     variant="secondary"
                     busy={busyNoticeId === request.id}
                     disabled={busyNoticeId !== null && busyNoticeId !== request.id}

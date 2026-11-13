@@ -115,33 +115,43 @@ Device A: Test 1 (Family admin). Device B: Test 2, Elder or Co admin, already le
 
 ### 12. Recover after losing every phone (Step 7)
 Areas: recovery, devices
-Before: test 11 passed for Test 2 (contacts Test 1 and Test 3, printed code known). Recovery wait shortened for testing only. Devices: device 1 = Test 1 (contact A, admin); device 2 = Test 2's old phone; new device = Test 2's new device.
-1. On the new device sign in as Test 2. Pass if "Waiting for approval" shows with **I lost my phone**. Tap it and confirm. (manual, pending automation: Start recovery succeeds but Maestro does not see “Waiting until” on the recover screen)
-2. Pass if the new device shows a countdown and says contacts were asked to call first, and devices 1 and 2 both show a recovery alert, with **This wasn't me** on device 2. (manual, pending automation: depends on step 1 completing)
-3. Cancel check: on device 2 tap **This wasn't me**. Pass if the new device shows the request was cancelled. Start a new request. (manual, pending automation: restarting recovery after cancel hits the same start assertion)
-4. Admin stop check: on device 1 tap **Stop this recovery**. Pass if the new device shows it was cancelled by a family admin. Starting a new request also cancels any older open one. Start a fresh request. (manual, pending automation: Stop this recovery is not stable after a cancelled request)
-5. Too early check: on device 1 open the request right away. Pass if Approve is locked and shows when it unlocks.
-6. After the wait, on device 1 tap **Approve** after the reminder to confirm by phone. (manual, pending automation: Help with recovery depends on an open request from step 1)
-7. On the new device tap **Use my printed code** and type the 24 words. Pass if a wrong word gives a friendly error, not a crash. (manual, pending automation: printed-code field only appears after recovery can finish)
-8. Pass if the new device says the family key is restored, then shows **Remove your old phones** with device 2 ticked. Tap to confirm. Pass if device 2 becomes removed and device 1 gets a notice. Old phones must never be removed before the tap. (manual, pending automation: Maestro relaunches onto Home, so Remove your old phones is gone)
-9. One helper is not enough: fresh request, only device 1 approves, no code typed. Pass if the new device keeps waiting.
-10. Optional: recover with contact A and contact B, no code. (manual)
-Pass when steps 2 to 8 behave as written, no screen shows the code words after typing, and no database column holds the printed code.
+Before (automated): seed lets in Test 2 and Test 3, then Test 1’s contacts accept at different times (Test 2, then Test 3) and write the printed code. Devices: A = Test 1 (cleared = new phone after loss); B = Test 2 helper; C = Test 3 helper. Local e2e only: SQL `advance-recovery-wait` shortens the open request (never in the app or on hosted).
+1. Clear app data on A (lost every phone). Sign in as Test 1. Pass if **I lost my phone** → start shows **Waiting until** (`recovery-waiting-until`).
+2. Pass if the new phone still shows the waiting copy (`recovery-waiting-until`).
+3. Cancel check (**This wasn’t me** on an old phone): skip when the core path cleared the only Test 1 install (no second install for cancel).
+4. Admin stop check: skip for the same reason (Stop needs a separate admin device while Test 1 recovers on A).
+5. Local e2e advances `not_before` so helpers can Help without sleeping 48 hours.
+6. On B and C, each contact taps **Help with recovery**.
+7. On A, finish with two helpers and **no printed code**. Pass if **Remove your old phones** appears.
+8. Confirm remove when still on that screen; optional if finish already moved on — keys check is the pass.
+9. One helper is not enough: skip (optional isolation; core path is two helpers).
+10. Pass if Family shows **Family keys: set up on this phone** on the recovered phone.
+Pass when the two-helper path restores keys with no printed code on screen or in the database.
 
 ### 13. A new family key when someone leaves (Step 8)
 Areas: rotation, membership, keys
-Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as Teen or Elder with a let in device. Note the highest key epoch for the family.
-1. On device 1 (Test 1) remove Test 3. Confirm the native alert **Remove from this family**. Pass if Home briefly shows **Updating the family key**, then **The family key is up to date**. (manual, pending automation: Remove often completes, but Maestro still misses the Updating copy)
+Before: Test 1 (admin) and Test 2 (Elder) have let in devices; Test 3 joined as Elder with a let in device; seed also sets Test 1’s recovery contacts (Test 2 then Test 3) so remove covers recovery. Note the highest key epoch for the family.
+1. On device 1 (Test 1) remove Test 3. Confirm the native alert **Remove from this family**. Pass if Home settles on **The family key is up to date** (Updating may flash too fast for Maestro).
 2. Database: key epoch up by one; new wraps only for Test 1's and Test 2's let in devices; none for Test 3 at any epoch.
 3. On Test 2's device pull to refresh. Pass if keys are still set up with no approval needed.
 4. As Test 3, bring the app to the foreground (or pull to refresh). Pass if they no longer see the family and no new wrap exists for them; they should not need to sign out.
-5. If Test 3 was a recovery contact, pass if that member sees **Recovery needs attention** and is asked to choose a new contact. (manual, pending automation: seeding Test 1’s recovery contacts before Remove exceeds the phone-test time budget)
-6. Database: `family_key_under_recovery` has one new row at the new epoch per remaining member with recovery set up, none for Test 3. (manual, pending automation: depends on recovery being seeded before Remove)
-7. Invite Test 3 back, let them in, then as Test 3 open your own member row and tap **Leave family**. Confirm on the destructive **Leave family** button. Pass if the next time Test 1 opens the app the key is updated on its own (epoch up again). (manual, pending automation: inviting Test 3 back onto their member row is not stable in Maestro)
+5. Because Test 3 was a recovery contact, pass if Test 1 sees **Recovery needs attention** and is asked to choose a new contact.
+6. Database: `family_key_under_recovery` has one new row at the new epoch per remaining member with recovery set up, none for Test 3.
+7. Invite Test 3 back, let them in, then as Test 3 open your own member row and tap **Leave family**. Confirm on the destructive **Leave family** button. Pass if the next time Test 1 opens the app the key is updated on its own (epoch up again). (manual, pending automation: inviting Test 3 back onto their member row is not stable in Maestro — not recovery/pair-box)
 8. Change Test 2 from Elder to Extended relative. Pass if the key is updated and Test 2 no longer holds it. Change back and let Test 2 in again.
-9. Add and remove a Caregiver. Pass if the key epoch does not change.
+9. Add and remove a Caregiver. Pass if the key epoch does not change. (skip in automated pass: caregiver invite not wired here — not recovery/pair-box)
 10. Optional: two admins remove someone at the same moment. Pass if only one new key version appears and both end up on it. (manual)
-Pass when steps 1 to 9 behave as written and no screen or log shows a key.
+Pass when steps 1 to 8 behave as written and no screen or log shows a key.
+
+### 76. Repair legacy recovery (zero pair boxes) then recover
+Areas: recovery, keys
+Local e2e only (never against hosted). Before: same seed as test 12 (Test 1 recovered with two contacts and paper).
+1. Strip `recovery_pair_wraps` for Test 1 and sign out/in so recovery private is gone on device (hosted-like: contacts + public, zero pair boxes).
+2. On A open recovery contacts → **Finish setup**. Pass if status moves to **Almost done: write down your printed code** (repair wrote a new epoch / pair boxes).
+3. Pass if Test 2 gets a helper refresh notice (`recovery-helper-refreshed`).
+4. Clear A (lost phone). Start recovery; advance local wait; Test 2 and Test 3 tap **Help with recovery**.
+5. Finish with two helpers, no printed code.
+6. Pass if Family shows **Family keys: set up on this phone**.
 
 ## Memories (MEM)
 

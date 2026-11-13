@@ -148,6 +148,30 @@ describe('recovery pair boxes status', () => {
     expect(recoveryStatusCopyKey(snapshot, MEMBER, 'family_admin')).toBe('one_of_two');
   });
 
+  it('marks one contact left after ab as needs_attention (removed a helper)', () => {
+    const snapshot: Omit<RecoverySnapshot, 'status'> = {
+      contacts: [],
+      ownContacts: [
+        {
+          id: '1',
+          spaceId: SPACE,
+          memberId: MEMBER,
+          userId: CONTACT_A,
+          slot: 'a',
+          status: 'accepted',
+        },
+      ],
+      accepted: 1,
+      pending: [],
+      hasAb: true,
+      hasPaper: true,
+      hasRecoveryPublic: true,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+    };
+    expect(recoveryStatusCopyKey(snapshot, MEMBER, 'family_admin')).toBe('needs_attention');
+  });
+
   it('marks orphan recovery public with no contacts as needs_attention', () => {
     const snapshot: Omit<RecoverySnapshot, 'status'> = {
       contacts: [],
