@@ -15,10 +15,10 @@ type Shot = 'needs_attention' | 'finish_setup' | 'almost_done' | 'printed_after_
  * state. Never shows printed words. Phone tests use the real recovery flow.
  */
 export function DesignRecoveryScreen() {
+  const params = useLocalSearchParams<{ shot?: string }>();
   if (!isDesignPreviewRuntime()) {
     return <Redirect href="/" />;
   }
-  const params = useLocalSearchParams<{ shot?: string }>();
   const shot = (params.shot as Shot | undefined) ?? 'needs_attention';
 
   return (
