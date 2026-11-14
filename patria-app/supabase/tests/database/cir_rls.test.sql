@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 SET search_path = extensions, public, auth;
 
-SELECT plan(311);
+SELECT plan(316);
 UPDATE public.patria_key_settings SET recovery_wait = interval '48 hours' WHERE singleton = 1;
 
 CREATE OR REPLACE FUNCTION tests_create_auth_user(p_id uuid, p_email text, p_name text)
@@ -2340,6 +2340,39 @@ SELECT is(
 
 SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
 SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $sql$SELECT public.cancel_recovery_request(
+         (SELECT id FROM public.recovery_requests
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116')
+       )$sql$,
+  'an accepted recovery contact can cancel (helper This wasn’t me)'
+);
+RESET ROLE;
+SELECT is(
+  (
+    SELECT cancelled_by FROM public.recovery_requests
+    WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116'
+  ),
+  '44444444-4444-4444-4444-444444444444',
+  'contact cancel records cancelled_by as that accepted contact'
+);
+SELECT ok(
+  (
+    SELECT cancelled_at IS NOT NULL
+    FROM public.recovery_requests
+    WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116'
+  ),
+  'contact cancel only applies to an open request (marks cancelled_at)'
+);
+SELECT tests_jwt('11111111-1111-1111-1111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT isnt_empty(
+  $sql$SELECT 1 FROM public.recovery_events
+       WHERE user_id = '11111111-1111-1111-1111-111111111111'
+         AND event_type = 'recovery cancelled'
+         AND detail LIKE '%44444444-4444-4444-4444-444444444444%'$sql$,
+  'contact cancel records a recovery event the member can read (notified)'
+);
 SELECT throws_ok(
   $sql$SELECT public.cancel_recovery_request(
          (SELECT id FROM public.recovery_requests
@@ -2347,7 +2380,15 @@ SELECT throws_ok(
        )$sql$,
   '42501',
   NULL,
-  'a recovery contact cannot cancel'
+  'cannot cancel a request that is already cancelled'
+);
+SELECT lives_ok(
+  $sql$SELECT public.start_recovery_request(
+         (SELECT rivera FROM fx),
+         'd1111111-1111-1111-1111-111111111117'::uuid,
+         tests_dummy_pub('elena-7')
+       )$sql$,
+  'requester can start again after contact cancel'
 );
 RESET ROLE;
 
@@ -2356,7 +2397,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$SELECT public.cancel_recovery_request(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
        )$sql$,
   '42501',
   NULL,
@@ -2369,7 +2410,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$SELECT public.cancel_recovery_request(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
        )$sql$,
   '42501',
   NULL,
@@ -2382,7 +2423,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$SELECT public.approve_recovery_helper(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116'),
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117'),
          'b',
          tests_dummy_box()
        )$sql$,
@@ -2397,7 +2438,7 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $sql$SELECT public.cancel_recovery_request(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
        )$sql$,
   'a family admin can cancel recovery'
 );
@@ -2405,7 +2446,7 @@ RESET ROLE;
 SELECT is(
   (
     SELECT cancelled_by FROM public.recovery_requests
-    WHERE new_device_id = 'd1111111-1111-1111-1111-111111111116'
+    WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117'
   ),
   '22222222-2222-2222-2222-222222222222',
   'cancel records who cancelled'
@@ -2416,8 +2457,8 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $sql$SELECT public.start_recovery_request(
          (SELECT rivera FROM fx),
-         'd1111111-1111-1111-1111-111111111117'::uuid,
-         tests_dummy_pub('elena-7')
+         'd1111111-1111-1111-1111-111111111118'::uuid,
+         tests_dummy_pub('elena-8')
        )$sql$,
   'requester can start recovery to complete'
 );
@@ -2426,14 +2467,14 @@ RESET ROLE;
 UPDATE public.recovery_requests
 SET not_before = now() - interval '1 hour',
     expires_at = now() + interval '6 days'
-WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117';
+WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118';
 
 SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
 SET LOCAL ROLE authenticated;
 SELECT isnt_empty(
   $sql$SELECT device_id FROM public.recovery_request_device_public_key(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118')
        )$sql$,
   'accepted contact can fetch the new phone public key'
 );
@@ -2443,7 +2484,7 @@ SET LOCAL ROLE authenticated;
 SELECT is_empty(
   $sql$SELECT device_id FROM public.recovery_request_device_public_key(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118')
        )$sql$,
   'caregiver gets no recovery request device public key'
 );
@@ -2454,7 +2495,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$SELECT public.complete_recovery_request(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118')
        )$sql$,
   '42501',
   NULL,
@@ -2467,7 +2508,7 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $sql$SELECT public.approve_recovery_helper(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117'),
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118'),
          'b',
          tests_dummy_box()
        )$sql$,
@@ -2481,7 +2522,7 @@ SELECT lives_ok(
   $sql$INSERT INTO public.family_key_wraps (
          family_space_id, user_id, device_id, wrapped_key, key_epoch, approved_by
        ) SELECT rivera, '11111111-1111-1111-1111-111111111111',
-                'd1111111-1111-1111-1111-111111111117',
+                'd1111111-1111-1111-1111-111111111118',
                 tests_dummy_box(), 1, '11111111-1111-1111-1111-111111111111'
        FROM fx$sql$,
   'new device can record its wrap after reconstructing locally'
@@ -2489,7 +2530,7 @@ SELECT lives_ok(
 SELECT lives_ok(
   $sql$SELECT public.complete_recovery_request(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118')
        )$sql$,
   'requester can complete after a helper and a wrap'
 );
@@ -2506,7 +2547,7 @@ SELECT is(
 SELECT ok(
   (
     SELECT completed_at IS NOT NULL FROM public.recovery_requests
-    WHERE new_device_id = 'd1111111-1111-1111-1111-111111111117'
+    WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118'
   ),
   'complete marks the request complete'
 );
@@ -2516,8 +2557,8 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $sql$SELECT public.start_recovery_request(
          (SELECT rivera FROM fx),
-         'd1111111-1111-1111-1111-111111111118'::uuid,
-         tests_dummy_pub('elena-8')
+         'd1111111-1111-1111-1111-111111111119'::uuid,
+         tests_dummy_pub('elena-9')
        )$sql$,
   'requester can start a request used for expiry'
 );
@@ -2526,14 +2567,14 @@ RESET ROLE;
 UPDATE public.recovery_requests
 SET not_before = now() - interval '8 days',
     expires_at = now() - interval '1 second'
-WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118';
+WHERE new_device_id = 'd1111111-1111-1111-1111-111111111119';
 
 SELECT tests_jwt('44444444-4444-4444-4444-444444444444');
 SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$SELECT public.approve_recovery_helper(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118'),
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111119'),
          'b',
          tests_dummy_box()
        )$sql$,
@@ -2548,7 +2589,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $sql$SELECT public.complete_recovery_request(
          (SELECT id FROM public.recovery_requests
-          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111118')
+          WHERE new_device_id = 'd1111111-1111-1111-1111-111111111119')
        )$sql$,
   '42501',
   NULL,

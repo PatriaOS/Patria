@@ -16,6 +16,7 @@ import { randomKey32 } from './random';
 import {
   createRecoveryBoxes,
   openRecoveryPair,
+  type FullRecoveryBoxes,
   type RecoveryBoxes,
 } from './recovery';
 import {
@@ -427,7 +428,7 @@ async function rebuildPairBoxes(
     paper: Uint8Array | null;
   },
   gateway: RecoveryAccessGateway,
-): Promise<RecoveryBoxes | null> {
+): Promise<FullRecoveryBoxes | null> {
   const secretA = await loadHolder(input.memberUserId, input.spaceId, 'a');
   const secretB = await loadHolder(input.memberUserId, input.spaceId, 'b');
   if (!secretA || !secretB) {
@@ -499,7 +500,7 @@ export function confirmPrintedCodeLocally(
   printed: PrintedCode,
   ctx: { familySpaceId: string; userId: string; recoveryKeyEpoch: number },
   answers: { index: number; word: string }[],
-): RecoveryBoxes {
+): FullRecoveryBoxes {
   if (!printedChecksMatch(printed.words, answers)) {
     throw new Error('printed code failed');
   }
@@ -714,7 +715,7 @@ export async function repairRecoverySetup(
     secretA = built.secretA;
     secretB = built.secretB;
     const ephemeralPaper = randomKey32();
-    let boxes: RecoveryBoxes;
+    let boxes: FullRecoveryBoxes;
     try {
       boxes = createRecoveryBoxes(pair.privateKey, secretA, secretB, ephemeralPaper, {
         familySpaceId: input.spaceId,

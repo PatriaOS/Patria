@@ -316,13 +316,14 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     const ab = rows.find((row) => row.pair_id === 'ab');
     const ap = rows.find((row) => row.pair_id === 'ap');
     const bp = rows.find((row) => row.pair_id === 'bp');
-    if (!ab || !ap || !bp) {
+    // ab is enough for two-helper finish; ap/bp appear only after printed code.
+    if (!ab) {
       return null;
     }
     return {
       boxAb: fromPgBytea(ab.wrapped_recovery_key),
-      boxAp: fromPgBytea(ap.wrapped_recovery_key),
-      boxBp: fromPgBytea(bp.wrapped_recovery_key),
+      boxAp: ap ? fromPgBytea(ap.wrapped_recovery_key) : null,
+      boxBp: bp ? fromPgBytea(bp.wrapped_recovery_key) : null,
     };
   },
 

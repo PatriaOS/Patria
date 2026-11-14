@@ -118,13 +118,13 @@ Areas: recovery, devices
 Before (automated): seed lets in Test 2 and Test 3, then Test 1’s contacts accept at different times (Test 2, then Test 3) and write the printed code. Devices: A = Test 1 (cleared = new phone after loss); B = Test 2 helper; C = Test 3 helper. Local e2e only: SQL `advance-recovery-wait` shortens the open request (never in the app or on hosted).
 1. Clear app data on A (lost every phone). Sign in as Test 1. Pass if **I lost my phone** → start shows **Waiting until** (`recovery-waiting-until`).
 2. Pass if the new phone still shows the waiting copy (`recovery-waiting-until`).
-3. Cancel check (**This wasn’t me** on an old phone): skip when the core path cleared the only Test 1 install (no second install for cancel).
-4. Admin stop check: skip for the same reason (Stop needs a separate admin device while Test 1 recovers on A).
+3. Contact cancel (**This wasn’t me** on B as Test 2): pass if the open request is cancelled and A can start recovery again. (Old-phone cancel still needs a second Test 1 install — not used on the cleared-A core path.)
+4. Admin stop check: skip (Stop needs a separate admin device while Test 1 recovers on A).
 5. Local e2e advances `not_before` so helpers can Help without sleeping 48 hours.
-6. On B and C, each contact taps **Help with recovery**.
-7. On A, finish with two helpers and **no printed code**. Pass if **Remove your old phones** appears.
+6. On B, the first contact sees **{name} asked for help recovering their phone**, the confirm-in-person body, a **Started** date, **Help with recovery**, and **This wasn’t me**; they tap **Help with recovery**.
+7. On A, after both helpers have helped, finish with **no printed code** (when 2 of 2 have helped, the printed-code field shows you can leave it empty). Pass if **Remove your old phones** appears.
 8. Confirm remove when still on that screen; optional if finish already moved on — keys check is the pass.
-9. One helper is not enough: skip (optional isolation; core path is two helpers).
+9. One helper is not enough: on A with only B’s Help recorded, pass if helper count is 1, the both-helped empty-paper hint is absent, and Finish without a second helper or paper fails. Then C Helps so step 7 can finish.
 10. Pass if Family shows **Family keys: set up on this phone** on the recovered phone.
 Pass when the two-helper path restores keys with no printed code on screen or in the database.
 

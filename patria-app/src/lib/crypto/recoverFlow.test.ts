@@ -307,4 +307,135 @@ describe('contact helper rewrap', () => {
     wipe(opened);
     wipe(holder);
   });
+
+  it('refuses a helper piece bound to another request or new-device id', () => {
+    const contact = generateDeviceKeyPair();
+    const neu = generateDeviceKeyPair();
+    const holder = randomKey32();
+    const request = openRequest();
+    const aad = encodeHelperRewrapAad({
+      familySpaceId: SPACE,
+      requestId: request.id,
+      userId: USER,
+      deviceId: request.newDeviceId,
+    });
+    const wrapped = wrapSecretWithAad(holder, neu.publicKey, aad);
+    expect(() =>
+      unwrapSecretWithAad(
+        wrapped,
+        neu.privateKey,
+        encodeHelperRewrapAad({
+          familySpaceId: SPACE,
+          requestId: 'other-request',
+          userId: USER,
+          deviceId: request.newDeviceId,
+        }),
+      ),
+    ).toThrow();
+    expect(() =>
+      unwrapSecretWithAad(
+        wrapped,
+        neu.privateKey,
+        encodeHelperRewrapAad({
+          familySpaceId: SPACE,
+          requestId: request.id,
+          userId: USER,
+          deviceId: 'other-device',
+        }),
+      ),
+    ).toThrow();
+    const opened = unwrapSecretWithAad(wrapped, neu.privateKey, aad);
+    expect(secretsEqual(opened, holder)).toBe(true);
+    wipe(opened);
+    wipe(holder);
+    wipe(contact.privateKey);
+  });
+});
+
+describe('lost-phone finish with two helpers and no paper', () => {
+  it('opens with A+B when only the ab pair box exists (repair / almost-done shape)', async () => {
+    const store = new Map<string, string>();
+    installMemoryStore(store);
+    const recoveryPair = generateDeviceKeyPair();
+    const familyKey = randomKey32();
+    const secretA = randomKey32();
+    const secretB = randomKey32();
+    const ephemeralPaper = randomKey32();
+    const full = createRecoveryBoxes(
+      recoveryPair.privateKey,
+      secretA,
+      secretB,
+      ephemeralPaper,
+      ctx,
+    );
+    wipe(ephemeralPaper);
+    // Stored state after repair: ab only.
+    const boxes = { boxAb: full.boxAb, boxAp: null, boxBp: null };
+    const newDevice = generateDeviceKeyPair();
+    const request = openRequest({ newDeviceId: 'd-lost' });
+    const helperAad = encodeHelperRewrapAad({
+      familySpaceId: SPACE,
+      requestId: request.id,
+      userId: USER,
+      deviceId: request.newDeviceId,
+    });
+    const inserts: { family?: Uint8Array } = {};
+    const gateway: RecoverFlowGateway = {
+      startRequest: async () => request.id,
+      listRequests: async () => [request],
+      cancelRequest: async () => undefined,
+      fetchDevicePublicKey: async () => newDevice.publicKey,
+      fetchOwnHolderSecret: async () => null,
+      approveHelper: async () => undefined,
+      listHelpers: async () => [
+        { slot: 'a', wrappedSecret: wrapSecretWithAad(secretA, newDevice.publicKey, helperAad) },
+        { slot: 'b', wrappedSecret: wrapSecretWithAad(secretB, newDevice.publicKey, helperAad) },
+      ],
+      fetchPairBoxes: async () => boxes,
+      fetchSealedFamilyKeys: async () => [
+        {
+          keyEpoch: 1,
+          sealed: wrapFamilyKeyToRecoveryPublic(familyKey, recoveryPair.publicKey, {
+            familySpaceId: SPACE,
+            keyEpoch: 1,
+            userId: USER,
+          }),
+        },
+      ],
+      fetchMeta: async () => ({ keyEpoch: 1, recoveryKeyEpoch: 1 }),
+      fetchRecoveryEpoch: async () => 1,
+      insertFamilyWrap: async (row) => {
+        inserts.family = row.wrappedKey;
+      },
+      completeRequest: async () => undefined,
+      listRemovedNotices: async () => [],
+    };
+
+    await finishLostPhoneRecovery(
+      {
+        spaceId: SPACE,
+        userId: USER,
+        role: 'family_admin',
+        deviceId: request.newDeviceId,
+        privateKey: newDevice.privateKey,
+        publicKey: newDevice.publicKey,
+        request,
+        paperWords: '',
+      },
+      gateway,
+    );
+
+    const openedFamily = unwrapKeyFromDevice(inserts.family as Uint8Array, newDevice.privateKey, {
+      familySpaceId: SPACE,
+      keyEpoch: 1,
+      userId: USER,
+      deviceId: request.newDeviceId,
+    });
+    expect(secretsEqual(openedFamily, familyKey)).toBe(true);
+    wipe(openedFamily);
+    wipe(familyKey);
+    wipe(secretA);
+    wipe(secretB);
+    wipe(recoveryPair.privateKey);
+  });
 });

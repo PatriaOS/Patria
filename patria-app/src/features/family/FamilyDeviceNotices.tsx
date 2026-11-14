@@ -337,16 +337,16 @@ export function FamilyDeviceNotices() {
             return null;
           }
           return (
-            <Card key={request.id}>
+            <Card key={request.id} testID="recovery-helper-card">
               <Title>
-                {admin
-                  ? copy.home.recoveryAdminNotice.replace('{name}', name)
-                  : copy.home.recoveryContactNotice.replace('{name}', name)}
+                {myContact
+                  ? copy.home.recoveryContactAskedTitle.replace('{name}', name)
+                  : copy.home.recoveryAdminNotice.replace('{name}', name)}
               </Title>
               {myContact ? (
                 <Muted>{copy.home.recoveryContactNotice.replace('{name}', name)}</Muted>
               ) : null}
-              <Muted>{when}</Muted>
+              <Muted>{copy.home.recoveryStartedWhen.replace('{when}', when)}</Muted>
               <ButtonStack>
                 {myContact && requestCanFinish(request) ? (
                   <Button
@@ -357,7 +357,17 @@ export function FamilyDeviceNotices() {
                     onPress={() => void onApproveRecoveryHelp(request)}
                   />
                 ) : null}
-                {admin ? (
+                {myContact ? (
+                  <Button
+                    label={copy.home.notMyPhone}
+                    testID="this-wasnt-me"
+                    variant="secondary"
+                    busy={busyNoticeId === request.id}
+                    disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                    onPress={() => void onCancelRecovery(request.id)}
+                  />
+                ) : null}
+                {admin && !myContact ? (
                   <Button
                     label={copy.home.stopThisRecovery}
                     testID="stop-this-recovery"

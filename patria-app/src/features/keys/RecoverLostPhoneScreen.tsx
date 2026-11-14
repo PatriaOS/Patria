@@ -26,8 +26,32 @@ import {
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
 import { fetchMemberships } from '../../lib/family';
+import { isDesignPreviewRuntime } from '../../lib/localOrE2eRuntime';
 import { routes } from '../../lib/navigation';
 import { formatDeviceWhen } from './ApproveMyDeviceScreen';
+
+/**
+ * Local Supabase URL only (same gate as design previews): allowlisted codes for Maestro.
+ * Never returns keys, tokens, or raw exception text — fixed phrases only.
+ */
+export function e2eFinishErrorDetail(
+  message: string,
+  supabaseUrl: string | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL,
+): string | null {
+  if (!isDesignPreviewRuntime(supabaseUrl)) {
+    return null;
+  }
+  const safe = message.trim();
+  if (
+    safe === 'unwrap failed' ||
+    safe === 'recovery device mismatch' ||
+    safe === 'Not allowed' ||
+    safe === 'missing family key'
+  ) {
+    return safe;
+  }
+  return null;
+}
 
 export function RecoverLostPhoneScreen() {
   const router = useRouter();
@@ -127,11 +151,9 @@ export function RecoverLostPhoneScreen() {
       if (info.message.includes('printed code failed')) {
         setPaperWords('');
         setError(copy.recovery.printedFailed);
-      } else if (process.env.EXPO_PUBLIC_E2E) {
-        // Local e2e only: show the real failure so Maestro screenshots diagnose crypto/device issues.
-        setError(info.message || copy.recovery.lostFinishFailed);
       } else {
-        setError(copy.recovery.lostFinishFailed);
+        const detail = e2eFinishErrorDetail(info.message);
+        setError(detail ?? copy.recovery.lostFinishFailed);
       }
     } finally {
       setBusy(false);
@@ -193,9 +215,15 @@ export function RecoverLostPhoneScreen() {
             onChangeText={setPaperWords}
             autoCapitalize="none"
             autoCorrect={false}
-            accessibilityHint={copy.recovery.lostPaperHint}
+            accessibilityHint={
+              helperCount >= 2 ? copy.recovery.lostPaperBothHelped : copy.recovery.lostPaperHint
+            }
           />
-          <Muted>{copy.recovery.lostPaperHint}</Muted>
+          {helperCount >= 2 ? (
+            <Muted testID="printed-code-both-helped">{copy.recovery.lostPaperBothHelped}</Muted>
+          ) : (
+            <Muted>{copy.recovery.lostPaperHint}</Muted>
+          )}
           <Button
             label={copy.recovery.lostFinish}
             testID="finish-recovery"

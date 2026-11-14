@@ -35,10 +35,27 @@ appId: app.patria.dev
     when:
       true: ${PHASE == 'waiting_copy'}
     commands:
+      # After clear_state + start, a fresh sign-in lands on Home (let-in wait),
+      # not the recover screen — open I lost my phone again.
+      # Local recovery_wait is seconds, so by this phase the UI may already show
+      # Finish (helper count) instead of "Waiting until …".
       - runFlow:
           file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "^i-lost-my-phone$"
+          direction: DOWN
+          timeout: 30000
+      - tapOn:
+          id: "^i-lost-my-phone$"
+      - extendedWaitUntil:
+          visible:
+            id: "^(recovery-waiting-until|recovery-helper-count|finish-recovery)$"
+          timeout: 30000
       - assertVisible:
-          id: "recovery-waiting-until"
+          id: "^(recovery-waiting-until|recovery-helper-count|finish-recovery)$"
 - runFlow:
     when:
       true: ${PHASE == 'old_phone_alert'}
@@ -65,6 +82,9 @@ appId: app.patria.dev
           file: subflows/sign_in.yaml
       - runFlow:
           file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
       - scrollUntilVisible:
           element:
             id: "^this-wasnt-me$"
@@ -74,11 +94,75 @@ appId: app.patria.dev
           id: "^this-wasnt-me$"
 - runFlow:
     when:
+      true: ${PHASE == 'restart_after_cancel'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "^i-lost-my-phone$"
+          direction: DOWN
+          timeout: 30000
+      - tapOn:
+          id: "^i-lost-my-phone$"
+      - extendedWaitUntil:
+          visible:
+            id: "^(start-recovery|recovery-waiting-until)$"
+          timeout: 30000
+      - runFlow:
+          when:
+            visible:
+              id: "start-recovery"
+          commands:
+            - tapOn:
+                id: "start-recovery"
+      - extendedWaitUntil:
+          visible:
+            id: "^(recovery-waiting-until|recovery-helper-count|finish-recovery)$"
+          timeout: 30000
+- runFlow:
+    when:
       true: ${PHASE == 'cancelled_by_you'}
     commands:
       - runFlow:
           file: subflows/sign_in.yaml
       - assertVisible: "Cancelled by you"
+- runFlow:
+    when:
+      true: ${PHASE == 'one_helper_not_enough'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          when:
+            notVisible:
+              id: "finish-recovery"
+          commands:
+            - runFlow:
+                file: subflows/open_family.yaml
+            - scrollUntilVisible:
+                element:
+                  id: "^i-lost-my-phone$"
+                direction: DOWN
+                timeout: 30000
+            - tapOn:
+                id: "^i-lost-my-phone$"
+      - extendedWaitUntil:
+          visible:
+            id: "finish-recovery"
+          timeout: 45000
+      - assertVisible:
+          id: "recovery-helper-count"
+      - assertNotVisible:
+          id: "printed-code-both-helped"
+      - tapOn:
+          id: "finish-recovery"
+      - extendedWaitUntil:
+          visible: "We couldn’t finish recovery"
+          timeout: 30000
+      - assertNotVisible: "Remove your old phones"
 - runFlow:
     when:
       true: ${PHASE == 'admin_alert'}

@@ -2371,16 +2371,22 @@ try {
           env: { ...signInEnv(secrets, 1), PHASE: 'waiting_copy', E2E_STAY: '1' },
         });
       });
-      await step(12, 3, 'Cancel from old phone', () =>
-        result(
-          'skip',
-          'core path clears the old phone (no second install of Test 1 for This wasn’t me)',
-        ),
-      );
+      await step(12, 3, 'Contact This wasn’t me cancels; restart', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceB,
+          env: { ...signInEnv(secrets, 2), PHASE: 'cancel_not_me' },
+        });
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'restart_after_cancel', E2E_STAY: '1' },
+        });
+      });
       await step(12, 4, 'Admin stop recovery', () =>
         result(
           'skip',
-          'core path clears the old phone (admin Stop needs a separate admin device)',
+          'admin Stop needs a separate admin device while Test 1 recovers on A',
         ),
       );
       await step(12, 5, 'Advance local wait; helpers can Help', () => {
@@ -2391,6 +2397,13 @@ try {
           flow: flow('12_recover_lost_phone.yaml'),
           device: deviceB,
           env: { ...signInEnv(secrets, 2), PHASE: 'approve_help' },
+        });
+      });
+      await step(12, 9, 'One helper is not enough', () => {
+        maestro({
+          flow: flow('12_recover_lost_phone.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'one_helper_not_enough', E2E_STAY: '1' },
         });
         maestro({
           flow: flow('12_recover_lost_phone.yaml'),
@@ -2416,9 +2429,6 @@ try {
           return result('pass', 'remove screen optional after finish if already confirmed');
         }
       });
-      await step(12, 9, 'One helper is not enough', () =>
-        result('skip', 'optional isolation; core path is two helpers (step 10)'),
-      );
       await step(12, 10, 'Family keys set up on recovered phone', () => {
         maestro({
           flow: flow('12_recover_lost_phone.yaml'),

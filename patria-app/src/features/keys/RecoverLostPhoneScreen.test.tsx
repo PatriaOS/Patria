@@ -3,7 +3,7 @@ import { fireEvent, waitFor } from '@testing-library/react-native';
 import { copy } from '../../lib/copy';
 import { finishLostPhoneRecovery, startLostPhoneRecovery } from '../../lib/crypto/recoverFlow';
 import { renderScreen } from '../../test/renderScreen';
-import { RecoverLostPhoneScreen } from './RecoverLostPhoneScreen';
+import { e2eFinishErrorDetail, RecoverLostPhoneScreen } from './RecoverLostPhoneScreen';
 
 const now = Date.now();
 
@@ -45,6 +45,20 @@ jest.mock('../../lib/crypto/recoverFlow', () => ({
     Date.now() < Date.parse(request.expiresAt),
   requestIsWaiting: () => false,
 }));
+
+describe('e2eFinishErrorDetail', () => {
+  it('shows allowlisted codes only on local Supabase, never hosted, never secrets', () => {
+    expect(e2eFinishErrorDetail('unwrap failed', 'http://127.0.0.1:54321')).toBe('unwrap failed');
+    expect(e2eFinishErrorDetail('recovery device mismatch', 'http://127.0.0.1:54321')).toBe(
+      'recovery device mismatch',
+    );
+    expect(e2eFinishErrorDetail('unwrap failed', 'https://example.supabase.co')).toBeNull();
+    expect(
+      e2eFinishErrorDetail('familyKey=deadbeef token=secret', 'http://127.0.0.1:54321'),
+    ).toBeNull();
+    expect(e2eFinishErrorDetail('Not allowed', 'https://xyz.supabase.co')).toBeNull();
+  });
+});
 
 describe('RecoverLostPhoneScreen', () => {
   beforeEach(() => {
@@ -126,5 +140,34 @@ describe('RecoverLostPhoneScreen', () => {
     await waitFor(() => {
       expect(getByLabelText(copy.recovery.lostPaperLabel).props.value).toBe('');
     });
+  });
+
+  it('shows both-contacts hint under the printed code when 2 of 2 have helped', async () => {
+    const recoverFlow = jest.requireMock('../../lib/crypto/recoverFlow') as {
+      supabaseRecoverFlowGateway: { listRequests: jest.Mock; listHelpers: jest.Mock };
+    };
+    recoverFlow.supabaseRecoverFlowGateway.listRequests.mockResolvedValue([
+      {
+        id: 'r1',
+        spaceId: 's1',
+        userId: 'u1',
+        newDeviceId: 'd-new',
+        newDeviceCreatedAt: new Date(now - 49 * 3600_000).toISOString(),
+        startedAt: new Date(now - 49 * 3600_000).toISOString(),
+        notBefore: new Date(now - 1000).toISOString(),
+        expiresAt: new Date(now + 6 * 86400_000).toISOString(),
+        cancelledAt: null,
+        cancelledBy: null,
+        completedAt: null,
+      },
+    ]);
+    recoverFlow.supabaseRecoverFlowGateway.listHelpers.mockResolvedValue([
+      { slot: 'a', wrappedSecret: new Uint8Array(80) },
+      { slot: 'b', wrappedSecret: new Uint8Array(80) },
+    ]);
+    const { findByText, findByTestId } = await renderScreen(<RecoverLostPhoneScreen />);
+    expect(await findByText(copy.recovery.lostHelpers.replace('{n}', '2'))).toBeTruthy();
+    expect(await findByTestId('printed-code-both-helped')).toBeTruthy();
+    expect(await findByText(copy.recovery.lostPaperBothHelped)).toBeTruthy();
   });
 });

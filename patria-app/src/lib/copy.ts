@@ -266,8 +266,10 @@ export const copy = {
     recoveryCancelledByAdmin: 'Cancelled by a family admin',
     stopThisRecovery: 'Stop this recovery',
     recoveryAdminNotice: '{name} started recovery for a new phone',
+    recoveryContactAskedTitle: '{name} asked for help recovering their phone',
     recoveryContactNotice:
       'Confirm with {name} by phone or in person before you help. Help never starts from this card alone.',
+    recoveryStartedWhen: 'Started {when}',
     recoveryApproveHelp: 'Help with recovery',
     recoveryApproveFailed: 'We couldn’t record that help. Please try again.',
     recoveryCancelFailed: 'We couldn’t stop recovery. Please try again.',
@@ -308,6 +310,7 @@ export const copy = {
     lostFinishFailed: 'We couldn’t finish recovery. Check the words and try again.',
     lostPaperLabel: 'Printed code (24 words)',
     lostPaperHint: 'Type the 24 words only on this phone. They never leave the device.',
+    lostPaperBothHelped: 'Both contacts have helped, so you can leave this empty.',
     lostHelpers: '{n} of 2 contact helpers recorded',
     redoSetup: 'Set up recovery again',
     removeOldTitle: 'Remove your old phones',

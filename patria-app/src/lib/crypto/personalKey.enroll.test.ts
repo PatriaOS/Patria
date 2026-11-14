@@ -155,11 +155,24 @@ describe('ensurePersonalKeyAfterFamilyReady', () => {
     wrapsAnywhere?: number;
     underRecovery?: boolean;
     recoveryPublic?: boolean;
+    /** Mirrors has_recovery_setup (public + 2 accepted). Default true when public present. */
+    recoverySetup?: boolean;
     insertError?: { code: string } | null;
   }) {
     const insert = jest.fn().mockResolvedValue({
       data: null,
       error: options.insertError ?? null,
+    });
+    const recoverySetup =
+      options.recoverySetup ?? (options.recoveryPublic === false ? false : true);
+    (supabase.rpc as jest.Mock).mockImplementation((fn: string) => {
+      if (fn === 'has_recovery_setup') {
+        return Promise.resolve({ data: recoverySetup, error: null });
+      }
+      if (fn === 'create_personal_key') {
+        return Promise.resolve({ data: null, error: options.insertError ?? null });
+      }
+      return Promise.resolve({ data: null, error: null });
     });
     (supabase.from as jest.Mock).mockImplementation((table: string) => {
       if (table === 'family_key_wraps') {
@@ -290,6 +303,38 @@ describe('ensurePersonalKeyAfterFamilyReady', () => {
       status: 'needsRecovery',
       reasonCode: 'missing_recovery_public',
     });
-    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'create_personal_key',
+      expect.anything(),
+    );
+  });
+
+  it('returns needsRecovery at 1 of 2 (recovery public present, setup incomplete)', async () => {
+    (loadCachedPersonalKey as jest.Mock).mockResolvedValue(null);
+    mockEnsureTables({
+      familyWrap: true,
+      personalWrap: false,
+      wrapsAnywhere: 0,
+      underRecovery: false,
+      recoveryPublic: true,
+      recoverySetup: false,
+    });
+    const result = await ensurePersonalKeyAfterFamilyReady({
+      spaceId: SPACE,
+      userId: USER,
+    });
+    expect(result).toEqual({
+      status: 'needsRecovery',
+      reasonCode: 'incomplete_recovery_setup',
+    });
+    expect(result.status).not.toBe('enrollError');
+    expect(supabase.rpc).toHaveBeenCalledWith('has_recovery_setup', {
+      _space_id: SPACE,
+      _user_id: USER,
+    });
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'create_personal_key',
+      expect.anything(),
+    );
   });
 });

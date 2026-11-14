@@ -152,7 +152,7 @@ A device gets the family key only after a person taps approve. An admin lets in 
 
 ## D23. Recovery contacts and the printed code (12 October 2026)
 
-Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” Nothing about the printed code is stored on the server. Removing a key holder rotates the family key; other members do not need a new printed code unless that person was their recovery contact. (Asked as D20. D27 replaces a single family-wide recovery secret.)
+Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” The recovering member, a family admin, or an accepted recovery contact for that member can stop an open request (helper card uses the same **This wasn’t me** label). Nothing about the printed code is stored on the server. Removing a key holder rotates the family key; other members do not need a new printed code unless that person was their recovery contact. (Asked as D20. D27 replaces a single family-wide recovery secret. Contact cancel clarified 14 November 2026.)
 
 ## D24. Crypto libraries for family keys (12 October 2026)
 

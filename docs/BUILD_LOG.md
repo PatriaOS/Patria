@@ -7,6 +7,18 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-14 — Personal key calm at 1 of 2; contact cancel audit
+
+`ensurePersonalKeyAfterFamilyReady` treated recovery public as enough to call `create_personal_key`, but the RPC needs `has_recovery_setup` (public + two accepted contacts). At **Recovery: 1 of 2 contacts** that failed with a red enroll error. Fix: require `has_recovery_setup` and return calm `needsRecovery` (`incomplete_recovery_setup`) until then; unit test covers 1 of 2. Contact cancel writes a `recovery cancelled` event the member can read; pgTAP asserts accepted contact only, open request only, event + member read, and refuse re-cancel. Test 12 automates contact **This wasn’t me** (restart) and one-helper-not-enough; admin Stop still skipped. Printed-word review shots redacted. No hosted migrate.
+
+## 2026-11-14 — Helper recovery card + both-helped printed hint (D32 copy)
+
+Helper card title is now “{name} asked for help recovering their phone”, body stays the confirm-in-person line, date is “Started {when}”. Contacts get **This wasn’t me** to cancel (RPC allows accepted contacts; pgTAP updated). Admin-only viewers still get **Stop this recovery**. Recover this phone shows “Both contacts have helped, so you can leave this empty.” under the printed-code field when 2 of 2 helpers are recorded. Local migrate for contact cancel; no hosted migrate in this slice.
+
+## 2026-11-13 — A+B finish: ab-only boxes + local API proof
+
+Lost-phone Finish with two helpers and no paper never passed in automation before: unit reconstruct covered A+B crypto, but `fetchPairBoxes` required `ap`/`bp` so ab-only (Almost done / repair) returned null and Finish failed with “unwrap failed”. Fix: ab is enough; ap/bp optional. Helper unwrap AAD uses `request.newDeviceId` (same as approve) plus a device-id mismatch check — not weaker; still bound to space + request + user + that new device. Local Supabase Jest API tests cover A+B ab-only and repair→new-epoch finish (family + personal wraps). e2e finish error detail is allowlisted phrases on local URL only. Maestro waiting_copy re-opens I lost my phone after sign-in (Home shows let-in wait). No hosted migrate.
+
 ## 2026-11-13 — Automate lost-phone recovery + repair (tests 12, 76, 11.7, 13.5–6)
 
 Wired Test 12 core path and new Test 76 (repair → Almost done → helper refresh → lost-phone) on three iPhone 17 Pros with local SQL `advance-recovery-wait` / `strip-recovery-pair-wraps` only. Test 11 step 7 hard-asserts remove → needs attention (PASS). App: FamilyScreen also runs `fulfillAcceptedContacts` (D35 status lives on Family; seed no longer depends on briefly landing on Home). Seed mirrors Test 11’s one_of_two between accepts. Maestro finish_two_helpers re-opens **I lost my phone** when Home shows let-in wait. Test 13: dismiss recovery reminder before asserting key up to date; 13.7/9/10 still skip (not recovery). Shots: helper Help / helper refreshed.
