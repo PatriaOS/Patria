@@ -127,6 +127,9 @@ export function RecoverLostPhoneScreen() {
       if (info.message.includes('printed code failed')) {
         setPaperWords('');
         setError(copy.recovery.printedFailed);
+      } else if (process.env.EXPO_PUBLIC_E2E) {
+        // Local e2e only: show the real failure so Maestro screenshots diagnose crypto/device issues.
+        setError(info.message || copy.recovery.lostFinishFailed);
       } else {
         setError(copy.recovery.lostFinishFailed);
       }
