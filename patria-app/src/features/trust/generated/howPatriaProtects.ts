@@ -326,7 +326,7 @@ export const howPatriaProtectsDocument = {
         ],
         [
           {
-            "text": "If you lose every device, two of your three recovery helpers, or one helper plus your printed recovery code, can restore your access after a 48 hour safety wait. You, a family admin, or one of your recovery contacts can stop a recovery during that wait."
+            "text": "If you lose every device, your two recovery contacts together, or one contact plus your printed recovery code, can restore your access after a 48 hour safety wait. You, a family admin, or one of your recovery contacts can stop a recovery during that wait."
           }
         ],
         [

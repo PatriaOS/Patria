@@ -119,7 +119,7 @@ Before (automated): seed lets in Test 2 and Test 3, then Test 1’s contacts acc
 1. Clear app data on A (lost every phone). Sign in as Test 1. Pass if **I lost my phone** → start shows **Waiting until** (`recovery-waiting-until`).
 2. Pass if the new phone still shows the waiting copy (`recovery-waiting-until`).
 3. Contact cancel (**This wasn’t me** on B as Test 2): pass if the open request is cancelled and A can start recovery again. (Old-phone cancel still needs a second Test 1 install — not used on the cleared-A core path.)
-4. Admin stop check: skip (Stop needs a separate admin device while Test 1 recovers on A).
+4. Admin stop check: skip for now (Stop needs a separate admin device while Test 1 recovers on A). pgTAP covers a family admin cancelling an open recovery (`a family admin can cancel recovery` in `cir_rls.test.sql`).
 5. Local e2e advances `not_before` so helpers can Help without sleeping 48 hours.
 6. On B, the first contact sees **{name} asked for help recovering their phone**, the confirm-in-person body, a **Started** date, **Help with recovery**, and **This wasn’t me**; they tap **Help with recovery**.
 7. On A, after both helpers have helped, finish with **no printed code** (when 2 of 2 have helped, the printed-code field shows you can leave it empty). Pass if **Remove your old phones** appears.

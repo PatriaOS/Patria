@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-14 — Trust recovery wording; admin stop noted in phone tests
+
+How Patria bullet now says “your two recovery contacts together, or one contact plus your printed recovery code” (regenerated in-app). Test 12 step 4 (admin Stop) stays skipped; PHONE_TESTS notes pgTAP already covers admin cancel of an open request.
+
 ## 2026-11-14 — Personal key calm at 1 of 2; contact cancel audit
 
 `ensurePersonalKeyAfterFamilyReady` treated recovery public as enough to call `create_personal_key`, but the RPC needs `has_recovery_setup` (public + two accepted contacts). At **Recovery: 1 of 2 contacts** that failed with a red enroll error. Fix: require `has_recovery_setup` and return calm `needsRecovery` (`incomplete_recovery_setup`) until then; unit test covers 1 of 2. Contact cancel writes a `recovery cancelled` event the member can read; pgTAP asserts accepted contact only, open request only, event + member read, and refuse re-cancel. Test 12 automates contact **This wasn’t me** (restart) and one-helper-not-enough; admin Stop still skipped. Printed-word review shots redacted. No hosted migrate.
