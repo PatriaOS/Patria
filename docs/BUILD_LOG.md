@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-14 — Recover after cancel offers Start; test 75 Your phones scroll
+
+After a contact cancels, Recover this phone fell back to the cancelled row as `mine`, showed “Cancelled by…”, and hid **Start recovery** — Maestro could not restart. Fix: only an open request is active; cancelled notice stays, Start returns. Unit test covers Start after cancel. Test 75 older_sign_in uses test 10’s family-name → Your phones + centerElement scroll (needs-attention card was skipping the row). One-helper Maestro assert accepts local e2e `unwrap failed` as well as product finish-failed copy.
+
 ## 2026-11-14 — Trust recovery wording; admin stop noted in phone tests
 
 How Patria bullet now says “your two recovery contacts together, or one contact plus your printed recovery code” (regenerated in-app). Test 12 step 4 (admin Stop) stays skipped; PHONE_TESTS notes pgTAP already covers admin cancel of an open request.

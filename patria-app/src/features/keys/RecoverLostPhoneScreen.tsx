@@ -77,28 +77,31 @@ export function RecoverLostPhoneScreen() {
     enabled: Boolean(spaceId),
     queryFn: () => supabaseRecoverFlowGateway.listRequests(spaceId as string),
   });
+  const role = membershipsQuery.data?.find((item) => item.space.id === spaceId)?.role;
+  // Prefer the open request. listRequests includes older cancelled/completed rows;
+  // finishing against those fails with a vague "check the words" error.
+  const openMine = (requestsQuery.data ?? []).find(
+    (row) =>
+      row.userId === userId && row.completedAt == null && row.cancelledAt == null,
+  );
+  const latestMine = (requestsQuery.data ?? []).find((row) => row.userId === userId);
+  // Active recovery only. A cancelled row must not block Start.
+  const mine = openMine ?? null;
+  const cancelledNotice =
+    !openMine && latestMine?.cancelledAt
+      ? latestMine
+      : null;
+
   const helpersQuery = useQuery({
-    queryKey: ['recoveryHelpers', requestsQuery.data?.[0]?.id],
-    enabled: Boolean(requestsQuery.data?.find((row) => row.userId === userId && !row.completedAt)),
+    queryKey: ['recoveryHelpers', openMine?.id],
+    enabled: Boolean(openMine),
     queryFn: async () => {
-      const mine = (requestsQuery.data ?? []).find(
-        (row) => row.userId === userId && row.completedAt == null,
-      );
-      if (!mine) {
+      if (!openMine) {
         return [];
       }
-      return supabaseRecoverFlowGateway.listHelpers(mine.id);
+      return supabaseRecoverFlowGateway.listHelpers(openMine.id);
     },
   });
-
-  const role = membershipsQuery.data?.find((item) => item.space.id === spaceId)?.role;
-  // Prefer the open request. listRequests can include older cancelled/completed rows;
-  // finishing against those fails with a vague "check the words" error.
-  const mine =
-    (requestsQuery.data ?? []).find(
-      (row) =>
-        row.userId === userId && row.completedAt == null && row.cancelledAt == null,
-    ) ?? (requestsQuery.data ?? []).find((row) => row.userId === userId);
 
   const onStart = async () => {
     if (!userId || !spaceId) {
@@ -183,7 +186,7 @@ export function RecoverLostPhoneScreen() {
       <Title>{copy.recovery.lostTitle}</Title>
       <Body>{copy.recovery.lostBody}</Body>
       {error ? <ErrorState message={error} /> : null}
-      {!mine || mine.completedAt ? (
+      {!openMine ? (
         <Button
           label={copy.recovery.lostStart}
           testID="start-recovery"
@@ -191,9 +194,9 @@ export function RecoverLostPhoneScreen() {
           onPress={() => void onStart()}
         />
       ) : null}
-      {mine && mine.cancelledAt ? (
+      {cancelledNotice ? (
         <Muted>
-          {cancelledCopyKind(mine.cancelledBy, userId ?? '') === 'you'
+          {cancelledCopyKind(cancelledNotice.cancelledBy, userId ?? '') === 'you'
             ? copy.home.recoveryCancelledByYou
             : copy.home.recoveryCancelledByAdmin}
         </Muted>

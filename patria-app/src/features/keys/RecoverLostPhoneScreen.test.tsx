@@ -83,7 +83,7 @@ describe('RecoverLostPhoneScreen', () => {
     });
   });
 
-  it('shows cancelled by a family admin', async () => {
+  it('shows cancelled notice and still offers Start when the only request is cancelled', async () => {
     const recoverFlow = jest.requireMock('../../lib/crypto/recoverFlow') as {
       supabaseRecoverFlowGateway: { listRequests: jest.Mock };
     };
@@ -102,8 +102,13 @@ describe('RecoverLostPhoneScreen', () => {
         completedAt: null,
       },
     ]);
-    const { findByText } = await renderScreen(<RecoverLostPhoneScreen />);
+    const { findByText, findByTestId } = await renderScreen(<RecoverLostPhoneScreen />);
     expect(await findByText(copy.home.recoveryCancelledByAdmin)).toBeTruthy();
+    expect(await findByTestId('start-recovery')).toBeTruthy();
+    await fireEvent.press(await findByText(copy.recovery.lostStart));
+    await waitFor(() => {
+      expect(startLostPhoneRecovery).toHaveBeenCalled();
+    });
   });
 
   it('clears typed paper words when the mnemonic is wrong', async () => {

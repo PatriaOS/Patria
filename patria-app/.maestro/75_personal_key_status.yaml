@@ -72,10 +72,13 @@ appId: app.patria.dev
           file: subflows/dismiss_recovery_reminder.yaml
       - runFlow:
           file: subflows/open_family.yaml
-      # Keep "Your phones" fully above the tab bar (same pattern as test 10).
-      - swipe:
-          start: 50%, 80%
-          end: 50%, 20%
+      # Same as test 10: start from family-name so Your phones is not missed
+      # under the needs-attention card / tucked under the header or tab bar.
+      - scrollUntilVisible:
+          element:
+            id: "family-name"
+          direction: UP
+          timeout: 20000
       - scrollUntilVisible:
           element:
             id: "^your-phones$"
@@ -90,9 +93,11 @@ appId: app.patria.dev
             notVisible:
               id: "screen-your-phones"
           commands:
-            - swipe:
-                start: 50%, 80%
-                end: 50%, 20%
+            - scrollUntilVisible:
+                element:
+                  id: "family-name"
+                direction: UP
+                timeout: 20000
             - scrollUntilVisible:
                 element:
                   id: "^your-phones$"
