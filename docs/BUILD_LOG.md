@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-15 — Recovery API tests in CI database job
+
+App job still skips `recoverFlow.api.test` without local Supabase. Database job (which starts Supabase) now runs those tests with `REQUIRE_LOCAL_SUPABASE=1` so a missing stack fails CI instead of skipping. Contact cancel copy and Finish waiting-for-second-helper from the prior entry stay.
+
 ## 2026-11-15 — CI api-test skip; contact-cancel copy; Finish waits for second helper
 
 `recoverFlow.api.test` threw when local Supabase was down, failing the CI app job (no Supabase there). Restored the same early `return` as other `*.api.test.ts` files — tests still run fully with local Supabase. Contact cancel copy is “One of your recovery contacts stopped this recovery.” (admin copy only when an admin cancelled). Recover this phone disables Finish and shows “Waiting for your second contact” with fewer than two helpers and no paper; server finish checks unchanged.

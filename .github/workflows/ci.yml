@@ -31,9 +31,15 @@ jobs:
         working-directory: patria-app
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+          cache-dependency-path: patria-app/package-lock.json
       - uses: supabase/setup-cli@v1
         with:
           version: 2.121.0
+      - run: npm ci
       - name: Start local Supabase and apply migrations
         run: |
           set -euo pipefail
@@ -46,3 +52,12 @@ jobs:
           fi
       - name: Run database tests
         run: supabase test db
+      - name: Run recovery API integration tests
+        env:
+          # Fail (do not skip) if the local stack is unreachable in this job.
+          REQUIRE_LOCAL_SUPABASE: '1'
+          EXPO_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
+        run: |
+          set -euo pipefail
+          echo "Running recoverFlow.api.test.ts against local Supabase"
+          npx jest src/lib/crypto/recoverFlow.api.test.ts --ci --runInBand --verbose

@@ -193,6 +193,20 @@ async function localReady(): Promise<boolean> {
   }
 }
 
+/**
+ * App CI job has no Supabase → skip. Database CI job sets REQUIRE_LOCAL_SUPABASE=1
+ * so a missing stack fails the job instead of quietly skipping.
+ */
+async function requireLocalOrSkip(): Promise<boolean> {
+  if (await localReady()) {
+    return true;
+  }
+  if (process.env.REQUIRE_LOCAL_SUPABASE === '1') {
+    throw new Error('local Supabase at 127.0.0.1:54321 is required');
+  }
+  return false;
+}
+
 function setActiveClient(client: SupabaseClient): void {
   (globalThis as { __patriaRecoverApiClient?: SupabaseClient }).__patriaRecoverApiClient = client;
 }
@@ -462,7 +476,7 @@ describe('lost-phone recovery local Supabase API', () => {
   it(
     'finishes with contact A and B and no printed code when only ab exists',
     async () => {
-      if (!(await localReady())) {
+      if (!(await requireLocalOrSkip())) {
         return;
       }
       const service = serviceClient();
@@ -814,7 +828,7 @@ describe('lost-phone recovery local Supabase API', () => {
   it(
     'repairs legacy zero pair boxes then finishes A+B on the new epoch',
     async () => {
-      if (!(await localReady())) {
+      if (!(await requireLocalOrSkip())) {
         return;
       }
       const service = serviceClient();
