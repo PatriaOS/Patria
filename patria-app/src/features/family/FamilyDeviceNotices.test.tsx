@@ -65,11 +65,13 @@ jest.mock('../../lib/crypto/recoverFlow', () => ({
   supabaseRecoverFlowGateway: {
     listRequests: jest.fn(async () => []),
     listRemovedNotices: jest.fn(async () => []),
+    listHelperRefreshNotices: jest.fn(async () => []),
+    dismissHelperRefreshNotice: jest.fn(async () => undefined),
   },
   cancelRecoveryRequest: jest.fn(async () => undefined),
   approveRecoveryAsContact: jest.fn(async () => undefined),
   cancelledCopyKind: () => 'you',
-  requestCanFinish: () => false,
+  requestCanFinish: () => true,
 }));
 
 jest.mock('../../lib/crypto/recoverySetup', () => ({
@@ -85,6 +87,13 @@ jest.mock('../../lib/crypto/recoverySetup', () => ({
     status: 'not_setup',
   })),
   respondRecoveryInvite: jest.fn(async () => undefined),
+}));
+
+jest.mock('../../lib/crypto/recoveryAccess', () => ({
+  supabaseRecoveryAccessGateway: {
+    listHelperRefreshNotices: jest.fn(async () => []),
+    dismissHelperRefreshNotice: jest.fn(async () => undefined),
+  },
 }));
 
 jest.mock('../../lib/currentFamily', () => ({
@@ -188,5 +197,89 @@ describe('FamilyDeviceNotices', () => {
     expect(await findByText(`${copy.member.fallbackName} added a new phone`)).toBeTruthy();
     expect(queryByText(copy.home.letIn)).toBeNull();
     expect(queryByText(copy.home.yesMyPhone)).toBeNull();
+  });
+
+  it('shows helper recovery card title, confirm body, Started date, Help, and This wasn’t me', async () => {
+    (fetchMemberships as jest.Mock).mockResolvedValue([
+      { space: { id: 's1', name: 'The Riveras' }, role: 'elder' },
+    ]);
+    (fetchMembers as jest.Mock).mockResolvedValue([
+      {
+        id: 'm1',
+        userId: 'u-owner',
+        role: 'family_admin',
+        relationshipLabel: null,
+        displayName: 'Test 1',
+      },
+      {
+        id: 'm2',
+        userId: 'u1',
+        role: 'elder',
+        relationshipLabel: null,
+        displayName: 'Test 2',
+      },
+    ]);
+    (loadRecoverySnapshot as jest.Mock).mockResolvedValue({
+      contacts: [
+        {
+          id: 'c1',
+          spaceId: 's1',
+          memberId: 'u-owner',
+          userId: 'u1',
+          slot: 'a',
+          status: 'accepted',
+        },
+      ],
+      ownContacts: [],
+      accepted: 0,
+      pending: [],
+      hasPaper: false,
+      hasRecoveryPublic: false,
+      hasAb: false,
+      recoveryKeyEpoch: 1,
+      keyEpoch: 1,
+      status: 'setup',
+    });
+    const recoverFlow = jest.requireMock('../../lib/crypto/recoverFlow') as {
+      supabaseRecoverFlowGateway: {
+        listRequests: jest.Mock;
+        listRemovedNotices: jest.Mock;
+        listHelperRefreshNotices: jest.Mock;
+      };
+      cancelRecoveryRequest: jest.Mock;
+    };
+    recoverFlow.supabaseRecoverFlowGateway.listRequests.mockResolvedValue([
+      {
+        id: 'r1',
+        spaceId: 's1',
+        userId: 'u-owner',
+        newDeviceId: 'd-lost',
+        newDeviceCreatedAt: '2026-11-13T23:57:00.000Z',
+        startedAt: '2026-11-13T23:57:00.000Z',
+        notBefore: '2026-11-13T23:57:00.000Z',
+        expiresAt: '2026-11-20T23:57:00.000Z',
+        cancelledAt: null,
+        cancelledBy: null,
+        completedAt: null,
+      },
+    ]);
+    recoverFlow.supabaseRecoverFlowGateway.listRemovedNotices.mockResolvedValue([]);
+    recoverFlow.supabaseRecoverFlowGateway.listHelperRefreshNotices.mockResolvedValue([]);
+    recoverFlow.cancelRecoveryRequest.mockClear();
+
+    const { findByText, findByTestId, getByText } = await renderScreen(<FamilyDeviceNotices />);
+    expect(
+      await findByText(copy.home.recoveryContactAskedTitle.replace('{name}', 'Test 1')),
+    ).toBeTruthy();
+    expect(
+      await findByText(copy.home.recoveryContactNotice.replace('{name}', 'Test 1')),
+    ).toBeTruthy();
+    expect(await findByTestId('help-with-recovery')).toBeTruthy();
+    expect(await findByTestId('this-wasnt-me')).toBeTruthy();
+    expect(getByText(copy.home.notMyPhone)).toBeTruthy();
+    await fireEvent.press(getByText(copy.home.notMyPhone));
+    await waitFor(() => {
+      expect(recoverFlow.cancelRecoveryRequest).toHaveBeenCalledWith('r1');
+    });
   });
 });

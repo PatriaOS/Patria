@@ -336,6 +336,7 @@ export function HomeScreen() {
     try {
       await signOutAndGoWelcome({
         userId,
+        spaceId: spaceId ?? undefined,
         signOut: () => supabase.auth.signOut(),
         replace: (href) => router.replace(href),
       });

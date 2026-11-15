@@ -86,6 +86,24 @@ export type RecoveryAccessGateway = {
     recoveryKeyEpoch: number,
   ): Promise<{ pairId: string; wrappedRecoveryKey: Uint8Array }[]>;
   purgeCiphertext(spaceId: string): Promise<void>;
+  hasOpenRecoveryRequest(spaceId: string, userId: string): Promise<boolean>;
+  commitRecoveryRepair(input: {
+    spaceId: string;
+    oldEpoch: number;
+    newEpoch: number;
+    publicKey: Uint8Array;
+    familyKeyEpoch: number;
+    wrappedFamilyKey: Uint8Array;
+    personalSeal: Uint8Array | null;
+    contactUserIds: string[];
+    contactDeviceIds: string[];
+    wrappedHolderSecrets: Uint8Array[];
+    abBox: Uint8Array;
+  }): Promise<void>;
+  listHelperRefreshNotices(
+    spaceId: string,
+  ): Promise<{ id: string; memberId: string; createdAt: string }[]>;
+  dismissHelperRefreshNotice(noticeId: string): Promise<void>;
 };
 
 function parseSlot(value: unknown): RecoverySlot {
@@ -341,6 +359,65 @@ export const supabaseRecoveryAccessGateway: RecoveryAccessGateway = {
     });
     if (error) {
       logKeyStep('purge_member_recovery', error.code ?? 'unknown');
+      throw error;
+    }
+  },
+
+  async hasOpenRecoveryRequest(spaceId, userId) {
+    const { data, error } = await supabase.rpc('has_open_recovery_request', {
+      p_space_id: spaceId,
+      p_user_id: userId,
+    });
+    if (error) {
+      logKeyStep('has_open_recovery_request', error.code ?? 'unknown');
+      throw error;
+    }
+    return Boolean(data);
+  },
+
+  async commitRecoveryRepair(input) {
+    const { error } = await supabase.rpc('commit_recovery_repair', {
+      p_space_id: input.spaceId,
+      p_old_epoch: input.oldEpoch,
+      p_new_epoch: input.newEpoch,
+      p_public_key: toPgBytea(input.publicKey),
+      p_family_key_epoch: input.familyKeyEpoch,
+      p_wrapped_family_key: toPgBytea(input.wrappedFamilyKey),
+      p_personal_seal: input.personalSeal ? toPgBytea(input.personalSeal) : null,
+      p_contact_user_ids: input.contactUserIds,
+      p_contact_device_ids: input.contactDeviceIds,
+      p_wrapped_holder_secrets: input.wrappedHolderSecrets.map((row) => toPgBytea(row)),
+      p_ab_box: toPgBytea(input.abBox),
+    });
+    if (error) {
+      logKeyStep('commit_recovery_repair', error.code ?? 'unknown');
+      throw error;
+    }
+  },
+
+  async listHelperRefreshNotices(spaceId) {
+    const { data, error } = await supabase
+      .from('recovery_helper_refresh_notices')
+      .select('id, member_id, created_at')
+      .eq('family_space_id', spaceId);
+    if (error) {
+      logKeyStep('list_helper_refresh_notices', error.code ?? 'unknown');
+      throw error;
+    }
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      memberId: row.member_id as string,
+      createdAt: row.created_at as string,
+    }));
+  },
+
+  async dismissHelperRefreshNotice(noticeId) {
+    const { error } = await supabase
+      .from('recovery_helper_refresh_notices')
+      .delete()
+      .eq('id', noticeId);
+    if (error) {
+      logKeyStep('dismiss_helper_refresh_notice', error.code ?? 'unknown');
       throw error;
     }
   },

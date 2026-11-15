@@ -106,6 +106,64 @@ try {
     process.exit(0);
   }
 
+  // Family wrap for this member's most recently registered device_keys row
+  // (the phone that just signed in / reminted), not an older Simulator's wrap.
+  if (command === 'assert-wrap-for-latest-device') {
+    const family = flag('family');
+    const email = flag('email');
+    const sid = spaceId(family);
+    const uid = userId(email);
+    const latest = query(
+      dbUrl,
+      `SELECT coalesce(
+         (SELECT device_id::text
+            FROM public.device_keys
+           WHERE user_id = '${uid}'
+           ORDER BY created_at DESC, device_id DESC
+           LIMIT 1),
+         ''
+       );`,
+    );
+    if (!latest) {
+      throw new Error(`no device_keys row for ${email}`);
+    }
+    const count = Number(
+      query(
+        dbUrl,
+        `SELECT count(*) FROM public.family_key_wraps
+          WHERE family_space_id = '${sid}'
+            AND user_id = '${uid}'
+            AND device_id = '${latest}';`,
+      ),
+    );
+    if (count < 1) {
+      throw new Error(
+        `no family wrap for ${email} on latest device ${latest} (wrap may exist for another device id)`,
+      );
+    }
+    console.log('assert-wrap-for-latest-device ok');
+    process.exit(0);
+  }
+
+  // Per-member recovery public key (personal key enroll needs this).
+  if (command === 'has-recovery-public') {
+    const family = flag('family');
+    const email = flag('email');
+    const count = Number(
+      query(
+        dbUrl,
+        `SELECT count(*) FROM public.recovery_public_keys
+          WHERE family_space_id = '${spaceId(family)}'
+            AND user_id = '${userId(email)}';`,
+      ),
+    );
+    if (count < 1) {
+      throw new Error(`no recovery_public_keys for ${email}`);
+    }
+    console.log('has-recovery-public ok');
+    process.exit(0);
+  }
+
   if (command === 'assert-no-wraps') {
     const family = flag('family');
     const email = flag('email');
@@ -407,8 +465,73 @@ try {
     process.exit(0);
   }
 
+  // Local e2e only: backdate not_before so helpers can Help without sleeping the wait.
+  if (command === 'advance-recovery-wait') {
+    const family = flag('family');
+    const email = flag('email');
+    const sid = spaceId(family);
+    const uid = userId(email);
+    runLocalSql(
+      dbUrl,
+      `UPDATE public.recovery_requests
+          SET not_before = now() - interval '1 minute',
+              expires_at = now() + interval '7 days'
+        WHERE family_space_id = '${sid}'
+          AND user_id = '${uid}'
+          AND completed_at IS NULL
+          AND cancelled_at IS NULL;`,
+    );
+    console.log('advance-recovery-wait ok');
+    process.exit(0);
+  }
+
+  // Local e2e only: hosted-like broken state — contacts + public key, zero pair boxes.
+  if (command === 'strip-recovery-pair-wraps') {
+    const family = flag('family');
+    const email = flag('email');
+    const sid = spaceId(family);
+    const uid = userId(email);
+    runLocalSql(
+      dbUrl,
+      `DELETE FROM public.recovery_pair_wraps
+        WHERE family_space_id = '${sid}' AND user_id = '${uid}';`,
+    );
+    const left = Number(
+      query(
+        dbUrl,
+        `SELECT count(*) FROM public.recovery_pair_wraps
+          WHERE family_space_id = '${sid}' AND user_id = '${uid}';`,
+      ),
+    );
+    if (left !== 0) {
+      throw new Error(`expected 0 pair wraps for ${email}, found ${left}`);
+    }
+    console.log('strip-recovery-pair-wraps ok');
+    process.exit(0);
+  }
+
+  if (command === 'assert-helper-refresh') {
+    const family = flag('family');
+    const email = flag('email');
+    const sid = spaceId(family);
+    const uid = userId(email);
+    const count = Number(
+      query(
+        dbUrl,
+        `SELECT count(*) FROM public.recovery_helper_refresh_notices
+          WHERE family_space_id = '${sid}'
+            AND contact_user_id = '${uid}';`,
+      ),
+    );
+    if (count < 1) {
+      throw new Error(`no open helper refresh notice for ${email}`);
+    }
+    console.log('assert-helper-refresh ok');
+    process.exit(0);
+  }
+
   console.error(
-    `${SCRIPT} usage: invite-url | assert-epoch | assert-wraps | assert-no-wraps | assert-no-print-columns | assert-recovery-public | assert-under-recovery | memory-path | memory-files-gone | assert-letter-withdrawn | letter-fingerprint | assert-letter-keepers | assert-letter-due | assert-letterbox | assert-keeper-eligible | assert-personal-wraps | reset-letterbox-personal`,
+    `${SCRIPT} usage: invite-url | assert-epoch | assert-wraps | assert-wrap-for-latest-device | assert-no-wraps | assert-no-print-columns | assert-recovery-public | has-recovery-public | assert-under-recovery | memory-path | memory-files-gone | assert-letter-withdrawn | letter-fingerprint | assert-letter-keepers | assert-letter-due | assert-letterbox | assert-keeper-eligible | assert-personal-wraps | reset-letterbox-personal | advance-recovery-wait | strip-recovery-pair-wraps | assert-helper-refresh`,
   );
   process.exit(1);
 } catch (error) {

@@ -1,0 +1,60 @@
+# PHONE_TESTS: 76
+# AREAS: recovery, keys
+# Local e2e: legacy broken state (contacts + public, no pair boxes) → Finish setup → Almost done
+# → helper refresh → lost-phone recovery on the new epoch with two helpers (no paper).
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'finish_setup'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "recovery-contacts"
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: "recovery-contacts"
+      - extendedWaitUntil:
+          visible:
+            id: "finish-recovery-setup"
+          timeout: 20000
+      - assertVisible: "Recovery needs attention"
+      - tapOn:
+          id: "finish-recovery-setup"
+      # Repair may push Printed code. Back to Recovery contacts; assert Almost done there.
+      - runFlow:
+          when:
+            visible:
+              id: "printed-code-continue"
+          commands:
+            - tapOn:
+                point: 8%, 12%
+      - extendedWaitUntil:
+          visible: "Almost done: write down your printed code"
+          timeout: 60000
+      - assertVisible: "Almost done: write down your printed code"
+      - takeScreenshot: recovery-repair-almost-done
+- runFlow:
+    when:
+      true: ${PHASE == 'helper_refreshed'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - swipe:
+          start: 50%, 25%
+          end: 50%, 80%
+      - scrollUntilVisible:
+          element:
+            id: "recovery-helper-refreshed"
+          direction: DOWN
+          timeout: 30000
+      - assertVisible:
+          id: "recovery-helper-refreshed"
+      - takeScreenshot: recovery-helper-refreshed

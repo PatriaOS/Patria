@@ -18,6 +18,7 @@ import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import {
   cancelledCopyKind,
   finishLostPhoneRecovery,
+  memberRoleIsAdmin,
   requestCanFinish,
   requestIsWaiting,
   startLostPhoneRecovery,
@@ -25,9 +26,33 @@ import {
 } from '../../lib/crypto/recoverFlow';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
-import { fetchMemberships } from '../../lib/family';
+import { fetchMembers, fetchMemberships } from '../../lib/family';
+import { isDesignPreviewRuntime } from '../../lib/localOrE2eRuntime';
 import { routes } from '../../lib/navigation';
 import { formatDeviceWhen } from './ApproveMyDeviceScreen';
+
+/**
+ * Local Supabase URL only (same gate as design previews): allowlisted codes for Maestro.
+ * Never returns keys, tokens, or raw exception text — fixed phrases only.
+ */
+export function e2eFinishErrorDetail(
+  message: string,
+  supabaseUrl: string | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL,
+): string | null {
+  if (!isDesignPreviewRuntime(supabaseUrl)) {
+    return null;
+  }
+  const safe = message.trim();
+  if (
+    safe === 'unwrap failed' ||
+    safe === 'recovery device mismatch' ||
+    safe === 'Not allowed' ||
+    safe === 'missing family key'
+  ) {
+    return safe;
+  }
+  return null;
+}
 
 export function RecoverLostPhoneScreen() {
   const router = useRouter();
@@ -48,27 +73,44 @@ export function RecoverLostPhoneScreen() {
     enabled: Boolean(userId),
     queryFn: () => fetchMemberships(userId as string),
   });
+  const membersQuery = useQuery({
+    queryKey: ['members', spaceId],
+    enabled: Boolean(spaceId),
+    queryFn: () => fetchMembers(spaceId as string),
+  });
   const requestsQuery = useQuery({
     queryKey: ['recoveryRequests', spaceId],
     enabled: Boolean(spaceId),
     queryFn: () => supabaseRecoverFlowGateway.listRequests(spaceId as string),
   });
+  const role = membershipsQuery.data?.find((item) => item.space.id === spaceId)?.role;
+  // Prefer the open request. listRequests includes older cancelled/completed rows;
+  // finishing against those fails with a vague "check the words" error.
+  const openMine = (requestsQuery.data ?? []).find(
+    (row) =>
+      row.userId === userId && row.completedAt == null && row.cancelledAt == null,
+  );
+  const latestMine = (requestsQuery.data ?? []).find((row) => row.userId === userId);
+  // Active recovery only. A cancelled row must not block Start.
+  const mine = openMine ?? null;
+  const cancelledNotice =
+    !openMine && latestMine?.cancelledAt
+      ? latestMine
+      : null;
+  const cancellerIsAdmin = memberRoleIsAdmin(
+    (membersQuery.data ?? []).find((row) => row.userId === cancelledNotice?.cancelledBy)?.role,
+  );
+
   const helpersQuery = useQuery({
-    queryKey: ['recoveryHelpers', requestsQuery.data?.[0]?.id],
-    enabled: Boolean(requestsQuery.data?.find((row) => row.userId === userId && !row.completedAt)),
+    queryKey: ['recoveryHelpers', openMine?.id],
+    enabled: Boolean(openMine),
     queryFn: async () => {
-      const mine = (requestsQuery.data ?? []).find(
-        (row) => row.userId === userId && row.completedAt == null,
-      );
-      if (!mine) {
+      if (!openMine) {
         return [];
       }
-      return supabaseRecoverFlowGateway.listHelpers(mine.id);
+      return supabaseRecoverFlowGateway.listHelpers(openMine.id);
     },
   });
-
-  const role = membershipsQuery.data?.find((item) => item.space.id === spaceId)?.role;
-  const mine = (requestsQuery.data ?? []).find((row) => row.userId === userId);
 
   const onStart = async () => {
     if (!userId || !spaceId) {
@@ -122,14 +164,20 @@ export function RecoverLostPhoneScreen() {
         setPaperWords('');
         setError(copy.recovery.printedFailed);
       } else {
-        setError(copy.recovery.lostFinishFailed);
+        const detail = e2eFinishErrorDetail(info.message);
+        setError(detail ?? copy.recovery.lostFinishFailed);
       }
     } finally {
       setBusy(false);
     }
   };
 
-  if (!spaceId || requestsQuery.isLoading || membershipsQuery.isLoading) {
+  if (
+    !spaceId ||
+    requestsQuery.isLoading ||
+    membershipsQuery.isLoading ||
+    membersQuery.isLoading
+  ) {
     return (
       <Screen withHeader>
         <LoadingState message={copy.common.loading} />
@@ -137,7 +185,7 @@ export function RecoverLostPhoneScreen() {
     );
   }
 
-  if (requestsQuery.error || membershipsQuery.error) {
+  if (requestsQuery.error || membershipsQuery.error || membersQuery.error) {
     return (
       <Screen withHeader>
         <ErrorState message={copy.common.error} />
@@ -146,40 +194,70 @@ export function RecoverLostPhoneScreen() {
   }
 
   const helperCount = helpersQuery.data?.length ?? 0;
+  const hasPaper = paperWords.trim().length > 0;
+  const canAttemptFinish = helperCount >= 2 || hasPaper;
+  const cancelledKind = cancelledNotice
+    ? cancelledCopyKind(cancelledNotice.cancelledBy, userId ?? '', cancellerIsAdmin)
+    : null;
 
   return (
     <Screen withHeader accessibilityLabel={copy.recovery.lostTitle}>
       <Title>{copy.recovery.lostTitle}</Title>
       <Body>{copy.recovery.lostBody}</Body>
       {error ? <ErrorState message={error} /> : null}
-      {!mine || mine.completedAt ? (
-        <Button label={copy.recovery.lostStart} busy={busy} onPress={() => void onStart()} />
+      {!openMine ? (
+        <Button
+          label={copy.recovery.lostStart}
+          testID="start-recovery"
+          busy={busy}
+          onPress={() => void onStart()}
+        />
       ) : null}
-      {mine && mine.cancelledAt ? (
-        <Muted>
-          {cancelledCopyKind(mine.cancelledBy, userId ?? '') === 'you'
-            ? copy.home.recoveryCancelledByYou
-            : copy.home.recoveryCancelledByAdmin}
-        </Muted>
+      {cancelledNotice && cancelledKind === 'you' ? (
+        <Muted>{copy.home.recoveryCancelledByYou}</Muted>
+      ) : null}
+      {cancelledNotice && cancelledKind === 'admin' ? (
+        <Muted>{copy.home.recoveryCancelledByAdmin}</Muted>
+      ) : null}
+      {cancelledNotice && cancelledKind === 'contact' ? (
+        <Muted>{copy.home.recoveryCancelledByContact}</Muted>
       ) : null}
       {mine && requestIsWaiting(mine) ? (
-        <Muted>
+        <Muted testID="recovery-waiting-until">
           {copy.recovery.lostWaiting.replace('{when}', formatDeviceWhen(mine.notBefore))}
         </Muted>
       ) : null}
       {mine && requestCanFinish(mine) ? (
         <>
-          <Muted>{copy.recovery.lostHelpers.replace('{n}', String(helperCount))}</Muted>
+          <Muted testID="recovery-helper-count">
+            {copy.recovery.lostHelpers.replace('{n}', String(helperCount))}
+          </Muted>
           <Field
             label={copy.recovery.lostPaperLabel}
+            testID="printed-code-24-words"
             value={paperWords}
             onChangeText={setPaperWords}
             autoCapitalize="none"
             autoCorrect={false}
-            accessibilityHint={copy.recovery.lostPaperHint}
+            accessibilityHint={
+              helperCount >= 2 ? copy.recovery.lostPaperBothHelped : copy.recovery.lostPaperHint
+            }
           />
-          <Muted>{copy.recovery.lostPaperHint}</Muted>
-          <Button label={copy.recovery.lostFinish} busy={busy} onPress={() => void onFinish()} />
+          {helperCount >= 2 ? (
+            <Muted testID="printed-code-both-helped">{copy.recovery.lostPaperBothHelped}</Muted>
+          ) : (
+            <Muted>{copy.recovery.lostPaperHint}</Muted>
+          )}
+          {!canAttemptFinish ? (
+            <Muted testID="waiting-second-contact">{copy.recovery.lostWaitingSecondContact}</Muted>
+          ) : null}
+          <Button
+            label={copy.recovery.lostFinish}
+            testID="finish-recovery"
+            busy={busy}
+            disabled={!canAttemptFinish}
+            onPress={() => void onFinish()}
+          />
         </>
       ) : null}
     </Screen>

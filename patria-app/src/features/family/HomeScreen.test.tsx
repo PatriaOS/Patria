@@ -118,8 +118,10 @@ jest.mock('../../lib/crypto/recoverFlow', () => ({
   },
   cancelRecoveryRequest: jest.fn(async () => undefined),
   approveRecoveryAsContact: jest.fn(async () => undefined),
-  cancelledCopyKind: (cancelledBy: string, userId: string) =>
-    cancelledBy === userId ? 'you' : 'admin',
+  cancelledCopyKind: (cancelledBy: string, userId: string, cancellerIsAdmin = false) =>
+    cancelledBy === userId ? 'you' : cancellerIsAdmin ? 'admin' : 'contact',
+  memberRoleIsAdmin: (role: string | null | undefined) =>
+    role === 'family_admin' || role === 'co_admin',
   requestCanFinish: () => false,
 }));
 
@@ -137,6 +139,7 @@ jest.mock('../../lib/crypto/recoverySetup', () => ({
   })),
   fulfillAcceptedContacts: jest.fn(async () => undefined),
   respondRecoveryInvite: jest.fn(async () => undefined),
+  clearRecoveryPrivateSecret: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../lib/crypto/deviceIdentity', () => ({

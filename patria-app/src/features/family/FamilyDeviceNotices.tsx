@@ -18,6 +18,7 @@ import {
   approveRecoveryAsContact,
   cancelledCopyKind,
   cancelRecoveryRequest,
+  memberRoleIsAdmin,
   requestCanFinish,
   supabaseRecoverFlowGateway,
   type RecoveryRequestRow,
@@ -26,6 +27,7 @@ import {
   loadRecoverySnapshot,
   respondRecoveryInvite,
 } from '../../lib/crypto/recoverySetup';
+import { supabaseRecoveryAccessGateway } from '../../lib/crypto/recoveryAccess';
 import { fetchMembers } from '../../lib/family';
 import { memberDisplayName } from '../../lib/displayName';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
@@ -76,6 +78,11 @@ export function FamilyDeviceNotices() {
     queryKey: ['deviceRemovedNotices', spaceId],
     enabled: Boolean(spaceId && admin),
     queryFn: () => supabaseRecoverFlowGateway.listRemovedNotices(spaceId as string),
+  });
+  const helperRefreshQuery = useQuery({
+    queryKey: ['recoveryHelperRefreshNotices', spaceId],
+    enabled: Boolean(spaceId),
+    queryFn: () => supabaseRecoveryAccessGateway.listHelperRefreshNotices(spaceId as string),
   });
 
   const onLetIn = async (notice: FirstDeviceNotice) => {
@@ -228,9 +235,37 @@ export function FamilyDeviceNotices() {
     return null;
   }
 
+  const onDismissHelperRefresh = async (noticeId: string) => {
+    setNoticeError(null);
+    try {
+      await supabaseRecoveryAccessGateway.dismissHelperRefreshNotice(noticeId);
+      await queryClient.invalidateQueries({ queryKey: ['recoveryHelperRefreshNotices', spaceId] });
+    } catch (caught) {
+      logFailedAction(caught);
+      setNoticeError(copy.common.error);
+    }
+  };
+
   return (
     <>
       {noticeError ? <ErrorState message={noticeError} /> : null}
+      {(helperRefreshQuery.data ?? []).map((notice) => {
+        const member = (membersQuery.data ?? []).find((row) => row.userId === notice.memberId);
+        const name = memberDisplayName(member?.displayName);
+        return (
+          <Card key={`helper-refresh-${notice.id}`} testID="recovery-helper-refreshed">
+            <Title>{copy.home.recoveryHelperRefreshedTitle}</Title>
+            <Muted>
+              {copy.home.recoveryHelperRefreshedBody.replace('{name}', name)}
+            </Muted>
+            <Button
+              label={copy.home.recoveryHelperRefreshedDismiss}
+              variant="secondary"
+              onPress={() => void onDismissHelperRefresh(notice.id)}
+            />
+          </Card>
+        );
+      })}
       {(recoveryQuery.data?.pending ?? [])
         .filter((row) => row.userId === userId)
         .map((row) => (
@@ -262,12 +297,21 @@ export function FamilyDeviceNotices() {
         const open = request.cancelledAt == null && request.completedAt == null;
         const own = request.userId === userId;
         if (own && request.cancelledAt) {
+          const kind = cancelledCopyKind(
+            request.cancelledBy,
+            userId,
+            memberRoleIsAdmin(
+              (membersQuery.data ?? []).find((row) => row.userId === request.cancelledBy)?.role,
+            ),
+          );
           return (
             <Card key={request.id}>
               <Title>
-                {cancelledCopyKind(request.cancelledBy, userId) === 'you'
+                {kind === 'you'
                   ? copy.home.recoveryCancelledByYou
-                  : copy.home.recoveryCancelledByAdmin}
+                  : kind === 'admin'
+                    ? copy.home.recoveryCancelledByAdmin
+                    : copy.home.recoveryCancelledByContact}
               </Title>
             </Card>
           );
@@ -280,6 +324,7 @@ export function FamilyDeviceNotices() {
               <ButtonStack>
                 <Button
                   label={copy.home.notMyPhone}
+                  testID="this-wasnt-me"
                   variant="secondary"
                   busy={busyNoticeId === request.id}
                   disabled={busyNoticeId !== null && busyNoticeId !== request.id}
@@ -302,28 +347,40 @@ export function FamilyDeviceNotices() {
             return null;
           }
           return (
-            <Card key={request.id}>
+            <Card key={request.id} testID="recovery-helper-card">
               <Title>
-                {admin
-                  ? copy.home.recoveryAdminNotice.replace('{name}', name)
-                  : copy.home.recoveryContactNotice.replace('{name}', name)}
+                {myContact
+                  ? copy.home.recoveryContactAskedTitle.replace('{name}', name)
+                  : copy.home.recoveryAdminNotice.replace('{name}', name)}
               </Title>
               {myContact ? (
                 <Muted>{copy.home.recoveryContactNotice.replace('{name}', name)}</Muted>
               ) : null}
-              <Muted>{when}</Muted>
+              <Muted>{copy.home.recoveryStartedWhen.replace('{when}', when)}</Muted>
               <ButtonStack>
                 {myContact && requestCanFinish(request) ? (
                   <Button
                     label={copy.home.recoveryApproveHelp}
+                    testID="help-with-recovery"
                     busy={busyNoticeId === request.id}
                     disabled={busyNoticeId !== null && busyNoticeId !== request.id}
                     onPress={() => void onApproveRecoveryHelp(request)}
                   />
                 ) : null}
-                {admin ? (
+                {myContact ? (
+                  <Button
+                    label={copy.home.notMyPhone}
+                    testID="this-wasnt-me"
+                    variant="secondary"
+                    busy={busyNoticeId === request.id}
+                    disabled={busyNoticeId !== null && busyNoticeId !== request.id}
+                    onPress={() => void onCancelRecovery(request.id)}
+                  />
+                ) : null}
+                {admin && !myContact ? (
                   <Button
                     label={copy.home.stopThisRecovery}
+                    testID="stop-this-recovery"
                     variant="secondary"
                     busy={busyNoticeId === request.id}
                     disabled={busyNoticeId !== null && busyNoticeId !== request.id}

@@ -7,6 +7,54 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-15 — Recovery API tests in CI database job
+
+App job still skips `recoverFlow.api.test` without local Supabase. Database job (which starts Supabase) now runs those tests with `REQUIRE_LOCAL_SUPABASE=1` so a missing stack fails CI instead of skipping. Contact cancel copy and Finish waiting-for-second-helper from the prior entry stay.
+
+## 2026-11-15 — CI api-test skip; contact-cancel copy; Finish waits for second helper
+
+`recoverFlow.api.test` threw when local Supabase was down, failing the CI app job (no Supabase there). Restored the same early `return` as other `*.api.test.ts` files — tests still run fully with local Supabase. Contact cancel copy is “One of your recovery contacts stopped this recovery.” (admin copy only when an admin cancelled). Recover this phone disables Finish and shows “Waiting for your second contact” with fewer than two helpers and no paper; server finish checks unchanged.
+
+## 2026-11-14 — Recover after cancel offers Start; test 75 Your phones scroll
+
+After a contact cancels, Recover this phone fell back to the cancelled row as `mine`, showed “Cancelled by…”, and hid **Start recovery** — Maestro could not restart. Fix: only an open request is active; cancelled notice stays, Start returns. Unit test covers Start after cancel. Test 75 older_sign_in uses test 10’s family-name → Your phones + centerElement scroll (needs-attention card was skipping the row). One-helper Maestro assert accepts local e2e `unwrap failed` as well as product finish-failed copy.
+
+## 2026-11-14 — Trust recovery wording; admin stop noted in phone tests
+
+How Patria bullet now says “your two recovery contacts together, or one contact plus your printed recovery code” (regenerated in-app). Test 12 step 4 (admin Stop) stays skipped; PHONE_TESTS notes pgTAP already covers admin cancel of an open request.
+
+## 2026-11-14 — Personal key calm at 1 of 2; contact cancel audit
+
+`ensurePersonalKeyAfterFamilyReady` treated recovery public as enough to call `create_personal_key`, but the RPC needs `has_recovery_setup` (public + two accepted contacts). At **Recovery: 1 of 2 contacts** that failed with a red enroll error. Fix: require `has_recovery_setup` and return calm `needsRecovery` (`incomplete_recovery_setup`) until then; unit test covers 1 of 2. Contact cancel writes a `recovery cancelled` event the member can read; pgTAP asserts accepted contact only, open request only, event + member read, and refuse re-cancel. Test 12 automates contact **This wasn’t me** (restart) and one-helper-not-enough; admin Stop still skipped. Printed-word review shots redacted. No hosted migrate.
+
+## 2026-11-14 — Helper recovery card + both-helped printed hint (D32 copy)
+
+Helper card title is now “{name} asked for help recovering their phone”, body stays the confirm-in-person line, date is “Started {when}”. Contacts get **This wasn’t me** to cancel (RPC allows accepted contacts; pgTAP updated). Admin-only viewers still get **Stop this recovery**. Recover this phone shows “Both contacts have helped, so you can leave this empty.” under the printed-code field when 2 of 2 helpers are recorded. Local migrate for contact cancel; no hosted migrate in this slice.
+
+## 2026-11-13 — A+B finish: ab-only boxes + local API proof
+
+Lost-phone Finish with two helpers and no paper never passed in automation before: unit reconstruct covered A+B crypto, but `fetchPairBoxes` required `ap`/`bp` so ab-only (Almost done / repair) returned null and Finish failed with “unwrap failed”. Fix: ab is enough; ap/bp optional. Helper unwrap AAD uses `request.newDeviceId` (same as approve) plus a device-id mismatch check — not weaker; still bound to space + request + user + that new device. Local Supabase Jest API tests cover A+B ab-only and repair→new-epoch finish (family + personal wraps). e2e finish error detail is allowlisted phrases on local URL only. Maestro waiting_copy re-opens I lost my phone after sign-in (Home shows let-in wait). No hosted migrate.
+
+## 2026-11-13 — Automate lost-phone recovery + repair (tests 12, 76, 11.7, 13.5–6)
+
+Wired Test 12 core path and new Test 76 (repair → Almost done → helper refresh → lost-phone) on three iPhone 17 Pros with local SQL `advance-recovery-wait` / `strip-recovery-pair-wraps` only. Test 11 step 7 hard-asserts remove → needs attention (PASS). App: FamilyScreen also runs `fulfillAcceptedContacts` (D35 status lives on Family; seed no longer depends on briefly landing on Home). Seed mirrors Test 11’s one_of_two between accepts. Maestro finish_two_helpers re-opens **I lost my phone** when Home shows let-in wait. Test 13: dismiss recovery reminder before asserting key up to date; 13.7/9/10 still skip (not recovery). Shots: helper Help / helper refreshed.
+
+## 2026-11-13 — Phone tests 11–13 after seed/status fix; review shots
+
+Re-ran 11→12→13 with sim reset. Test 11 and 13 pass; Test 12 boots Pro C then skips (manual pending automation, not missing devices). Maestro adds `one_of_two` and printed-continue review shots (crop words out of the printed file). No hosted migrate.
+
+## 2026-11-13 — Seed let-in: this-device wrap only; wipe orphan Pros
+
+Tests 11/13 failed on new Simulator B when seed treated any `family_key_wraps` row as “already let in” — the wrap belonged to a retired Pro Max device id, so soft `keys_ready` failed and the final error said “wrap exists for another device id”. After remint, Family keys were on B but Personal correctly waited on recovery (Test 2 has no recovery public in tests 11/13), and full `keys_ready` still demanded personal. Fix (local e2e only): at seed start wipe all device registrations and wraps for Tests 2–5 (Test 1 keeps newest approved wrap); soft/hard let-in ready uses Maestro `family_keys_ready` plus DB `assert-wrap-for-latest-device`; personal wraps asserted only when that member has `recovery_public_keys`. Test 12 auto-bumps to three iPhone 17 Pros (creates C, copies the app build). Also: first contact accept uploads recovery public before `ab`, so status must stay **one of two** (not Finish-setup needs attention); Maestro pick_contact also taps `needs-you-recovery-attention`. No hosted migrate.
+
+## 2026-11-13 — Recovery needs-attention copy and printed-code gate copy
+
+Needs-attention card (Family, Privacy and Security, Recovery setup) adds one calm line above **Finish setup**. Printed-code screen with no `ab` shows only the finish-setup line (no post-repair “older words” banner); that banner appears only when new words are shown after a repair.
+
+## 2026-11-12 — Recovery pair boxes: always write ab; atomic repair (D46)
+
+Staggered contact accepts left some members with a recovery public key and two contacts but no `ab`, so Family could show **set up** while recovery was unusable. `fulfillAcceptedContacts` now keeps the recovery private in SecureStore (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`) until `ab` uploads, then deletes it (also on repair and sign-out); never logged or uploaded. Status is **needs attention** / **almost done** / **set up** only from real pair rows. Printed code is gated on `ab`; Skip does not pretend success. Repair/rotate uses `commit_recovery_repair` (new holders + `ab` + family-under-recovery first, then switch public key and drop the old epoch), refuses an open recovery request, writes a recovery event, and shows contacts a short helper-refreshed notice. Local holder secrets update only after commit succeeds. Design previews (including design-recovery) require a local Supabase URL — never hosted. Phone test 11 and Maestro cover the real flow; design-recovery is review shots only. Migration local-only — no hosted migrate in this slice.
+
 ## 2026-11-11 — e2e device B is a second iPhone 17 Pro
 
 `bootDevices` only picks **iPhone 17 Pro** (never Pro Max). When fewer Pros exist than `E2E_DEVICES`, it creates `Patria e2e iPhone 17 Pro B` / `C`. The runner copies `app.patria.dev` from a Pro that already has the build onto any new Pro. Pro Max 3304 was dropping XCUITest mid-`eraseText` while Pro stayed stable. No app change; no hosted migrate.

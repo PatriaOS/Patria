@@ -52,8 +52,21 @@ describe('copy', () => {
     expect(copy.recovery.printedBody).toMatch(/cannot show them again/i);
     expect(copy.home.lostPhone).toBe('I lost my phone');
     expect(copy.home.stopThisRecovery).toBe('Stop this recovery');
+    expect(copy.home.recoveryContactAskedTitle).toBe(
+      '{name} asked for help recovering their phone',
+    );
+    expect(copy.home.recoveryContactNotice).toMatch(/Confirm with \{name\}/i);
+    expect(copy.home.recoveryStartedWhen).toBe('Started {when}');
+    expect(copy.recovery.lostPaperBothHelped).toMatch(/Both contacts have helped/i);
     expect(copy.home.recoveryCancelledByYou).toBe('Cancelled by you');
+    expect(copy.home.recoveryCancelledByContact).toBe(
+      'One of your recovery contacts stopped this recovery.',
+    );
+    expect(copy.recovery.lostWaitingSecondContact).toBe('Waiting for your second contact');
     expect(copy.home.recoveryNeedsAttention).toBe('Recovery needs attention');
+    expect(copy.home.recoveryFinishSetupBody).toMatch(/helpers said yes/i);
+    expect(copy.recovery.printedAfterRepairBody).toMatch(/older printed words no longer work/i);
+    expect(copy.recovery.printedNeedAb).toMatch(/Finish recovery setup/i);
     expect(copy.home.letIn).toBe('Let in');
     expect(copy.home.declineDevice).toBe('Decline');
     expect(copy.member.fallbackName).toBe('Family member');

@@ -70,7 +70,7 @@ npm run e2e -- --record
 npm run e2e -- --no-record
 ```
 
-`E2E_DEVICES` is `2` by default (device A = stock **iPhone 17 Pro**, device B = a second **iPhone 17 Pro**, created if needed). `1` still works (tests that need a second or third phone are skipped, not failed). `3` automates all of test 12, including **This wasn’t me** on Test 2’s old phone while the new phone waits.
+`E2E_DEVICES` is `2` by default (device A = stock **iPhone 17 Pro**, device B = a second **iPhone 17 Pro**, created if needed). `1` still works (tests that need a second or third phone are skipped, not failed). `3` automates test 12’s core path, contact **This wasn’t me** cancel + restart, and one-helper-not-enough before the second Help. Admin **Stop** still skips (needs a separate admin device while Test 1 recovers on A).
 
 Invite share-sheet **Copy** is attempted; if the sheet is not automatable the step is skipped (manual), and the flow continues with the invite URL from the local database.
 

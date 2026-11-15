@@ -61,6 +61,9 @@ export function recoveryPill(input: {
   if (keyHolder && status === 'needs_attention') {
     return { label: copy.home.recoveryNeedsAttention, tone };
   }
+  if (keyHolder && status === 'almost_done') {
+    return { label: copy.home.recoveryAlmostDone, tone };
+  }
   if (keyHolder && status === 'setup') {
     return { label: copy.home.recoverySetup, tone };
   }

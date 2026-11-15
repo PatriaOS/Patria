@@ -152,7 +152,7 @@ A device gets the family key only after a person taps approve. An admin lets in 
 
 ## D23. Recovery contacts and the printed code (12 October 2026)
 
-Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” Nothing about the printed code is stored on the server. Removing a key holder rotates the family key; other members do not need a new printed code unless that person was their recovery contact. (Asked as D20. D27 replaces a single family-wide recovery secret.)
+Recovery needs any 2 of 3: contact A, contact B, and an optional 24-word printed code. There is a 48-hour wait with “This wasn’t me.” The recovering member, a family admin, or an accepted recovery contact for that member can stop an open request (helper card uses the same **This wasn’t me** label). Nothing about the printed code is stored on the server. Removing a key holder rotates the family key; other members do not need a new printed code unless that person was their recovery contact. (Asked as D20. D27 replaces a single family-wide recovery secret. Contact cancel clarified 14 November 2026.)
 
 ## D24. Crypto libraries for family keys (12 October 2026)
 
@@ -299,6 +299,15 @@ Agreed by Femi on 29 October 2026. Not implemented yet; building starts only aft
 * **Patria Cloud rules:** process in memory and do not store email content; any short retry queue is encrypted and empties itself; email content is never written to logs; the AI provider must agree in writing not to train on the content and to keep it for as short a time as possible.
 * **Suggestions only.** The AI cannot send, delete or change anything and cannot open links. A person always taps to accept.
 * Protections that apply at every level include filtering on the phone first, blacking out sensitive details before anything is sent where applicable, showing what was read for every suggestion, and never touching the Vault.
+
+## D46. Recovery pair boxes must include ab before “set up”; repair is atomic (12 November 2026)
+
+Recovery status for a key-holding member:
+* two accepted contacts and no `ab` pair box → **Recovery needs attention** (Finish setup); never **Recovery: set up**
+* `ab` without `ap`/`bp` → **Almost done: write down your printed code**
+* `ab`+`ap`+`bp` → **Recovery: set up**
+
+Printed words appear only after `ab` exists. Skip must not look like success. When the recovery private is gone from the phone, Finish setup / paper-lost rebuilds a new epoch: client builds new holders + `ab` first, then `commit_recovery_repair` switches the public key and drops the old epoch in one transaction. Refuse repair or rotate while a recovery request is open. Record a recovery event; notify contacts that their helper role was refreshed (no action). This phone must hold the family key. Old printed words die after a repair.
 
 ## D45. Pending device requests expire after 7 days (11 November 2026)
 

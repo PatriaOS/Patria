@@ -74,6 +74,14 @@ function ThemedRootStack() {
             title: screenTitles.designGallery,
           }}
         />
+        <Stack.Screen
+          name="design-recovery"
+          options={{
+            ...pushedScreenHeader,
+            ...chrome,
+            title: screenTitles.designRecovery,
+          }}
+        />
       </Stack>
     </View>
   );

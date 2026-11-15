@@ -212,6 +212,19 @@ async function hasRecoveryPublicKey(spaceId: string, userId: string): Promise<bo
   return Boolean(data);
 }
 
+/** Same gate as create_personal_key / vault_writer_ready (public + 2 accepted contacts). */
+async function hasRecoverySetup(spaceId: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('has_recovery_setup', {
+    _space_id: spaceId,
+    _user_id: userId,
+  });
+  if (error) {
+    logKeyStep('has_recovery_setup_for_personal', error.code ?? 'unknown');
+    throw error;
+  }
+  return Boolean(data);
+}
+
 /**
  * After family keys are ready on this device (let in), finish the personal wrap:
  * enroll from cache if present; create only when no personal key exists anywhere;
@@ -262,6 +275,12 @@ export async function ensurePersonalKeyAfterFamilyReady(input: {
     logKeyStep('ensure_personal_after_family', 'needs_recovery');
     return { status: 'needsRecovery', reasonCode: 'missing_recovery_public' };
   }
+  // Public alone is not enough (e.g. 1 of 2 contacts): create_personal_key needs
+  // has_recovery_setup. Stay calm — do not surface a red enroll error.
+  if (!(await hasRecoverySetup(input.spaceId, input.userId))) {
+    logKeyStep('ensure_personal_after_family', 'incomplete_recovery');
+    return { status: 'needsRecovery', reasonCode: 'incomplete_recovery_setup' };
+  }
 
   try {
     const personalKey = await obtainPersonalKey({
@@ -295,6 +314,10 @@ export async function ensurePersonalKeyAfterFamilyReady(input: {
     if (await personalKeyExistsAnywhere(input.spaceId, input.userId)) {
       logKeyStep('ensure_personal_create', 'needs_other_phone');
       return { status: 'needsOtherPhone' };
+    }
+    if (!(await hasRecoverySetup(input.spaceId, input.userId))) {
+      logKeyStep('ensure_personal_create', 'incomplete_recovery');
+      return { status: 'needsRecovery', reasonCode: 'incomplete_recovery_setup' };
     }
     logKeyStep('ensure_personal_create', reasonCode);
     return { status: 'enrollError', reasonCode };

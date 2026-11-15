@@ -6,7 +6,19 @@ import { KEY_BYTES } from './random';
 
 export type RecoveryPairId = 'ab' | 'ap' | 'bp';
 
+/**
+ * Pair boxes for a recovery epoch. After contacts accept (or repair), `ab` is
+ * always present. `ap`/`bp` exist only after the member writes a printed code.
+ * Two helpers finish with `ab` alone; helper+paper needs the matching paper box.
+ */
 export type RecoveryBoxes = {
+  boxAb: Uint8Array;
+  boxAp: Uint8Array | null;
+  boxBp: Uint8Array | null;
+};
+
+/** All three boxes — result of createRecoveryBoxes / confirm printed code. */
+export type FullRecoveryBoxes = {
   boxAb: Uint8Array;
   boxAp: Uint8Array;
   boxBp: Uint8Array;
@@ -63,7 +75,7 @@ export function createRecoveryBoxes(
   secretB: Uint8Array,
   secretP: Uint8Array,
   ctx: RecoveryContext,
-): RecoveryBoxes {
+): FullRecoveryBoxes {
   requireLength(recoveryKey, KEY_BYTES);
   return {
     boxAb: sealPair(recoveryKey, secretA, secretB, ctx, 'ab'),
@@ -98,9 +110,15 @@ export function openWithHolders(
     return openRecoveryPair(boxes.boxAb, holderX.secret, holderY.secret, ctx, 'ab');
   }
   if (ids === 'ap') {
+    if (!boxes.boxAp) {
+      throw new Error('unwrap failed');
+    }
     return openRecoveryPair(boxes.boxAp, holderX.secret, holderY.secret, ctx, 'ap');
   }
   if (ids === 'bp') {
+    if (!boxes.boxBp) {
+      throw new Error('unwrap failed');
+    }
     return openRecoveryPair(boxes.boxBp, holderX.secret, holderY.secret, ctx, 'bp');
   }
   throw new Error('unwrap failed');

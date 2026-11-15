@@ -1,9 +1,8 @@
-import { isLocalOrE2eRuntime } from '../../lib/localOrE2eRuntime';
+import { isDesignPreviewRuntime, isLocalOrE2eRuntime } from '../../lib/localOrE2eRuntime';
 
 /**
- * Design preview routes used to gate on __DEV__ alone. Expo Go is always
- * __DEV__, so hosted Expo Go would open those shortcuts. They now share
- * isLocalOrE2eRuntime with the letter release fake-key gate.
+ * Design preview routes must never open against hosted (Expo Go is always
+ * __DEV__). Local Supabase URL only; e2e always uses a local URL.
  */
 describe('design preview gate', () => {
   const realE2e = process.env.EXPO_PUBLIC_E2E;
@@ -28,6 +27,7 @@ describe('design preview gate', () => {
     g.__DEV__ = true;
     delete process.env.EXPO_PUBLIC_E2E;
     try {
+      expect(isDesignPreviewRuntime('https://example.supabase.co')).toBe(false);
       expect(isLocalOrE2eRuntime('https://example.supabase.co')).toBe(false);
     } finally {
       if (previous === undefined) {
@@ -38,9 +38,15 @@ describe('design preview gate', () => {
     }
   });
 
-  it('allows design shortcuts on a local stack or under e2e', () => {
+  it('allows design shortcuts only on a local Supabase URL', () => {
     delete process.env.EXPO_PUBLIC_E2E;
-    expect(isLocalOrE2eRuntime('http://127.0.0.1:54321')).toBe(true);
+    expect(isDesignPreviewRuntime('http://127.0.0.1:54321')).toBe(true);
+    process.env.EXPO_PUBLIC_E2E = '1';
+    expect(isDesignPreviewRuntime('http://127.0.0.1:54321')).toBe(true);
+    expect(isDesignPreviewRuntime('https://example.supabase.co')).toBe(false);
+  });
+
+  it('keeps letter-release e2e gate separate (E2E may allow hosted URL)', () => {
     process.env.EXPO_PUBLIC_E2E = '1';
     expect(isLocalOrE2eRuntime('https://example.supabase.co')).toBe(true);
   });

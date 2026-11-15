@@ -97,11 +97,19 @@ export function encodeHelperRewrapAad(input: {
 export function cancelledCopyKind(
   cancelledBy: string | null,
   requesterUserId: string,
-): 'you' | 'admin' {
+  cancellerIsAdmin = false,
+): 'you' | 'admin' | 'contact' {
   if (cancelledBy === requesterUserId) {
     return 'you';
   }
-  return 'admin';
+  if (cancellerIsAdmin) {
+    return 'admin';
+  }
+  return 'contact';
+}
+
+export function memberRoleIsAdmin(role: string | null | undefined): boolean {
+  return role === 'family_admin' || role === 'co_admin';
 }
 
 export function requestIsWaiting(request: RecoveryRequestRow, now = Date.now()): boolean {
@@ -316,13 +324,14 @@ export const supabaseRecoverFlowGateway: RecoverFlowGateway = {
     const ab = rows.find((row) => row.pair_id === 'ab');
     const ap = rows.find((row) => row.pair_id === 'ap');
     const bp = rows.find((row) => row.pair_id === 'bp');
-    if (!ab || !ap || !bp) {
+    // ab is enough for two-helper finish; ap/bp appear only after printed code.
+    if (!ab) {
       return null;
     }
     return {
       boxAb: fromPgBytea(ab.wrapped_recovery_key),
-      boxAp: fromPgBytea(ap.wrapped_recovery_key),
-      boxBp: fromPgBytea(bp.wrapped_recovery_key),
+      boxAp: ap ? fromPgBytea(ap.wrapped_recovery_key) : null,
+      boxBp: bp ? fromPgBytea(bp.wrapped_recovery_key) : null,
     };
   },
 
@@ -506,12 +515,16 @@ export async function finishLostPhoneRecovery(
     throw new Error('unwrap failed');
   }
   const helpers = await gateway.listHelpers(input.request.id);
+  // Helpers wrap to the request's new device; AAD must use that id (not a reminted one).
   const aad = encodeHelperRewrapAad({
     familySpaceId: input.spaceId,
     requestId: input.request.id,
     userId: input.userId,
-    deviceId: input.deviceId,
+    deviceId: input.request.newDeviceId,
   });
+  if (input.deviceId !== input.request.newDeviceId) {
+    throw new Error('recovery device mismatch');
+  }
   const holders: { a?: Uint8Array; b?: Uint8Array; p?: Uint8Array } = {};
   const opened: Uint8Array[] = [];
   try {

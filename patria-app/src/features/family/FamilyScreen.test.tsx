@@ -61,6 +61,7 @@ jest.mock('../../lib/crypto/recoverySetup', () => ({
     keyEpoch: 1,
     status: 'not_setup',
   })),
+  clearRecoveryPrivateSecret: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../lib/currentFamily', () => ({

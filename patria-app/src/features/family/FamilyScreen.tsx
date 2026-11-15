@@ -19,7 +19,11 @@ import { signOutAndGoWelcome } from '../../lib/authSession';
 import { copy } from '../../lib/copy';
 import { ensureKeysForOpenFamily } from '../../lib/crypto/familyCeremony';
 import { ensurePersonalKeyAfterFamilyReady } from '../../lib/crypto/personalKey';
-import { loadRecoverySnapshot } from '../../lib/crypto/recoverySetup';
+import {
+  fulfillAcceptedContacts,
+  loadRecoverySnapshot,
+} from '../../lib/crypto/recoverySetup';
+import { logFailedAction } from '../../lib/devLog';
 import { writeCurrentFamilyId } from '../../lib/currentFamily';
 import { fetchChildren, fetchMembers, fetchPendingInvites } from '../../lib/family';
 import { routes } from '../../lib/navigation';
@@ -30,6 +34,7 @@ import { space } from '../../theme/tokens';
 import { useTheme } from '../../theme';
 import { ensureLetterboxKey } from '../letters/letterboxEnsure';
 import { FamilyDeviceNotices } from './FamilyDeviceNotices';
+import { RecoveryNeedsAttentionCard } from '../keys/RecoveryNeedsAttentionCard';
 import { SecurityStatusCard } from './SecurityStatusCard';
 import { useCurrentFamily } from './useCurrentFamily';
 
@@ -96,6 +101,35 @@ export function FamilyScreen() {
     });
   }, [personalKeyQuery.data?.status, spaceId, userId]);
 
+  // Same fulfill as Home: Family is where recovery status lives (D35), so opening
+  // Family after a contact accepts must write ab when two contacts are ready.
+  useEffect(() => {
+    if (keyHolder && spaceId && userId && keyStatusQuery.data === 'ready') {
+      if ((recoveryQuery.data?.accepted ?? 0) === 0) {
+        return;
+      }
+      void fulfillAcceptedContacts({
+        spaceId,
+        memberUserId: userId,
+      })
+        .then(() => {
+          void queryClient.invalidateQueries({
+            queryKey: ['recoverySnapshot', spaceId, userId],
+          });
+        })
+        .catch((caught: unknown) => {
+          logFailedAction(caught);
+        });
+    }
+  }, [
+    keyHolder,
+    spaceId,
+    userId,
+    keyStatusQuery.data,
+    recoveryQuery.data?.accepted,
+    queryClient,
+  ]);
+
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const onRefresh = useCallback(() => {
     setPullRefreshing(true);
@@ -118,6 +152,7 @@ export function FamilyScreen() {
     try {
       await signOutAndGoWelcome({
         userId,
+        spaceId: spaceId ?? undefined,
         signOut: () => supabase.auth.signOut(),
         replace: (href) => router.replace(href),
       });
@@ -381,6 +416,14 @@ export function FamilyScreen() {
           router.push(routes.recoverySetup);
         }}
       />
+      {keyHolder &&
+      recoveryQuery.data?.status === 'needs_attention' &&
+      (recoveryQuery.data.accepted ?? 0) >= 2 &&
+      !recoveryQuery.data.hasAb ? (
+        <RecoveryNeedsAttentionCard
+          onFinishSetup={() => router.push(routes.recoverySetup)}
+        />
+      ) : null}
       <Button
         label={copy.appearance.title}
         variant="secondary"
