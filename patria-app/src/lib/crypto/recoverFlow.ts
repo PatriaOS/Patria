@@ -97,11 +97,19 @@ export function encodeHelperRewrapAad(input: {
 export function cancelledCopyKind(
   cancelledBy: string | null,
   requesterUserId: string,
-): 'you' | 'admin' {
+  cancellerIsAdmin = false,
+): 'you' | 'admin' | 'contact' {
   if (cancelledBy === requesterUserId) {
     return 'you';
   }
-  return 'admin';
+  if (cancellerIsAdmin) {
+    return 'admin';
+  }
+  return 'contact';
+}
+
+export function memberRoleIsAdmin(role: string | null | undefined): boolean {
+  return role === 'family_admin' || role === 'co_admin';
 }
 
 export function requestIsWaiting(request: RecoveryRequestRow, now = Date.now()): boolean {

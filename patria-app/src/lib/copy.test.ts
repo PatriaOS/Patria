@@ -59,6 +59,10 @@ describe('copy', () => {
     expect(copy.home.recoveryStartedWhen).toBe('Started {when}');
     expect(copy.recovery.lostPaperBothHelped).toMatch(/Both contacts have helped/i);
     expect(copy.home.recoveryCancelledByYou).toBe('Cancelled by you');
+    expect(copy.home.recoveryCancelledByContact).toBe(
+      'One of your recovery contacts stopped this recovery.',
+    );
+    expect(copy.recovery.lostWaitingSecondContact).toBe('Waiting for your second contact');
     expect(copy.home.recoveryNeedsAttention).toBe('Recovery needs attention');
     expect(copy.home.recoveryFinishSetupBody).toMatch(/helpers said yes/i);
     expect(copy.recovery.printedAfterRepairBody).toMatch(/older printed words no longer work/i);

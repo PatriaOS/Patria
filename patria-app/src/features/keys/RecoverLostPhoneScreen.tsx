@@ -18,6 +18,7 @@ import { ensureDeviceIdentity } from '../../lib/crypto/deviceIdentity';
 import {
   cancelledCopyKind,
   finishLostPhoneRecovery,
+  memberRoleIsAdmin,
   requestCanFinish,
   requestIsWaiting,
   startLostPhoneRecovery,
@@ -25,7 +26,7 @@ import {
 } from '../../lib/crypto/recoverFlow';
 import { readCurrentFamilyId } from '../../lib/currentFamily';
 import { describeCaughtError, logFailedAction, logKeyStep } from '../../lib/devLog';
-import { fetchMemberships } from '../../lib/family';
+import { fetchMembers, fetchMemberships } from '../../lib/family';
 import { isDesignPreviewRuntime } from '../../lib/localOrE2eRuntime';
 import { routes } from '../../lib/navigation';
 import { formatDeviceWhen } from './ApproveMyDeviceScreen';
@@ -72,6 +73,11 @@ export function RecoverLostPhoneScreen() {
     enabled: Boolean(userId),
     queryFn: () => fetchMemberships(userId as string),
   });
+  const membersQuery = useQuery({
+    queryKey: ['members', spaceId],
+    enabled: Boolean(spaceId),
+    queryFn: () => fetchMembers(spaceId as string),
+  });
   const requestsQuery = useQuery({
     queryKey: ['recoveryRequests', spaceId],
     enabled: Boolean(spaceId),
@@ -91,6 +97,9 @@ export function RecoverLostPhoneScreen() {
     !openMine && latestMine?.cancelledAt
       ? latestMine
       : null;
+  const cancellerIsAdmin = memberRoleIsAdmin(
+    (membersQuery.data ?? []).find((row) => row.userId === cancelledNotice?.cancelledBy)?.role,
+  );
 
   const helpersQuery = useQuery({
     queryKey: ['recoveryHelpers', openMine?.id],
@@ -163,7 +172,12 @@ export function RecoverLostPhoneScreen() {
     }
   };
 
-  if (!spaceId || requestsQuery.isLoading || membershipsQuery.isLoading) {
+  if (
+    !spaceId ||
+    requestsQuery.isLoading ||
+    membershipsQuery.isLoading ||
+    membersQuery.isLoading
+  ) {
     return (
       <Screen withHeader>
         <LoadingState message={copy.common.loading} />
@@ -171,7 +185,7 @@ export function RecoverLostPhoneScreen() {
     );
   }
 
-  if (requestsQuery.error || membershipsQuery.error) {
+  if (requestsQuery.error || membershipsQuery.error || membersQuery.error) {
     return (
       <Screen withHeader>
         <ErrorState message={copy.common.error} />
@@ -180,6 +194,11 @@ export function RecoverLostPhoneScreen() {
   }
 
   const helperCount = helpersQuery.data?.length ?? 0;
+  const hasPaper = paperWords.trim().length > 0;
+  const canAttemptFinish = helperCount >= 2 || hasPaper;
+  const cancelledKind = cancelledNotice
+    ? cancelledCopyKind(cancelledNotice.cancelledBy, userId ?? '', cancellerIsAdmin)
+    : null;
 
   return (
     <Screen withHeader accessibilityLabel={copy.recovery.lostTitle}>
@@ -194,12 +213,14 @@ export function RecoverLostPhoneScreen() {
           onPress={() => void onStart()}
         />
       ) : null}
-      {cancelledNotice ? (
-        <Muted>
-          {cancelledCopyKind(cancelledNotice.cancelledBy, userId ?? '') === 'you'
-            ? copy.home.recoveryCancelledByYou
-            : copy.home.recoveryCancelledByAdmin}
-        </Muted>
+      {cancelledNotice && cancelledKind === 'you' ? (
+        <Muted>{copy.home.recoveryCancelledByYou}</Muted>
+      ) : null}
+      {cancelledNotice && cancelledKind === 'admin' ? (
+        <Muted>{copy.home.recoveryCancelledByAdmin}</Muted>
+      ) : null}
+      {cancelledNotice && cancelledKind === 'contact' ? (
+        <Muted>{copy.home.recoveryCancelledByContact}</Muted>
       ) : null}
       {mine && requestIsWaiting(mine) ? (
         <Muted testID="recovery-waiting-until">
@@ -227,10 +248,14 @@ export function RecoverLostPhoneScreen() {
           ) : (
             <Muted>{copy.recovery.lostPaperHint}</Muted>
           )}
+          {!canAttemptFinish ? (
+            <Muted testID="waiting-second-contact">{copy.recovery.lostWaitingSecondContact}</Muted>
+          ) : null}
           <Button
             label={copy.recovery.lostFinish}
             testID="finish-recovery"
             busy={busy}
+            disabled={!canAttemptFinish}
             onPress={() => void onFinish()}
           />
         </>

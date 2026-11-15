@@ -103,7 +103,9 @@ describe('lost-phone recovery reconstruct', () => {
 
   it('labels cancel as you or a family admin', () => {
     expect(cancelledCopyKind(USER, USER)).toBe('you');
-    expect(cancelledCopyKind('22222222-2222-2222-2222-222222222222', USER)).toBe('admin');
+    expect(cancelledCopyKind('22222222-2222-2222-2222-222222222222', USER, true)).toBe('admin');
+    expect(cancelledCopyKind('44444444-4444-4444-4444-444444444444', USER)).toBe('contact');
+    expect(cancelledCopyKind('44444444-4444-4444-4444-444444444444', USER, false)).toBe('contact');
   });
 
   it('refuses finish while waiting or after expiry', () => {

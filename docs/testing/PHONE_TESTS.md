@@ -124,7 +124,7 @@ Before (automated): seed lets in Test 2 and Test 3, then Test 1’s contacts acc
 6. On B, the first contact sees **{name} asked for help recovering their phone**, the confirm-in-person body, a **Started** date, **Help with recovery**, and **This wasn’t me**; they tap **Help with recovery**.
 7. On A, after both helpers have helped, finish with **no printed code** (when 2 of 2 have helped, the printed-code field shows you can leave it empty). Pass if **Remove your old phones** appears.
 8. Confirm remove when still on that screen; optional if finish already moved on — keys check is the pass.
-9. One helper is not enough: on A with only B’s Help recorded, pass if helper count is 1, the both-helped empty-paper hint is absent, and Finish without a second helper or paper fails. Then C Helps so step 7 can finish.
+9. One helper is not enough: on A with only B’s Help recorded, pass if helper count is 1, the both-helped empty-paper hint is absent, **Waiting for your second contact** shows, and **Finish recovery** is disabled (server still refuses a finish without two of three). Then C Helps so step 7 can finish.
 10. Pass if Family shows **Family keys: set up on this phone** on the recovered phone.
 Pass when the two-helper path restores keys with no printed code on screen or in the database.
 

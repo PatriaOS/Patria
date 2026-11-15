@@ -19,6 +19,11 @@ jest.mock('../../lib/family', () => ({
   fetchMemberships: jest.fn(async () => [
     { space: { id: 's1', name: 'The Riveras' }, role: 'family_admin' },
   ]),
+  fetchMembers: jest.fn(async () => [
+    { userId: 'u1', displayName: 'Elena', role: 'family_admin' },
+    { userId: 'u-admin', displayName: 'Marco', role: 'family_admin' },
+    { userId: 'u-contact', displayName: 'Rosa', role: 'elder' },
+  ]),
 }));
 
 jest.mock('../../lib/crypto/deviceIdentity', () => ({
@@ -36,8 +41,10 @@ jest.mock('../../lib/crypto/recoverFlow', () => ({
   },
   startLostPhoneRecovery: jest.fn(async () => 'r1'),
   finishLostPhoneRecovery: jest.fn(async () => undefined),
-  cancelledCopyKind: (cancelledBy: string, userId: string) =>
-    cancelledBy === userId ? 'you' : 'admin',
+  cancelledCopyKind: (cancelledBy: string, userId: string, cancellerIsAdmin = false) =>
+    cancelledBy === userId ? 'you' : cancellerIsAdmin ? 'admin' : 'contact',
+  memberRoleIsAdmin: (role: string | null | undefined) =>
+    role === 'family_admin' || role === 'co_admin',
   requestCanFinish: (request: { cancelledAt: string | null; completedAt: string | null; notBefore: string; expiresAt: string }) =>
     request.cancelledAt == null &&
     request.completedAt == null &&
@@ -109,6 +116,61 @@ describe('RecoverLostPhoneScreen', () => {
     await waitFor(() => {
       expect(startLostPhoneRecovery).toHaveBeenCalled();
     });
+  });
+
+  it('shows contact-stopped copy when an accepted contact cancelled', async () => {
+    const recoverFlow = jest.requireMock('../../lib/crypto/recoverFlow') as {
+      supabaseRecoverFlowGateway: { listRequests: jest.Mock };
+    };
+    recoverFlow.supabaseRecoverFlowGateway.listRequests.mockResolvedValueOnce([
+      {
+        id: 'r1',
+        spaceId: 's1',
+        userId: 'u1',
+        newDeviceId: 'd-new',
+        newDeviceCreatedAt: new Date(now).toISOString(),
+        startedAt: new Date(now).toISOString(),
+        notBefore: new Date(now + 1000).toISOString(),
+        expiresAt: new Date(now + 7 * 86400_000).toISOString(),
+        cancelledAt: new Date(now).toISOString(),
+        cancelledBy: 'u-contact',
+        completedAt: null,
+      },
+    ]);
+    const { findByText } = await renderScreen(<RecoverLostPhoneScreen />);
+    expect(await findByText(copy.home.recoveryCancelledByContact)).toBeTruthy();
+  });
+
+  it('disables Finish and shows waiting for second contact when only one helper helped', async () => {
+    const recoverFlow = jest.requireMock('../../lib/crypto/recoverFlow') as {
+      supabaseRecoverFlowGateway: { listRequests: jest.Mock; listHelpers: jest.Mock };
+    };
+    recoverFlow.supabaseRecoverFlowGateway.listRequests.mockResolvedValue([
+      {
+        id: 'r1',
+        spaceId: 's1',
+        userId: 'u1',
+        newDeviceId: 'd-new',
+        newDeviceCreatedAt: new Date(now - 49 * 3600_000).toISOString(),
+        startedAt: new Date(now - 49 * 3600_000).toISOString(),
+        notBefore: new Date(now - 1000).toISOString(),
+        expiresAt: new Date(now + 6 * 86400_000).toISOString(),
+        cancelledAt: null,
+        cancelledBy: null,
+        completedAt: null,
+      },
+    ]);
+    recoverFlow.supabaseRecoverFlowGateway.listHelpers.mockResolvedValue([
+      { slot: 'a', wrappedSecret: new Uint8Array(80) },
+    ]);
+    const { findByText, findByTestId, getByLabelText } = await renderScreen(
+      <RecoverLostPhoneScreen />,
+    );
+    expect(await findByTestId('waiting-second-contact')).toBeTruthy();
+    expect(await findByText(copy.recovery.lostWaitingSecondContact)).toBeTruthy();
+    // Pressable soft-disables (native disabled stays false); Finish must not run.
+    await fireEvent.press(getByLabelText(copy.recovery.lostFinish));
+    expect(finishLostPhoneRecovery).not.toHaveBeenCalled();
   });
 
   it('clears typed paper words when the mnemonic is wrong', async () => {

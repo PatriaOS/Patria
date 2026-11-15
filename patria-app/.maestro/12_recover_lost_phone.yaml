@@ -157,14 +157,9 @@ appId: app.patria.dev
           id: "recovery-helper-count"
       - assertNotVisible:
           id: "printed-code-both-helped"
-      - tapOn:
-          id: "finish-recovery"
-      # Local e2e surfaces allowlisted detail (unwrap failed); product copy otherwise.
-      - extendedWaitUntil:
-          visible: "unwrap failed|We couldn’t finish recovery|Not allowed"
-          timeout: 30000
       - assertVisible:
-          id: "finish-recovery"
+          id: "waiting-second-contact"
+      - assertVisible: "Waiting for your second contact"
       - assertNotVisible: "Remove your old phones"
 - runFlow:
     when:

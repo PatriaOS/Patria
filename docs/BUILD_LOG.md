@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-15 — CI api-test skip; contact-cancel copy; Finish waits for second helper
+
+`recoverFlow.api.test` threw when local Supabase was down, failing the CI app job (no Supabase there). Restored the same early `return` as other `*.api.test.ts` files — tests still run fully with local Supabase. Contact cancel copy is “One of your recovery contacts stopped this recovery.” (admin copy only when an admin cancelled). Recover this phone disables Finish and shows “Waiting for your second contact” with fewer than two helpers and no paper; server finish checks unchanged.
+
 ## 2026-11-14 — Recover after cancel offers Start; test 75 Your phones scroll
 
 After a contact cancels, Recover this phone fell back to the cancelled row as `mine`, showed “Cancelled by…”, and hid **Start recovery** — Maestro could not restart. Fix: only an open request is active; cancelled notice stays, Start returns. Unit test covers Start after cancel. Test 75 older_sign_in uses test 10’s family-name → Your phones + centerElement scroll (needs-attention card was skipping the row). One-helper Maestro assert accepts local e2e `unwrap failed` as well as product finish-failed copy.

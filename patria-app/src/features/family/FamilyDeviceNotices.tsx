@@ -18,6 +18,7 @@ import {
   approveRecoveryAsContact,
   cancelledCopyKind,
   cancelRecoveryRequest,
+  memberRoleIsAdmin,
   requestCanFinish,
   supabaseRecoverFlowGateway,
   type RecoveryRequestRow,
@@ -296,12 +297,21 @@ export function FamilyDeviceNotices() {
         const open = request.cancelledAt == null && request.completedAt == null;
         const own = request.userId === userId;
         if (own && request.cancelledAt) {
+          const kind = cancelledCopyKind(
+            request.cancelledBy,
+            userId,
+            memberRoleIsAdmin(
+              (membersQuery.data ?? []).find((row) => row.userId === request.cancelledBy)?.role,
+            ),
+          );
           return (
             <Card key={request.id}>
               <Title>
-                {cancelledCopyKind(request.cancelledBy, userId) === 'you'
+                {kind === 'you'
                   ? copy.home.recoveryCancelledByYou
-                  : copy.home.recoveryCancelledByAdmin}
+                  : kind === 'admin'
+                    ? copy.home.recoveryCancelledByAdmin
+                    : copy.home.recoveryCancelledByContact}
               </Title>
             </Card>
           );
