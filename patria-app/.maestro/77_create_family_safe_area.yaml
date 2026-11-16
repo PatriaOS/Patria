@@ -21,7 +21,7 @@ appId: app.patria.dev
 - assertVisible: "Family space name"
 - assertVisible: "Create our family"
 - assertVisible: "Back"
-- takeScreenshot: e2e-artifacts/77-create-family-safe-area
+- takeScreenshot: 77-create-family-safe-area
 - tapOn: "Back"
 - extendedWaitUntil:
     visible: "Create another family"

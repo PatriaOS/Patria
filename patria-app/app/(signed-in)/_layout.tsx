@@ -4,7 +4,6 @@ import { LoadingState, Screen } from '../../src/ui';
 import { useAuth } from '../../src/lib/auth-context';
 import { copy } from '../../src/lib/copy';
 import {
-  headerWhenPushed,
   hiddenRootHeader,
   pushedScreenHeader,
   screenTitles,

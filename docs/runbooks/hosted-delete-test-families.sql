@@ -1,18 +1,22 @@
 -- =============================================================================
 -- Hosted TEST DATA ONLY — delete two locked-out / leftover test families
 -- =============================================================================
--- Target names (confirm ids in section A before any delete):
+-- Target names (confirm ids in A before anything destructive):
 --   • "The Paul family"
 --   • "The Femi Family"
--- Keep auth users: femipaul7535+test1/2/3@gmail.com (do not delete auth.users).
+-- Keep auth users: femipaul7535+test1/2/3@gmail.com (never delete auth.users).
 --
--- DO NOT RUN AGAINST HOSTED until you have:
---   1) pasted the two UUIDs from A into the target CTE in B/C/D
---   2) reviewed B dry-run counts
---   3) deleted storage objects (E) — SQL does not remove Storage files
+-- Order (do not skip):
+--   A) List family_spaces → confirm the two UUIDs
+--   B) List EVERY storage bucket + count objects under those UUID prefixes
+--   C) Dry-run COUNT of database rows that will be deleted
+--   → Then delete storage FILES first (dashboard or
+--     docs/runbooks/hosted-delete-test-families-storage.sh — never commit keys)
+--   D) SQL transaction: database rows only (no storage.objects DELETE)
+--   E) Clean the three test users' leftover key rows (keep accounts)
 --
--- Scope: only those family_space ids (+ optional user-scoped key cleanup for the
--- three test emails in D). No other families. No other users.
+-- Do NOT DELETE FROM storage.objects — Supabase protects storage tables, and
+-- SQL would not remove the underlying files anyway.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -30,15 +34,57 @@ SELECT
 FROM public.family_spaces AS fs
 ORDER BY fs.created_at;
 
--- Optional: pin the two by name (still confirm ids before delete)
 SELECT id, name, created_at
 FROM public.family_spaces
 WHERE name IN ('The Paul family', 'The Femi Family')
 ORDER BY name;
 
 -- -----------------------------------------------------------------------------
--- B. Dry run — COUNTS only for the two target family_space_ids
--- Replace the two UUIDs below with the ids from A.
+-- B. Storage inventory — every bucket, objects under the two family_space_id
+-- prefixes (memories, vault/letter voice notes, and any other bucket).
+-- Replace the two UUIDs. SELECT only — no deletes.
+-- -----------------------------------------------------------------------------
+WITH target AS (
+  SELECT unnest(ARRAY[
+    '00000000-0000-0000-0000-000000000001'::uuid, -- The Paul family
+    '00000000-0000-0000-0000-000000000002'::uuid  -- The Femi Family
+  ]) AS id
+)
+SELECT
+  b.id AS bucket_id,
+  b.name AS bucket_name,
+  b.public AS is_public,
+  (
+    SELECT count(*)::bigint
+    FROM storage.objects AS o
+    WHERE o.bucket_id = b.id
+      AND EXISTS (
+        SELECT 1 FROM target AS t WHERE o.name LIKE t.id::text || '/%'
+      )
+  ) AS objects_under_target_prefixes
+FROM storage.buckets AS b
+ORDER BY b.id;
+
+-- Paths you will delete via Storage API / dashboard (export for the Mac script):
+WITH target AS (
+  SELECT unnest(ARRAY[
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000002'::uuid
+  ]) AS id
+)
+SELECT o.bucket_id, o.name
+FROM storage.objects AS o
+JOIN target AS t ON o.name LIKE t.id::text || '/%'
+ORDER BY o.bucket_id, o.name;
+
+-- >>> STOP: delete those files with hosted-delete-test-families-storage.sh
+-- >>> (or Dashboard: Storage → each bucket → folder named each UUID → Delete)
+-- >>> Re-run the bucket count query above until every objects_under_target_prefixes is 0.
+-- >>> Only then continue to C / D.
+
+-- -----------------------------------------------------------------------------
+-- C. Dry run — COUNTS of database rows for the two family_space_ids only
+-- Replace the two UUIDs. No deletes.
 -- -----------------------------------------------------------------------------
 WITH target AS (
   SELECT id
@@ -101,36 +147,13 @@ SELECT * FROM (
   UNION ALL SELECT 'sync_tasks', count(*) FROM public.sync_tasks WHERE family_space_id IN (SELECT id FROM target)
   UNION ALL SELECT 'sync_meeting_answers', count(*) FROM public.sync_meeting_answers a
     JOIN public.sync_meetings m ON m.id = a.meeting_id WHERE m.family_space_id IN (SELECT id FROM target)
-  -- Storage object rows (metadata). Files still need section E.
-  UNION ALL SELECT 'storage.objects (memories+vault paths)', count(*)
-  FROM storage.objects AS o
-  WHERE o.bucket_id IN ('memories', 'vault')
-    AND EXISTS (
-      SELECT 1 FROM target AS t WHERE o.name LIKE t.id::text || '/%'
-    )
 ) AS counts
 ORDER BY tbl;
 
--- Clearer storage breakdown (same two ids — replace placeholders):
-WITH target AS (
-  SELECT unnest(ARRAY[
-    '00000000-0000-0000-0000-000000000001'::uuid,
-    '00000000-0000-0000-0000-000000000002'::uuid
-  ]) AS id
-)
-SELECT o.bucket_id, count(*)::bigint AS object_rows,
-       coalesce(sum(o.metadata->>'size')::bigint, 0) AS size_hint
-FROM storage.objects AS o
-JOIN target AS t ON o.name LIKE t.id::text || '/%'
-WHERE o.bucket_id IN ('memories', 'vault')
-GROUP BY o.bucket_id
-ORDER BY o.bucket_id;
-
 -- -----------------------------------------------------------------------------
--- C. Delete transaction (SQL rows only). Replace the two UUIDs.
--- Most child tables are ON DELETE CASCADE from family_spaces; letter_* cascade
--- from letters. We still delete the two family_spaces rows explicitly.
--- Final check: other families' space_members counts unchanged.
+-- D. Delete transaction — database rows ONLY. Replace the two UUIDs.
+-- Requires storage files already gone (B counts at 0). No storage.objects writes.
+-- Guards: exactly two targets by id+name; other families' counts unchanged.
 -- -----------------------------------------------------------------------------
 BEGIN;
 
@@ -142,7 +165,6 @@ WHERE id IN (
   '00000000-0000-0000-0000-000000000002'::uuid  -- The Femi Family
 );
 
--- Safety: must be exactly those two names
 DO $$
 BEGIN
   IF (SELECT count(*) FROM _patria_delete_targets) <> 2 THEN
@@ -157,7 +179,24 @@ BEGIN
   END IF;
 END $$;
 
--- Snapshot other families (must match after delete)
+-- Refuse if storage objects still exist under these prefixes (any bucket)
+DO $$
+DECLARE
+  leftover bigint;
+BEGIN
+  SELECT count(*) INTO leftover
+  FROM storage.objects AS o
+  WHERE EXISTS (
+    SELECT 1 FROM _patria_delete_targets AS t
+    WHERE o.name LIKE t.id::text || '/%'
+  );
+  IF leftover <> 0 THEN
+    RAISE EXCEPTION
+      '% storage.objects row(s) still under target prefixes. Delete files via Storage API/dashboard first. Aborting.',
+      leftover;
+  END IF;
+END $$;
+
 CREATE TEMP TABLE _patria_other_family_counts ON COMMIT DROP AS
 SELECT
   fs.id,
@@ -169,19 +208,10 @@ SELECT
 FROM public.family_spaces AS fs
 WHERE fs.id NOT IN (SELECT id FROM _patria_delete_targets);
 
--- Optional: remove storage.objects metadata for those prefixes (files still need E)
-DELETE FROM storage.objects AS o
-WHERE o.bucket_id IN ('memories', 'vault')
-  AND EXISTS (
-    SELECT 1 FROM _patria_delete_targets AS t
-    WHERE o.name LIKE t.id::text || '/%'
-  );
-
 -- Cascades wipe members, keys, letters, memories, vault, sync, recovery, etc.
 DELETE FROM public.family_spaces
 WHERE id IN (SELECT id FROM _patria_delete_targets);
 
--- Final check: other families unchanged
 DO $$
 DECLARE
   drift int;
@@ -209,7 +239,6 @@ BEGIN
   END IF;
 END $$;
 
--- Inspect, then COMMIT; or ROLLBACK;
 SELECT 'targets gone' AS check,
        NOT EXISTS (
          SELECT 1 FROM public.family_spaces
@@ -221,8 +250,7 @@ SELECT * FROM _patria_other_family_counts ORDER BY name;
 -- ROLLBACK;
 
 -- -----------------------------------------------------------------------------
--- D. Clean the three test users only (after C). Keeps auth.users + profiles.
--- Clears device/personal/letterbox/recovery rows not tied to a remaining family.
+-- E. Clean the three test users only (after D committed). Keeps auth.users.
 -- -----------------------------------------------------------------------------
 WITH test_users AS (
   SELECT u.id, u.email
@@ -235,7 +263,6 @@ WITH test_users AS (
 )
 SELECT email, id FROM test_users ORDER BY email;
 
--- Dry-run counts for D (same three emails):
 WITH test_users AS (
   SELECT u.id
   FROM auth.users AS u
@@ -292,10 +319,8 @@ SELECT * FROM (
 ) AS d
 ORDER BY tbl;
 
--- Apply D (run after C committed). Still only the three emails.
 BEGIN;
 
--- Refuse if any of the three still belongs to a family (wrong ids / incomplete C).
 DO $$
 DECLARE
   left_over int;
@@ -309,7 +334,7 @@ BEGIN
     'femipaul7535+test3@gmail.com'
   );
   IF left_over <> 0 THEN
-    RAISE EXCEPTION 'Test users still have % membership(s). Finish C first. Aborting D.', left_over;
+    RAISE EXCEPTION 'Test users still have % membership(s). Finish D first. Aborting E.', left_over;
   END IF;
 END $$;
 
@@ -374,7 +399,6 @@ WHERE k.user_id IN (SELECT id FROM test_users)
     WHERE sm.user_id = k.user_id AND sm.family_space_id = k.family_space_id
   );
 
--- Secrets reference device_keys; clear orphaned rows for these users (any role).
 WITH test_users AS (
   SELECT u.id
   FROM auth.users AS u
@@ -453,7 +477,6 @@ WITH test_users AS (
 DELETE FROM public.memory_source_keys
 WHERE user_id IN (SELECT id FROM test_users);
 
--- Last: device_keys (referenced by wraps/secrets — those must be gone first)
 WITH test_users AS (
   SELECT u.id
   FROM auth.users AS u
@@ -466,7 +489,6 @@ WITH test_users AS (
 DELETE FROM public.device_keys
 WHERE user_id IN (SELECT id FROM test_users);
 
--- Confirm: three users have zero memberships (expected after wiping both test families)
 SELECT u.email, count(sm.*) AS remaining_memberships
 FROM auth.users AS u
 LEFT JOIN public.space_members AS sm ON sm.user_id = u.id
@@ -480,31 +502,3 @@ ORDER BY u.email;
 
 -- COMMIT;
 -- ROLLBACK;
-
--- -----------------------------------------------------------------------------
--- E. Storage files (SQL cannot reliably purge object bytes on hosted)
--- -----------------------------------------------------------------------------
--- Paths are `{family_space_id}/...` in buckets `memories` and `vault`.
---
--- Dashboard:
---   1. Supabase → Storage → bucket `memories`
---   2. Open folder named each deleted family UUID; delete the folder
---   3. Repeat for bucket `vault`
---
--- Or Management API / supabase-js as service role (run locally, not in SQL Editor):
---
---   // scripts sketch — DO NOT commit service role keys
---   import { createClient } from '@supabase/supabase-js'
---   const admin = createClient(HOSTED_URL, SERVICE_ROLE_KEY)
---   const spaceIds = ['uuid-paul', 'uuid-femi']
---   for (const bucket of ['memories', 'vault']) {
---     for (const spaceId of spaceIds) {
---       const { data: entries } = await admin.storage.from(bucket).list(spaceId, { limit: 1000 })
---       // recursively list/remove; or remove by paths collected from storage.objects before C
---     }
---   }
---
--- Before C, you can export paths:
---   SELECT bucket_id, name FROM storage.objects
---   WHERE bucket_id IN ('memories','vault')
---     AND (name LIKE '<paul-uuid>/%' OR name LIKE '<femi-uuid>/%');

@@ -9,7 +9,7 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ## 2026-11-15 — Create family clears the status bar
 
-Create family (and ready / your-name) always use a headerless `Screen` with explicit `paddingTop: insets.top`. `canGoBack` under the tabs stack used to set `withHeader` and skip the top inset while the in-screen title still sat at the top — clock/battery overlap. Pushed “Create another family” gets an in-screen **Back**. Verify matches `headerWhenPushed` to `withHeader`. Phone test 77 + Maestro. Backlog: in-app delete family / delete account (D4). Operator SQL for wiping two hosted test families (review only, not run): `docs/runbooks/hosted-delete-test-families.sql`.
+Create family (and ready / your-name) always use a headerless `Screen` with explicit `paddingTop: insets.top`. `canGoBack` under the tabs stack used to set `withHeader` and skip the top inset while the in-screen title still sat at the top — clock/battery overlap. Pushed “Create another family” gets an in-screen **Back**. Verify matches `headerWhenPushed` to `withHeader`. Phone test 77 + Maestro (screenshot bare name for e2e-check). Backlog: in-app delete family / delete account (D4). Hosted test-family wipe (review only): SQL inventory + DB delete in `docs/runbooks/hosted-delete-test-families.sql`; storage files via `hosted-delete-test-families-storage.sh` first (no `DELETE` on `storage.objects`).
 
 ## 2026-11-15 — Zod app dependency at 4.6.7 (GHSA-mrhx-c7xc-m3w5)
 
