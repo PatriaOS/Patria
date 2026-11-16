@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { testIdFromLabel } from '../lib/testId';
 import { spacing, textScale, type, useTheme } from '../theme';
 import { screenSafeEdges } from '../ui/screenEdges';
+import { topSafeInset } from '../ui/screenTopInset';
 
 export function AppText({ children, ...rest }: ComponentProps<typeof Text>) {
   return (
@@ -63,6 +64,7 @@ export function Screen({
 }: ScreenProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const paddingTop = withHeader ? 0 : topSafeInset(insets.top);
   const scroll = (
     <ScrollView
       contentContainerStyle={[styles.scroll, { backgroundColor: colors.background }]}
@@ -85,7 +87,7 @@ export function Screen({
         styles.safe,
         {
           backgroundColor: colors.background,
-          paddingTop: withHeader ? 0 : insets.top,
+          paddingTop,
         },
       ]}
       edges={screenSafeEdges({ withHeader, withTabBar })}
