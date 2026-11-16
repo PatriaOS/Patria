@@ -131,10 +131,12 @@ export function isRootWithoutBack(
   screen: 'welcome' | 'home' | 'create',
   canGoBack: boolean,
 ): boolean {
-  if (screen === 'welcome' || screen === 'home') {
+  void canGoBack;
+  // Create family always uses the in-screen title (no stack header), same as welcome/home.
+  if (screen === 'welcome' || screen === 'home' || screen === 'create') {
     return true;
   }
-  return !canGoBack;
+  return false;
 }
 
 export function inviteAcceptBackHref(): '/' {

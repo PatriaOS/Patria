@@ -1,0 +1,28 @@
+# PHONE_TESTS: 77
+# AREAS: navigation, auth
+appId: app.patria.dev
+---
+- runFlow:
+    file: subflows/sign_in.yaml
+- runFlow:
+    file: subflows/open_family.yaml
+- scrollUntilVisible:
+    element:
+      text: "Create another family"
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
+- tapOn: "Create another family"
+- extendedWaitUntil:
+    visible: "Every family has a story. Start yours."
+    timeout: 20000
+- assertVisible:
+    id: "screen-create-family"
+- assertVisible: "Family space name"
+- assertVisible: "Create our family"
+- assertVisible: "Back"
+- takeScreenshot: e2e-artifacts/77-create-family-safe-area
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "Create another family"
+    timeout: 15000

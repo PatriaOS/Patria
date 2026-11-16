@@ -1,14 +1,13 @@
-import { useNavigation, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { Body, Button, Muted, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 
 export function ReadyScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
 
   return (
-    <Screen accessibilityLabel={copy.ready.title} withHeader={navigation.canGoBack()}>
+    <Screen accessibilityLabel={copy.ready.title} withHeader={false}>
       <Title>{copy.ready.title}</Title>
       <Body>{copy.ready.created}</Body>
       <Muted>{copy.ready.createdDetail}</Muted>

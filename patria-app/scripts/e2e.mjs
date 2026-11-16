@@ -1915,6 +1915,17 @@ try {
       continue;
     }
 
+    if (test.number === 77) {
+      await step(77, 1, 'Create another family title and fields; Back returns', () => {
+        maestro({
+          flow: flow('77_create_family_safe_area.yaml'),
+          device: deviceA,
+          env: signInEnv(secrets, 1),
+        });
+      });
+      continue;
+    }
+
     if (test.number === 2) {
       await step(2, 1, 'Pull to refresh on Home', () => {
         maestro({

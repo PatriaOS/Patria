@@ -80,7 +80,14 @@ export function Screen({
 
   return (
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: colors.background }]}
+      style={[
+        styles.safe,
+        {
+          backgroundColor: colors.background,
+          // Stack header already clears the status bar; headerless screens must.
+          paddingTop: withHeader ? 0 : insets.top,
+        },
+      ]}
       edges={screenSafeEdges({ withHeader, withTabBar })}
       accessibilityLabel={accessibilityLabel}
       testID={testID}

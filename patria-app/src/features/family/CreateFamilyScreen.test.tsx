@@ -37,6 +37,15 @@ describe('CreateFamilyScreen', () => {
     (ensureKeysForOpenFamily as jest.Mock).mockClear();
   });
 
+  it('keeps the create title on a headerless screen (status-bar safe area)', async () => {
+    const { getByTestId, getByText, queryByText } = await renderScreen(<CreateFamilyScreen />);
+
+    expect(getByTestId('screen-create-family')).toBeTruthy();
+    expect(getByText(copy.createFamily.title)).toBeTruthy();
+    // Gate path: canGoBack is false in jest.setup — no stack Back control.
+    expect(queryByText(copy.common.back)).toBeNull();
+  });
+
   it('opens a pasted invite on the accept screen instead of creating a family', async () => {
     const { getByLabelText, getByText, getByTestId } = await renderScreen(<CreateFamilyScreen />);
 

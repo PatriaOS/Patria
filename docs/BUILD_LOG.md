@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-15 — Create family clears the status bar
+
+Create family (and ready / your-name) always use a headerless `Screen` with explicit `paddingTop: insets.top`. `canGoBack` under the tabs stack used to set `withHeader` and skip the top inset while the in-screen title still sat at the top — clock/battery overlap. Pushed “Create another family” gets an in-screen **Back**. Verify matches `headerWhenPushed` to `withHeader`. Phone test 77 + Maestro. Backlog: in-app delete family / delete account (D4). Operator SQL for wiping two hosted test families (review only, not run): `docs/runbooks/hosted-delete-test-families.sql`.
+
 ## 2026-11-15 — Zod app dependency at 4.6.7 (GHSA-mrhx-c7xc-m3w5)
 
 Direct `zod` is `^4.6.7` (resolved 4.6.7) so form validation uses the patched floor for oversized constrained collections. Unit test locks the resolved version and asserts `max()` returns one `too_big` on a huge array. Nested `zod@3.25.76` under `@expo/cli` stays — Expo pins `^3.25.76`; forcing v4 there would break the CLI. That copy is tooling-only, not in the app bundle. Dependabot may stay open until Expo upgrades.

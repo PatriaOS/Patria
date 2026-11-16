@@ -17,7 +17,7 @@ describe('navigation headers', () => {
     expect(isRootWithoutBack('welcome', true)).toBe(true);
     expect(isRootWithoutBack('home', true)).toBe(true);
     expect(isRootWithoutBack('create', false)).toBe(true);
-    expect(isRootWithoutBack('create', true)).toBe(false);
+    expect(isRootWithoutBack('create', true)).toBe(true);
   });
 
   it('shows a back header and swipe gesture on pushed screens', () => {

@@ -41,7 +41,9 @@ export function CreateFamilyScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const navigation = useNavigation();
-  const withHeader = navigation.canGoBack();
+  // Gate and "create another" both use the in-screen title; never skip the
+  // status-bar inset (canGoBack was true under tabs and hid the safe area).
+  const canGoBack = navigation.canGoBack();
   const [formError, setFormError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const { control, handleSubmit, formState } = useForm<FormValues>({
@@ -78,8 +80,15 @@ export function CreateFamilyScreen() {
     <Screen
       testID="screen-create-family"
       accessibilityLabel={copy.createFamily.title}
-      withHeader={withHeader}
+      withHeader={false}
     >
+      {canGoBack ? (
+        <Button
+          label={copy.common.back}
+          variant="secondary"
+          onPress={() => navigation.goBack()}
+        />
+      ) : null}
       <Title>{copy.createFamily.title}</Title>
       <Body>{copy.createFamily.subtitle}</Body>
       <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />

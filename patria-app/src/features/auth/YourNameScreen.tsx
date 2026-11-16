@@ -50,7 +50,14 @@ export function YourNameScreen() {
   });
 
   return (
-    <Screen withHeader={navigation.canGoBack()}>
+    <Screen withHeader={false}>
+      {navigation.canGoBack() ? (
+        <Button
+          label={copy.common.back}
+          variant="secondary"
+          onPress={() => navigation.goBack()}
+        />
+      ) : null}
       <Title>{copy.auth.nameLabel}</Title>
       <Controller
         control={control}
