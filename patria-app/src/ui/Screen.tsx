@@ -13,6 +13,7 @@ import { space } from '../theme/tokens';
 import { useTheme } from '../theme';
 import { screenSafeEdges } from './screenEdges';
 import { screenScrollPaddingBottom } from './screenScrollPadding';
+import { topSafeInset } from './screenTopInset';
 
 type ScrollViewRef = ComponentRef<typeof ScrollView>;
 
@@ -43,6 +44,7 @@ export function Screen({
 }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const paddingTop = withHeader ? 0 : topSafeInset(insets.top);
   // Extra scroll padding after the last line (SafeAreaView still owns the
   // bottom edge when there is no tab bar). Long trust pages were ending flush.
   const scrollPaddingBottom = screenScrollPaddingBottom({
@@ -80,7 +82,14 @@ export function Screen({
 
   return (
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: colors.background }]}
+      style={[
+        styles.safe,
+        {
+          backgroundColor: colors.background,
+          // Stack header already clears the status bar; headerless screens must.
+          paddingTop,
+        },
+      ]}
       edges={screenSafeEdges({ withHeader, withTabBar })}
       accessibilityLabel={accessibilityLabel}
       testID={testID}

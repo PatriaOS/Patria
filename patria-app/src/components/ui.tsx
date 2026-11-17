@@ -12,11 +12,12 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { testIdFromLabel } from '../lib/testId';
 import { spacing, textScale, type, useTheme } from '../theme';
 import { screenSafeEdges } from '../ui/screenEdges';
+import { topSafeInset } from '../ui/screenTopInset';
 
 export function AppText({ children, ...rest }: ComponentProps<typeof Text>) {
   return (
@@ -62,6 +63,8 @@ export function Screen({
   onRefresh,
 }: ScreenProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const paddingTop = withHeader ? 0 : topSafeInset(insets.top);
   const scroll = (
     <ScrollView
       contentContainerStyle={[styles.scroll, { backgroundColor: colors.background }]}
@@ -80,7 +83,13 @@ export function Screen({
 
   return (
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: colors.background }]}
+      style={[
+        styles.safe,
+        {
+          backgroundColor: colors.background,
+          paddingTop,
+        },
+      ]}
       edges={screenSafeEdges({ withHeader, withTabBar })}
       accessibilityLabel={accessibilityLabel}
       testID={testID}

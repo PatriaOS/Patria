@@ -4,7 +4,6 @@ import { LoadingState, Screen } from '../../src/ui';
 import { useAuth } from '../../src/lib/auth-context';
 import { copy } from '../../src/lib/copy';
 import {
-  headerWhenPushed,
   hiddenRootHeader,
   pushedScreenHeader,
   screenTitles,
@@ -38,19 +37,21 @@ export default function SignedInLayout() {
       <Stack.Screen name="(tabs)" options={{ ...hiddenRootHeader, title: screenTitles.home }} />
       <Stack.Screen
         name="create"
-        options={({ navigation }) => ({
-          ...headerWhenPushed(navigation.canGoBack()),
+        options={{
+          ...hiddenRootHeader,
           ...chrome,
+          // In-screen title + Back when pushed; never a stack header over the status bar.
           title: screenTitles.createFamily,
-        })}
+          gestureEnabled: true,
+        }}
       />
       <Stack.Screen
         name="ready"
-        options={({ navigation }) => ({
-          ...headerWhenPushed(navigation.canGoBack()),
+        options={{
+          ...hiddenRootHeader,
           ...chrome,
           title: screenTitles.ready,
-        })}
+        }}
       />
       <Stack.Screen
         name="invite-someone"
@@ -62,11 +63,12 @@ export default function SignedInLayout() {
       <Stack.Screen name="join-family" options={{ ...pushed, title: screenTitles.joinFamily }} />
       <Stack.Screen
         name="your-name"
-        options={({ navigation }) => ({
-          ...headerWhenPushed(navigation.canGoBack()),
+        options={{
+          ...hiddenRootHeader,
           ...chrome,
           title: screenTitles.yourName,
-        })}
+          gestureEnabled: true,
+        }}
       />
       <Stack.Screen name="your-phones" options={{ ...pushed, title: screenTitles.yourPhones }} />
       <Stack.Screen
