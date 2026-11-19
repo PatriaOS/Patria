@@ -11,8 +11,10 @@
 --   B) List EVERY storage bucket + count objects under those UUID prefixes
 --   C) Dry-run COUNT of database rows that will be deleted
 --   → Then delete storage FILES first (dashboard or
---     docs/runbooks/hosted-delete-test-families-storage.sh — never commit keys)
---   D) SQL transaction: database rows only (no storage.objects DELETE)
+--     patria-app/scripts/hosted-delete-test-families-storage.sh — never commit keys;
+--     zsh: read -rs "VAR?prompt "; bash: read -rs -p "prompt " VAR)
+--   D) Paste docs/runbooks/hosted-delete-test-families-step-d.sql (DB rows only;
+--      no storage.objects DELETE)
 --   E) Clean the three test users' leftover key rows (keep accounts)
 --
 -- Do NOT DELETE FROM storage.objects — Supabase protects storage tables, and
@@ -77,8 +79,10 @@ FROM storage.objects AS o
 JOIN target AS t ON o.name LIKE t.id::text || '/%'
 ORDER BY o.bucket_id, o.name;
 
--- >>> STOP: delete those files with hosted-delete-test-families-storage.sh
+-- >>> STOP: delete those files with
+-- >>>   patria-app/scripts/hosted-delete-test-families-storage.sh
 -- >>> (or Dashboard: Storage → each bucket → folder named each UUID → Delete)
+-- >>> zsh secrets: read -rs "VAR?prompt "   bash: read -rs -p "prompt " VAR
 -- >>> Re-run the bucket count query above until every objects_under_target_prefixes is 0.
 -- >>> Only then continue to C / D.
 
