@@ -1,0 +1,13 @@
+-- Local-only proof notes for step D (not for hosted).
+--
+-- Reproduced hosted failure:
+--   DELETE family_spaces with key-holder members + device_keys →
+--   on_key_holder_departure INSERT device_removed_notices → FK 23503.
+--
+-- Corrected step D (hosted-delete-test-families-step-d.sql) was proven locally by:
+--   1) Seeding The Paul family / The Femi Family / Control Keep Family with
+--      members, device_keys, family_key_wraps, recovery rows, a letter, a vault entry
+--      using the same UUIDs as hosted for the two wipe targets.
+--   2) Running step D to COMMIT.
+--   3) Asserting targets gone, no orphan members/wraps/letters/vault/recovery/
+--      device_removed_notices for those ids, Control Keep Family unchanged.
