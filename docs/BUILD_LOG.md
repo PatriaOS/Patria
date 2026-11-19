@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-18 — Hosted wipe step D survives key-holder departure trigger
+
+Naive `DELETE family_spaces` failed on hosted: cascade deleted members, `on_key_holder_departure` inserted `device_removed_notices` after the family row was gone (FK 23503). Corrected step D deletes dependent rows first, disables only `space_members_key_holder_departure` for the family delete, re-enables it, keeps all guards, and `COMMIT`s. Local proof seeded Paul/Femi/Control with members, devices, wraps, recovery, letter, vault. File: `docs/runbooks/hosted-delete-test-families-step-d.sql`.
+
 ## 2026-11-15 — Create family clears the status bar
 
 Create family (and ready / your-name) always use a headerless `Screen` with explicit `paddingTop: insets.top`. `canGoBack` under the tabs stack used to set `withHeader` and skip the top inset while the in-screen title still sat at the top — clock/battery overlap. Pushed “Create another family” gets an in-screen **Back**. Verify matches `headerWhenPushed` to `withHeader`. Phone test 77 + Maestro (screenshot bare name for e2e-check). Backlog: in-app delete family / delete account (D4). Hosted test-family wipe (review only): SQL inventory + DB delete in `docs/runbooks/hosted-delete-test-families.sql`; storage files via `hosted-delete-test-families-storage.sh` first (no `DELETE` on `storage.objects`).
