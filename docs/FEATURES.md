@@ -4,7 +4,7 @@ Every feature of the Patria app, with its flow, business rules, edge cases and a
 
 **Priority key:** P0 = required for MVP launch. P1 = required for the phase listed. P2 = planned, flexible.
 
-**Build order:** CIR05, CIR01, CIR02 (identity, keys, access) first; then MEM01, MEM02, MEM05, CIR03 (capture); then AI01; then MEM03, MEM04, LEG01 to LEG03, GOV01, GOV02. Phase 2 and 3 features follow.
+**Build order:** CIR05, CIR01, CIR02 (identity, keys, access) first; then MEM01 and early capture; LEG01–LEG02 (through B5), GOV01, the development build, MEM02–MEM05, CIR03, LEG03; then remaining Phase 1 items as listed. **Patria Brain (BRN02 slices 1–2) is MVP but last** (D47): Bedrock access is blocked; branches `brain-slice1` / `brain-slice2` stay parked; revisit Vertex or another provider with a privacy review before merging. Phase 2 and 3 features follow.
 
 ## System overview
 
@@ -1410,7 +1410,9 @@ flowchart LR
 
 ### BRN02 Auto Intake
 
-**Priority:** P1 | **Phase:** Phase 2 | **Users:** Parents | **Depends on:** Email and calendar connectors, BRN03
+**Priority:** P1 | **Phase:** Phase 2 (MVP last — D47) | **Users:** Parents | **Depends on:** Email and calendar connectors, BRN03
+
+**Status (D47):** Slices 1 and 2 are parked on `brain-slice1` / `brain-slice2`. Still MVP, but built after LEG02 B3–B5, GOV01, the development build, MEM02–MEM05, CIR03 and LEG03. Bedrock is blocked (business registration); provider choice (Vertex or others) is revisited then with a privacy review. No Bedrock code on `main`.
 
 **What it is.** With explicit consent, Patria reads school emails, sports schedules, appointment texts, bills and photographed flyers, and turns them into proposed events, reminders and tasks. A parent approves, edits or dismisses each proposal. Version 1.4 also adds quiet **email notifications** (one-line summaries of family-relevant mail such as school notices, appointments, bills and deadlines) and **Add to agenda** from any email item.
 

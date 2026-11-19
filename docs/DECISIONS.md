@@ -369,3 +369,9 @@ LEG02. Sealed letters are unreadable by anyone, including Patria, before release
 ### Crypto review
 
 Mark `letterSplit.ts`, `letterEnvelope.ts`, `letterReleaseKey.ts`, `letterbox.ts`, letter seal/open paths and the Edge KMS key-agreement code `SECURITY REVIEW REQUIRED`.
+
+## D47. Patria Brain is MVP, built last (19 November 2026)
+
+BRN02 slices 1 and 2 (parked on branches `brain-slice1` and `brain-slice2`) stay part of the MVP, but they are built **last**, after LEG02 B3–B5, GOV01, the development build, MEM02–MEM05, CIR03 and LEG03.
+
+Reason: AWS Bedrock access is blocked (AWS asks for a business registration). When Brain work resumes, revisit the provider (Google Vertex or others) and complete a privacy review before any switch (D38 still applies). Keep those Brain branches parked; do not merge Bedrock code to `main` until that review is done.
