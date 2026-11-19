@@ -170,6 +170,8 @@ ORDER BY tbl;
 
 -- -----------------------------------------------------------------------------
 -- E. Clean the three test users only (after D committed). Keeps auth.users.
+-- Transaction: BEGIN → guards (exactly 3 users; no leftover space_members) →
+-- deletes → COMMIT. Matches the version that ran on hosted 19 Nov 2026.
 -- -----------------------------------------------------------------------------
 WITH test_users AS (
   SELECT u.id, u.email
@@ -242,8 +244,20 @@ BEGIN;
 
 DO $$
 DECLARE
+  user_count int;
   left_over int;
 BEGIN
+  SELECT count(*) INTO user_count
+  FROM auth.users AS u
+  WHERE u.email IN (
+    'femipaul7535+test1@gmail.com',
+    'femipaul7535+test2@gmail.com',
+    'femipaul7535+test3@gmail.com'
+  );
+  IF user_count <> 3 THEN
+    RAISE EXCEPTION 'Expected exactly 3 target users; found %. Aborting E.', user_count;
+  END IF;
+
   SELECT count(*) INTO left_over
   FROM public.space_members AS sm
   JOIN auth.users AS u ON u.id = sm.user_id
@@ -419,5 +433,4 @@ WHERE u.email IN (
 GROUP BY u.email
 ORDER BY u.email;
 
--- COMMIT;
--- ROLLBACK;
+COMMIT;

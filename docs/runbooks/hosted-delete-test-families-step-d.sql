@@ -1,3 +1,4 @@
+-- These two UUIDs are the families wiped on hosted on 19 Nov 2026 — replace them before any future run (the id+name guard will abort otherwise).
 -- =============================================================================
 -- Step D — delete the two hosted test families (database rows only)
 -- =============================================================================
