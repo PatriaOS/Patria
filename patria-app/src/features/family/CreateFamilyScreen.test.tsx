@@ -9,9 +9,20 @@ import { CreateFamilyScreen } from './CreateFamilyScreen';
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
-    rpc: jest.fn(),
+    rpc: jest.fn(async (name: string) => {
+      if (name === 'list_invites_for_me') {
+        return { data: [], error: null };
+      }
+      return { data: null, error: null };
+    }),
     auth: { signOut: jest.fn(async () => ({ error: null })) },
   },
+}));
+
+jest.mock('../invites/invitesForMeApi', () => ({
+  listInvitesForMe: jest.fn(async () => []),
+  inviteTokenForMe: jest.fn(async () => null),
+  declineInviteForMe: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../lib/auth-context', () => ({

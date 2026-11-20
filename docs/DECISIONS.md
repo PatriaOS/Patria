@@ -375,3 +375,11 @@ Mark `letterSplit.ts`, `letterEnvelope.ts`, `letterReleaseKey.ts`, `letterbox.ts
 BRN02 slices 1 and 2 (parked on branches `brain-slice1` and `brain-slice2`) stay part of the MVP, but they are built **last**, after LEG02 B3–B5, GOV01, the development build, MEM02–MEM05, CIR03 and LEG03.
 
 Reason: AWS Bedrock access is blocked (AWS asks for a business registration). When Brain work resumes, revisit the provider (Google Vertex or others) and complete a privacy review before any switch (D38 still applies). Keep those Brain branches parked; do not merge Bedrock code to `main` until that review is done.
+
+## D48. Family discovery is invite-only (20 November 2026)
+
+People join a family only through an invite addressed to their verified email (share link or in-app “Invites for you”). There is **no family search** and **no join requests**. Family data is private by default; strangers must not find or petition a space.
+
+“Invites for you” is served by SECURITY DEFINER RPCs that match `lower(trim(invites.email))` to `lower(trim(auth.users.email))` for `auth.uid()` with `email_confirmed_at` set (not the JWT email claim, so a stale token cannot match an old address). The list RPC returns display fields only — never the token.
+
+Invite tokens stay **plaintext** in `invites.token` and are readable by family admins (so “Share again” can reuse the link). Hashing tokens at rest is a later hardening item. Complements D12, D16 and D18.

@@ -1,0 +1,62 @@
+# PHONE_TESTS: 79
+# AREAS: invites
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'create'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "invite-someone"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "invite-someone"
+      - tapOn:
+          id: "their-email"
+      - eraseText: 80
+      - inputText: ${INVITE_EMAIL}
+      - hideKeyboard
+      - tapOn:
+          id: "role-teen"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "create-invite"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "create-invite"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element: "Waiting to join"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible: "Waiting to join"
+      - scrollUntilVisible:
+          element:
+            id: "share-again"
+          direction: DOWN
+          timeout: 15000
+      - assertVisible:
+          id: "share-again"
+      - assertVisible:
+          id: "send-by-email"
+      - assertVisible: "Opens Mail with a draft — you still need to press Send."
+      - takeScreenshot: 79-waiting-to-join-share-again
+- runFlow:
+    when:
+      true: ${PHASE == 'share_again'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "share-again"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "share-again"

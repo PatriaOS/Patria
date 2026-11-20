@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Body, Screen, Title } from '../../ui';
 import { copy } from '../../lib/copy';
 import { routes } from '../../lib/navigation';
+import { InvitesForYou } from '../invites/InvitesForYou';
 import { PasteInviteField } from '../invites/PasteInviteField';
 
 export function JoinFamilyScreen() {
@@ -12,6 +13,7 @@ export function JoinFamilyScreen() {
     <Screen accessibilityLabel={copy.home.joinFamily} withHeader>
       <Title>{copy.home.joinFamily}</Title>
       <Body>{copy.home.joinFamilyBody}</Body>
+      <InvitesForYou />
       <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />
     </Screen>
   );

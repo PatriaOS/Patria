@@ -7,6 +7,10 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ---
 
+## 2026-11-20 — Invites for you + Share again (D48)
+
+Signed-in people see pending, unexpired invites for their verified `auth.users` email on Create family (above the create title when any exist) and Join. Accept uses the existing preview path via `invite_token_for_me`; Decline uses `decline_invite_for_me`. List RPC never returns the token. Waiting to join cards get Share again / Send by email (reuse plaintext token; hashing later). Mail copy notes you must press Send. Discovery is invite-only — no search or join requests (D48).
+
 ## 2026-11-19 — Brain last (D47); wipe runbook housekeeping
 
 D47: BRN02 slices 1–2 stay MVP but build last (after LEG02 B3–B5, GOV01, development build, MEM02–MEM05, CIR03, LEG03); Bedrock blocked; `brain-slice1` / `brain-slice2` parked. Hosted wipe step D (ran on hosted 19 Nov) lives in `hosted-delete-test-families-step-d.sql`; main runbook points there. Storage wipe scripts moved to `patria-app/scripts/` so Node resolves `@supabase/supabase-js`; zsh secret prompt documented as `read -rs "VAR?prompt "`.

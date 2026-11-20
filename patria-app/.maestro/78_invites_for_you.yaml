@@ -1,0 +1,83 @@
+# PHONE_TESTS: 78
+# AREAS: invites, auth, membership
+appId: app.patria.dev
+---
+- runFlow:
+    when:
+      true: ${PHASE == 'create'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - runFlow:
+          file: subflows/open_family.yaml
+      - scrollUntilVisible:
+          element:
+            id: "invite-someone"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "invite-someone"
+      - tapOn:
+          id: "their-email"
+      - eraseText: 80
+      - inputText: ${INVITE_EMAIL}
+      - hideKeyboard
+      - tapOn:
+          id: "role-elder"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: "create-invite"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "create-invite"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element: "Invite is ready. Share the link, or send by email (opens Mail — press Send)."
+          direction: DOWN
+          timeout: 20000
+      - assertVisible: "Invite is ready. Share the link, or send by email (opens Mail — press Send)."
+      - scrollUntilVisible:
+          element: "Waiting to join"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible: "Waiting to join"
+- runFlow:
+    when:
+      true: ${PHASE == 'accept_inbox'}
+    commands:
+      - runFlow:
+          file: subflows/sign_in.yaml
+      - extendedWaitUntil:
+          visible:
+            id: "screen-create-family"
+          timeout: 20000
+      - scrollUntilVisible:
+          element:
+            id: "invites-for-you"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "invites-for-you"
+      - assertVisible: "Every family has a story. Start yours."
+      - takeScreenshot: 78-invites-for-you-create-family
+      - scrollUntilVisible:
+          element:
+            id: "accept"
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: "accept"
+      - extendedWaitUntil:
+          visible: "You are invited"
+          timeout: 20000
+      - assertVisible: "You are invited"
+      - tapOn:
+          id: "accept"
+      - extendedWaitUntil:
+          visible:
+            id: "home"
+          timeout: 45000
+      - assertVisible:
+          id: "home-family-name"
