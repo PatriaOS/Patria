@@ -38,7 +38,7 @@ Areas: invites, auth, membership
 1. As Test 1, open the **Family** tab, tap **Invite someone**, enter Test 2's email, choose **Elder**, and send.
 2. In the share sheet, tap **Copy**. (manual)
 3. Sign out, then sign in as Test 2. A new person with no family lands on **Create family**.
-4. Use **Were you invited to a family? Paste your invite link**: paste, then **Open**.
+4. On **Create family**, pass if **Invites for you** appears above the create title; tap **Accept** (paste link remains available below for other paths).
 5. Pass if you see the family name, your role, and what others can see about you, before accepting.
 6. Tap **Accept**. Pass if you land on Home and see the family and its members.
 
@@ -557,3 +557,15 @@ Areas: keys
 ### 77. Create family title clears the status bar
 Areas: navigation, auth
 1. As Test 1 on Home, open **Family**, tap **Create another family**. Pass if **Every family has a story. Start yours.** is fully below the clock/battery (not under the status bar), **Family space name** and **Create our family** are visible, and **Back** returns to Family. **(manual)** for the status-bar clearance; Maestro asserts the title and fields.
+
+### 78. Invites for you
+Areas: invites, auth, membership
+1. As Test 1, invite Test 3's email (person with no family) as **Elder** and leave the invite pending (no need to copy the link).
+2. Sign out, sign in as Test 3. Pass if **Create family** shows **Invites for you** **above** **Every family has a story. Start yours.**, with the family name, inviter, role, expiry, **Accept** and **Decline**.
+3. Tap **Accept**. Pass if you see the invite preview (role and what others can see), then after Accept you land on Home. Let-in still required for keys as usual.
+
+### 79. Share again on Waiting to join
+Areas: invites
+1. As Test 1, open **Invite someone** with at least one pending invite under **Waiting to join**.
+2. Pass if that card shows **Share again** and **Send by email**, and the Mail note appears once under the main **Send by email** (not on each Waiting card): **Send by email opens Mail with a draft. Press Send to deliver it.**
+3. Tap **Share again**. Pass if the share sheet opens with the invite link (same link as create; token reused). **(manual)** for confirming the sheet content.

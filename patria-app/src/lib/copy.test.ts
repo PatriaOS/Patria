@@ -20,6 +20,16 @@ describe('copy', () => {
     expect(copy.createFamily.failed.length).toBeGreaterThan(0);
     expect(copy.home.joinFamily).toBe('Join another family');
     expect(copy.home.createAnotherFamily).toBe('Create another family');
+    expect(copy.invite.forYouTitle).toBe('Invites for you');
+    expect(copy.invite.shareAgain).toBe('Share again');
+    expect(copy.invite.sendEmailHint).toBe(
+      'Send by email opens Mail with a draft. Press Send to deliver it.',
+    );
+    expect(copy.invite.created).toBe(
+      'Invite is ready. Share the link, send it by email, or both.',
+    );
+    expect(copy.invite.sendEmailHint.includes('—')).toBe(false);
+    expect(copy.invite.created.includes('—')).toBe(false);
     expect(copy.member.leave).toBe('Leave family');
     expect(copy.member.leaveConfirm).toMatch(/recovery contact/i);
     expect(copy.member.leaveConfirm).toMatch(/Only me entries/);

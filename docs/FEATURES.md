@@ -143,6 +143,8 @@ flowchart TD
 * [ ] A new parent reaches the home view with at least one Story or memory in under 10 minutes on a library of 1,000 or more photos.
 * [ ] An elder added by phone number receives a welcome SMS within 1 minute and can reply to post.
 * [ ] Every invited member sees a "what others can see about you" summary before accepting.
+* [x] Signed-in people see pending invites for their verified email (“Invites for you”) on Create family and Join, with Accept (existing preview / let-in) and Decline — discovery is invite-only (D48); no family search or join requests.
+* [x] Admins can Share again / Send by email on Waiting to join without revoking and recreating.
 * [ ] Family keys are created on the device; the server never receives an unencrypted family key.
 * [ ] No phone gets the family key without a person approving it.
 * [ ] Recovery cannot finish before the server wait, after cancel or expiry, or with fewer than two helpers.

@@ -49,14 +49,24 @@ appId: app.patria.dev
       - runFlow:
           file: subflows/sign_in.yaml
       - extendedWaitUntil:
-          visible: "Create our family"
+          visible:
+            id: "screen-create-family"
           timeout: 20000
+      # Matching email → Invites for you (D48). Paste path remains on Join / Welcome.
+      - scrollUntilVisible:
+          element:
+            id: "invites-for-you"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "invites-for-you"
+      - scrollUntilVisible:
+          element:
+            id: "accept"
+          direction: DOWN
+          timeout: 10000
       - tapOn:
-          id: "invite-link"
-      - eraseText
-      - inputText: ${INVITE_URL}
-      - tapOn:
-          id: "open"
+          id: "accept"
       - assertVisible: "You are invited"
       - tapOn:
           id: "accept"

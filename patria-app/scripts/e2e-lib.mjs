@@ -912,7 +912,11 @@ export function mapFileToAreas(file) {
   if (/01_back_navigation|02_pull_to_refresh|07_large_text/.test(n)) {
     areas.add('navigation');
   }
-  if (/patria-app\/src\/features\/invites|inviteUrl|InviteScreen|InvitePreview/.test(n)) {
+  if (
+    /patria-app\/src\/features\/invites|inviteUrl|InviteScreen|InvitePreview|InvitesForYou|invitesForMe/.test(
+      n,
+    )
+  ) {
     areas.add('invites');
   }
   if (/AddChild|ChildProfile|child_profiles|06_add_a_child/.test(n)) {

@@ -25,6 +25,7 @@ import { routes } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { testIdFromLabel } from '../../lib/testId';
 import { space } from '../../theme/tokens';
+import { InvitesForYou } from '../invites/InvitesForYou';
 import { PasteInviteField } from '../invites/PasteInviteField';
 import { defaultTimezone } from '../sync/syncLabels';
 
@@ -89,6 +90,7 @@ export function CreateFamilyScreen() {
           onPress={() => navigation.goBack()}
         />
       ) : null}
+      <InvitesForYou hideWhenEmpty />
       <Title>{copy.createFamily.title}</Title>
       <Body>{copy.createFamily.subtitle}</Body>
       <PasteInviteField onOpen={(token) => router.push(routes.inviteAccept(token))} />

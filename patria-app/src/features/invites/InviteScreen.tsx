@@ -107,15 +107,8 @@ export function InviteScreen() {
     void pendingQuery.refetch();
   });
 
-  const loadShareToken = async (): Promise<string | null> => {
-    if (!createdInviteId) {
-      return null;
-    }
-    return fetchInviteShareToken(createdInviteId);
-  };
-
-  const share = async () => {
-    const token = await loadShareToken();
+  const shareInvite = async (inviteId: string) => {
+    const token = await fetchInviteShareToken(inviteId);
     if (!token) {
       setFormError(copy.common.error);
       return;
@@ -123,8 +116,8 @@ export function InviteScreen() {
     await Share.share({ message: inviteUrlFromToken(token) });
   };
 
-  const sendEmail = async () => {
-    const token = await loadShareToken();
+  const emailInvite = async (inviteId: string, email: string) => {
+    const token = await fetchInviteShareToken(inviteId);
     if (!token) {
       setFormError(copy.common.error);
       return;
@@ -137,7 +130,7 @@ export function InviteScreen() {
       .replace('{family}', copy.appName)
       .replace('{link}', link);
     await Linking.openURL(
-      `mailto:${createdEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
     );
   };
 
@@ -219,19 +212,23 @@ export function InviteScreen() {
       {createdInviteId ? (
         <>
           <Body>{copy.invite.created}</Body>
-          <Button label={copy.invite.shareLink} onPress={() => void share()} />
+          <Button
+            label={copy.invite.shareLink}
+            onPress={() => void shareInvite(createdInviteId)}
+          />
           <Button
             label={copy.invite.sendEmail}
             variant="secondary"
-            onPress={() => void sendEmail()}
+            onPress={() => void emailInvite(createdInviteId, createdEmail)}
           />
+          <Muted>{copy.invite.sendEmailHint}</Muted>
         </>
       ) : null}
       <Muted>{copy.invite.smsLater}</Muted>
       <Body>{copy.invite.pendingTitle}</Body>
       {pendingQuery.data?.length ? (
         pendingQuery.data.map((invite) => (
-          <Card key={invite.id}>
+          <Card key={invite.id} testID={`waiting-invite-${invite.id}`}>
             <Body>{invite.email}</Body>
             <Muted>
               {copy.roles[invite.role]} ·{' '}
@@ -240,6 +237,15 @@ export function InviteScreen() {
                 new Date(invite.expiresAt).toLocaleDateString(),
               )}
             </Muted>
+            <Button
+              label={copy.invite.shareAgain}
+              onPress={() => void shareInvite(invite.id)}
+            />
+            <Button
+              label={copy.invite.sendEmailAgain}
+              variant="secondary"
+              onPress={() => void emailInvite(invite.id, invite.email)}
+            />
             <Button
               label={copy.invite.revoke}
               variant="danger"

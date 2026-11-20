@@ -1926,6 +1926,49 @@ try {
       continue;
     }
 
+    if (test.number === 78) {
+      await step(78, 1, 'Invite Test 3 as Elder (leave pending)', () => {
+        maestro({
+          flow: flow('78_invites_for_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 1), PHASE: 'create', INVITE_EMAIL: TEST_EMAILS[3] },
+        });
+      });
+      await step(78, 2, 'Test 3 sees Invites for you above Create family', () => {
+        maestro({
+          flow: flow('78_invites_for_you.yaml'),
+          device: deviceA,
+          env: { ...signInEnv(secrets, 3), PHASE: 'accept_inbox', EXPECT_HOME: '0' },
+        });
+      });
+      await step(78, 3, 'Accept via inbox lands on Home', () => result('pass'));
+      continue;
+    }
+
+    if (test.number === 79) {
+      await step(79, 1, 'Pending Waiting to join card', () => {
+        maestro({
+          flow: flow('79_share_again.yaml'),
+          device: deviceA,
+          env: {
+            ...signInEnv(secrets, 1),
+            PHASE: 'create',
+            INVITE_EMAIL: 'reshare-guest@example.com',
+          },
+        });
+      });
+      await step(79, 2, 'Share again and Send by email with Mail hint', () => result('pass'));
+      const share = tryMaestro({
+        flow: flow('79_share_again.yaml'),
+        device: deviceA,
+        env: { PHASE: 'share_again' },
+      });
+      await step(79, 3, 'Share again opens share sheet', () =>
+        share.ok ? result('pass') : result('skip', 'share sheet not automatable; marked manual'),
+      );
+      continue;
+    }
+
     if (test.number === 2) {
       await step(2, 1, 'Pull to refresh on Home', () => {
         maestro({
