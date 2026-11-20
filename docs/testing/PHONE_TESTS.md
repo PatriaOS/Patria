@@ -567,5 +567,5 @@ Areas: invites, auth, membership
 ### 79. Share again on Waiting to join
 Areas: invites
 1. As Test 1, open **Invite someone** with at least one pending invite under **Waiting to join**.
-2. Pass if that card shows **Share again** and **Send by email**, plus the Mail hint that you still need to press Send.
-3. Tap **Share again**. Pass if the share sheet opens with the invite link (same link as create — token reused). **(manual)** for confirming the sheet content.
+2. Pass if that card shows **Share again** and **Send by email**, and the Mail note appears once under the main **Send by email** (not on each Waiting card): **Send by email opens Mail with a draft. Press Send to deliver it.**
+3. Tap **Share again**. Pass if the share sheet opens with the invite link (same link as create; token reused). **(manual)** for confirming the sheet content.

@@ -34,10 +34,10 @@ appId: app.patria.dev
           id: "create-invite"
       - hideKeyboard
       - scrollUntilVisible:
-          element: "Invite is ready. Share the link, or send by email (opens Mail — press Send)."
+          element: "Invite is ready. Share the link, send it by email, or both."
           direction: DOWN
           timeout: 20000
-      - assertVisible: "Invite is ready. Share the link, or send by email (opens Mail — press Send)."
+      - assertVisible: "Invite is ready. Share the link, send it by email, or both."
 - runFlow:
     when:
       true: ${PHASE == 'share_copy'}

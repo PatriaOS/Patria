@@ -212,7 +212,6 @@ export function InviteScreen() {
       {createdInviteId ? (
         <>
           <Body>{copy.invite.created}</Body>
-          <Muted>{copy.invite.sendEmailHint}</Muted>
           <Button
             label={copy.invite.shareLink}
             onPress={() => void shareInvite(createdInviteId)}
@@ -222,6 +221,7 @@ export function InviteScreen() {
             variant="secondary"
             onPress={() => void emailInvite(createdInviteId, createdEmail)}
           />
+          <Muted>{copy.invite.sendEmailHint}</Muted>
         </>
       ) : null}
       <Muted>{copy.invite.smsLater}</Muted>
@@ -237,7 +237,6 @@ export function InviteScreen() {
                 new Date(invite.expiresAt).toLocaleDateString(),
               )}
             </Muted>
-            <Muted>{copy.invite.sendEmailHint}</Muted>
             <Button
               label={copy.invite.shareAgain}
               onPress={() => void shareInvite(invite.id)}

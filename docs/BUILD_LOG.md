@@ -9,7 +9,7 @@ How to add an entry: newest at the top, date, slice or topic, what changed, opti
 
 ## 2026-11-20 — Invites for you + Share again (D48)
 
-Signed-in people see pending, unexpired invites for their verified `auth.users` email on Create family (above the create title when any exist) and Join. Accept uses the existing preview path via `invite_token_for_me`; Decline uses `decline_invite_for_me`. List RPC never returns the token. Waiting to join cards get Share again / Send by email (reuse plaintext token; hashing later). Mail copy notes you must press Send. Discovery is invite-only — no search or join requests (D48).
+Signed-in people see pending, unexpired invites for their verified `auth.users` email on Create family (above the create title when any exist) and Join. Accept uses the existing preview path via `invite_token_for_me`; Decline uses `decline_invite_for_me`. List RPC never returns the token. Waiting to join cards get Share again / Send by email (reuse plaintext token; hashing later). One Mail note under the main Send by email button (not repeated on Waiting cards). Discovery is invite-only — no search or join requests (D48).
 
 ## 2026-11-19 — Brain last (D47); wipe runbook housekeeping
 

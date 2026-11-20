@@ -64,12 +64,14 @@ describe('InviteScreen', () => {
     jest.restoreAllMocks();
   });
 
-  it('shares again from a Waiting to join card', async () => {
-    const { getByText } = await renderScreen(<InviteScreen />);
+  it('shares again from a Waiting to join card without repeating the Mail note', async () => {
+    const { getByText, queryAllByText } = await renderScreen(<InviteScreen />);
     await waitFor(() => {
       expect(getByText(copy.invite.pendingTitle)).toBeTruthy();
       expect(getByText('guest@example.com')).toBeTruthy();
     });
+    // Hint only appears after Create invite (under the main Send by email).
+    expect(queryAllByText(copy.invite.sendEmailHint)).toHaveLength(0);
 
     fireEvent.press(getByText(copy.invite.shareAgain));
     await waitFor(() => {
